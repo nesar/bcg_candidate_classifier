@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-BCG Candidate Classifier - Full Run Demo
+BCG Candidate Classifier - Enhanced Full Run Demo
 
-This script demonstrates the complete workflow for training and testing 
-candidate-based BCG classifiers on astronomical images.
+This script demonstrates the complete workflow with new features:
+- Multi-scale candidate detection for flexible object sizes
+- Uncertainty quantification with probabilistic outputs
+- Calibrated probability thresholds for detection
 
 Features:
 - Candidate-based classification approach (no coordinate regression)
-- Feature extraction from bright spots (local maxima)
-- Neural network ranking/classification of candidates
+- Multi-scale feature extraction from bright spots
+- Probabilistic neural network with uncertainty quantification
 - Comprehensive evaluation and visualization
 """
 
@@ -39,9 +41,9 @@ def run_command(command, description):
 
 
 def main():
-    """Main function demonstrating the complete candidate-based BCG workflow."""
+    """Main function demonstrating the enhanced BCG workflow."""
     print("="*80)
-    print("BCG CANDIDATE CLASSIFIER - FULL WORKFLOW DEMONSTRATION")
+    print("ENHANCED BCG CANDIDATE CLASSIFIER - FULL WORKFLOW DEMONSTRATION")
     print("="*80)
     
     # Dataset selection
@@ -78,8 +80,76 @@ def main():
             print("Please update the data paths and run again.")
             return
     
-    # Candidate detection parameters
-    print("\nCandidate Detection Parameters:")
+    # NEW FEATURE 1: Multi-scale inference option
+    print("\n" + "="*60)
+    print("MULTI-SCALE CANDIDATE DETECTION")
+    print("="*60)
+    print("Multi-scale detection finds candidates at different sizes to capture")
+    print("both compact and extended bright objects. This helps with large galaxies")
+    print("that might span multiple traditional candidate regions.")
+    print()
+    print("Benefits:")
+    print("- Captures objects of different physical sizes")
+    print("- Better handles extended/merged sources")
+    print("- Adaptive patch sizes for feature extraction")
+    
+    use_multiscale = input("\nEnable multi-scale inference? (Y/n): ").strip().lower()
+    use_multiscale = use_multiscale not in ['n', 'no']
+    
+    # Multi-scale parameters
+    if use_multiscale:
+        print("\nMulti-scale parameters:")
+        modify_multiscale = input("Modify multi-scale parameters? (y/N): ").strip().lower()
+        
+        if modify_multiscale in ['y', 'yes']:
+            scales_input = input("Scale factors [0.5,1.0,1.5] (comma-separated): ").strip()
+            if scales_input:
+                scales = [float(s.strip()) for s in scales_input.split(',')]
+            else:
+                scales = [0.5, 1.0, 1.5]
+            
+            max_per_scale = int(input("Max candidates per scale (default 10): ") or "10")
+        else:
+            scales = [0.5, 1.0, 1.5]
+            max_per_scale = 10
+        
+        print(f"Using scales: {scales}, max per scale: {max_per_scale}")
+    else:
+        scales = [1.0]  # Single scale
+        max_per_scale = 25
+    
+    # NEW FEATURE 2: Uncertainty Quantification option
+    print("\n" + "="*60)
+    print("UNCERTAINTY QUANTIFICATION")
+    print("="*60)
+    print("Uncertainty quantification provides calibrated probabilities for each")
+    print("candidate being a BCG, along with confidence estimates. This enables:")
+    print()
+    print("Benefits:")
+    print("- Calibrated probabilities (0-1 scale) for each candidate")
+    print("- Detection threshold for confident predictions")
+    print("- Uncertainty estimates for risk assessment")
+    print("- Better handling of ambiguous cases")
+    
+    use_uq = input("\nEnable uncertainty quantification? (Y/n): ").strip().lower()
+    use_uq = use_uq not in ['n', 'no']
+    
+    # UQ parameters
+    detection_threshold = 0.5
+    if use_uq:
+        print("\nUncertainty quantification parameters:")
+        modify_uq = input("Modify UQ parameters? (y/N): ").strip().lower()
+        
+        if modify_uq in ['y', 'yes']:
+            detection_threshold = float(input("Detection threshold (0.0-1.0, default 0.5): ") or "0.5")
+            detection_threshold = max(0.0, min(1.0, detection_threshold))
+        
+        print(f"Using detection threshold: {detection_threshold}")
+    
+    # Traditional candidate detection parameters
+    print("\n" + "="*60)
+    print("CANDIDATE DETECTION PARAMETERS")
+    print("="*60)
     print("These parameters control how bright spots (candidates) are found in images")
     print("Current defaults work well for most astronomical images")
     
@@ -90,16 +160,21 @@ def main():
         min_distance = int(input("Minimum distance between candidates (default 15): ") or "15")
         threshold_rel = float(input("Relative brightness threshold (default 0.12): ") or "0.12")
         exclude_border = int(input("Exclude border pixels (default 30): ") or "30")
-        max_candidates = int(input("Maximum candidates per image (default 25): ") or "25")
+        if not use_multiscale:
+            max_candidates = int(input("Maximum candidates per image (default 25): ") or "25")
+        else:
+            max_candidates = max_per_scale  # Use multiscale parameter
     else:
         min_distance = 15
         threshold_rel = 0.12
         exclude_border = 30
-        max_candidates = 25
+        max_candidates = max_per_scale if use_multiscale else 25
         print(f"Using default parameters: min_distance={min_distance}, threshold_rel={threshold_rel}")
     
     # Training parameters
-    print("\nTraining Parameters:")
+    print("\n" + "="*60)
+    print("TRAINING PARAMETERS")
+    print("="*60)
     modify_training = input("Modify training parameters? (y/N): ").strip().lower()
     
     if modify_training in ['y', 'yes']:
@@ -114,7 +189,13 @@ def main():
     
     # Output directory setup
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = f"./trained_models/candidate_classifier_run_{timestamp}"
+    experiment_name = "candidate_classifier"
+    if use_multiscale:
+        experiment_name += "_multiscale"
+    if use_uq:
+        experiment_name += "_uq"
+    
+    output_dir = f"./trained_models/{experiment_name}_run_{timestamp}"
     
     print(f"\nExperiment output directory: {output_dir}")
     
@@ -133,6 +214,14 @@ def main():
         --output_dir "{output_dir}" \\
         --plot"""
     
+    # Add new feature flags
+    if use_multiscale:
+        scales_str = ",".join(map(str, scales))
+        train_command += f" --use_multiscale --scales {scales_str} --max_candidates_per_scale {max_per_scale}"
+    
+    if use_uq:
+        train_command += f" --use_uq --detection_threshold {detection_threshold}"
+    
     # Check for GPU
     gpu_available = input("\nUse GPU if available? (Y/n): ").strip().lower()
     if gpu_available not in ['n', 'no']:
@@ -140,24 +229,41 @@ def main():
     
     # Step 1: Training
     print("\n" + "="*80)
-    print("STEP 1: TRAINING CANDIDATE-BASED BCG CLASSIFIER")
+    print("STEP 1: TRAINING ENHANCED BCG CLASSIFIER")
     print("="*80)
     
-    if not run_command(train_command, "Training candidate-based BCG classifier"):
+    feature_summary = []
+    if use_multiscale:
+        feature_summary.append("Multi-scale candidate detection")
+    if use_uq:
+        feature_summary.append("Uncertainty quantification")
+    
+    if feature_summary:
+        print("Enhanced features enabled:")
+        for feature in feature_summary:
+            print(f"  ✓ {feature}")
+        print()
+    
+    if not run_command(train_command, "Training enhanced BCG classifier"):
         print("Training failed. Stopping execution.")
         return
     
     # Step 2: Find best model
-    model_path = os.path.join(output_dir, "best_candidate_classifier.pth")
-    scaler_path = os.path.join(output_dir, "best_candidate_classifier_scaler.pkl")
+    model_name = "best_candidate_classifier"
+    if use_uq:
+        model_name = "best_probabilistic_classifier"
+    
+    model_path = os.path.join(output_dir, f"{model_name}.pth")
+    scaler_path = os.path.join(output_dir, f"{model_name}_scaler.pkl")
     
     if not os.path.exists(model_path) or not os.path.exists(scaler_path):
         print(f"Expected model files not found:")
         print(f"  Model: {model_path}")
         print(f"  Scaler: {scaler_path}")
         print("Using final model instead...")
-        model_path = os.path.join(output_dir, "final_candidate_classifier.pth")
-        scaler_path = os.path.join(output_dir, "final_candidate_classifier_scaler.pkl")
+        final_model_name = model_name.replace("best_", "final_")
+        model_path = os.path.join(output_dir, f"{final_model_name}.pth")
+        scaler_path = os.path.join(output_dir, f"{final_model_name}_scaler.pkl")
     
     if not os.path.exists(model_path) or not os.path.exists(scaler_path):
         print("No trained models found. Training may have failed.")
@@ -165,7 +271,7 @@ def main():
     
     # Step 3: Testing
     print("\n" + "="*80)
-    print("STEP 2: TESTING CANDIDATE-BASED BCG CLASSIFIER")
+    print("STEP 2: TESTING ENHANCED BCG CLASSIFIER")
     print("="*80)
     
     test_output_dir = os.path.join(output_dir, "evaluation_results")
@@ -185,13 +291,21 @@ def main():
         --output_dir "{test_output_dir}" \\
         --save_results"""
     
-    if not run_command(test_command, "Testing candidate-based BCG classifier"):
+    # Add new feature flags to test command
+    if use_multiscale:
+        scales_str = ",".join(map(str, scales))
+        test_command += f" --use_multiscale --scales {scales_str} --max_candidates_per_scale {max_per_scale}"
+    
+    if use_uq:
+        test_command += f" --use_uq --detection_threshold {detection_threshold}"
+    
+    if not run_command(test_command, "Testing enhanced BCG classifier"):
         print("Testing failed.")
         return
     
     # Step 4: Summary
     print("\n" + "="*80)
-    print("WORKFLOW COMPLETED SUCCESSFULLY!")
+    print("ENHANCED WORKFLOW COMPLETED SUCCESSFULLY!")
     print("="*80)
     
     print(f"\nExperiment results saved to: {output_dir}")
@@ -200,25 +314,78 @@ def main():
     print(f"  Best model: {model_path}")
     print(f"  Feature scaler: {scaler_path}")
     print(f"  Evaluation results: {test_output_dir}/")
-    print(f"  Sample predictions: {test_output_dir}/CandidateBasedTesting_prediction_sample_*.png")
-    print(f"  Failure cases: {test_output_dir}/CandidateBasedTesting_failure_sample_*.png")
+    
+    # Enhanced output files
+    if use_multiscale:
+        print(f"  Multi-scale predictions: {test_output_dir}/MultiscaleTesting_prediction_sample_*.png")
+    else:
+        print(f"  Sample predictions: {test_output_dir}/CandidateBasedTesting_prediction_sample_*.png")
+    
+    print(f"  Failure cases: {test_output_dir}/*Testing_failure_sample_*.png")
+    
+    if use_uq:
+        print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
+        print(f"  Uncertainty plots: {test_output_dir}/uncertainty_analysis_*.png")
+    
     print(f"  Detailed results: {test_output_dir}/evaluation_results.csv")
     
-    print(f"\nApproach: Candidate-based BCG classification")
+    # Summary of approach
+    approach_type = "Enhanced candidate-based BCG classification"
+    print(f"\nApproach: {approach_type}")
     print(f"Dataset: {DATASET_TYPE}")
     print(f"Training: {epochs} epochs, batch_size={batch_size}, lr={lr}")
     print(f"Candidate detection: min_distance={min_distance}, threshold_rel={threshold_rel}")
     
-    print("\nCandidate-based approach:")
-    print("1. Finds bright spots (local maxima) in each image")
-    print("2. Extracts 30+ dimensional features around each bright spot")
-    print("3. Trains neural network to rank/classify candidates")
-    print("4. Selects highest-scoring candidate as BCG prediction")
+    if use_multiscale:
+        print(f"Multi-scale: scales={scales}, max_per_scale={max_per_scale}")
+    
+    if use_uq:
+        print(f"Uncertainty quantification: threshold={detection_threshold}")
+    
+    print(f"\nEnhanced features:")
+    if use_multiscale:
+        print("1. Multi-scale candidate detection:")
+        print("   - Finds candidates at multiple size scales")
+        print("   - Adaptive patch sizes for feature extraction")
+        print("   - Better handles extended/merged sources")
+    else:
+        print("1. Single-scale candidate detection (traditional)")
+    
+    if use_uq:
+        print("2. Uncertainty quantification:")
+        print("   - Calibrated probabilities (0-1) for each candidate")
+        print("   - Detection threshold for confident predictions")
+        print("   - Monte Carlo dropout for epistemic uncertainty")
+        print("   - Temperature scaling for probability calibration")
+    else:
+        print("2. Deterministic classification (traditional)")
     
     print(f"\nTo re-run evaluation with different parameters:")
-    print(f"python test.py --model_path '{model_path}' --scaler_path '{scaler_path}' [other args]")
+    test_cmd_simple = f"python test.py --model_path '{model_path}' --scaler_path '{scaler_path}'"
+    if use_multiscale:
+        test_cmd_simple += " --use_multiscale"
+    if use_uq:
+        test_cmd_simple += " --use_uq"
+    print(f"{test_cmd_simple} [other args]")
     
-    print("\nWorkflow demonstration completed successfully!")
+    print("\nEnhanced workflow demonstration completed successfully!")
+    
+    # Performance expectations
+    print("\n" + "="*60)
+    print("EXPECTED IMPROVEMENTS")
+    print("="*60)
+    if use_multiscale:
+        print("Multi-scale detection should improve:")
+        print("- Detection of extended/merged bright objects")
+        print("- Robustness to different galaxy sizes")
+        print("- Handling of complex cluster environments")
+    
+    if use_uq:
+        print("Uncertainty quantification should provide:")
+        print("- Calibrated confidence estimates")
+        print("- Better handling of ambiguous cases")
+        print("- Risk-aware predictions for downstream tasks")
+        print("- Identification of out-of-distribution samples")
 
 
 if __name__ == "__main__":

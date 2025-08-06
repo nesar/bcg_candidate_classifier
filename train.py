@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Candidate-Based BCG Classifier Training Script
+Enhanced BCG Classifier Training Script
 
-This script trains a neural network to classify/rank BCG candidates
-extracted from astronomical images.
+This script trains neural networks with:
+1. Multi-scale candidate detection for flexible object sizes
+2. Uncertainty quantification with probabilistic outputs
+3. Temperature scaling for probability calibration
 """
 
 import argparse
@@ -22,6 +24,8 @@ from datetime import datetime
 from data.data_read import prepare_dataframe, BCGDataset
 from data.candidate_dataset import BCGCandidateDataset, collate_candidate_samples, CandidateBasedTrainer
 from ml_models.candidate_classifier import BCGCandidateClassifier
+from utils.uq_classifier import BCGProbabilisticClassifier, calibrate_temperature
+from utils.multiscale_candidates import predict_bcg_from_multiscale_candidates
 
 
 def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, random_seed=42):
@@ -59,9 +63,299 @@ def extract_images_and_coords(dataset):
     return images, coords
 
 
-def train_candidate_classifier(train_dataset, val_dataset, args):
-    """Train the candidate-based BCG classifier."""
-    print("Setting up candidate-based training...")
+class EnhancedCandidateDataset(BCGCandidateDataset):
+    """Enhanced dataset that supports multi-scale candidate detection."""
+    
+    def __init__(self, images, bcg_coords, candidate_params=None, min_candidates=3, 
+                 use_multiscale=False, scales=[0.5, 1.0, 1.5]):
+        self.use_multiscale = use_multiscale
+        self.scales = scales
+        super().__init__(images, bcg_coords, candidate_params, min_candidates)
+    
+    def _prepare_samples(self):
+        """Process all images to generate candidate-based training samples."""
+        print(f"Dataset: {args.dataset_type}")
+    print(f"Images: {args.image_dir}")
+    print(f"Truth table: {args.truth_table}")
+    print(f"Epochs: {args.epochs}")
+    print(f"Batch size: {args.batch_size}")
+    print(f"Learning rate: {args.lr}")
+    print(f"Output directory: {args.output_dir}")
+    
+    # Enhanced features
+    if args.use_multiscale:
+        print(f"Multi-scale: scales={args.scales}, max_per_scale={args.max_candidates_per_scale}")
+    if args.use_uq:
+        print(f"Uncertainty quantification: threshold={args.detection_threshold}")
+    print()
+    
+    # Load dataset
+    print("Loading dataset...")
+    dataframe = prepare_dataframe(args.image_dir, args.truth_table, args.dataset_type)
+    print(f"Found {len(dataframe)} samples in dataset")
+    
+    # Create BCG dataset
+    dataset = BCGDataset(args.image_dir, dataframe)
+    
+    # Split into train/val/test
+    train_subset, val_subset, test_subset = split_dataset(dataset, train_ratio=0.7, val_ratio=0.2)
+    print(f"Dataset split: Train={len(train_subset)}, Val={len(val_subset)}, Test={len(test_subset)}")
+    
+    # Extract images and coordinates for candidate processing
+    train_images, train_coords = extract_images_and_coords(train_subset)
+    val_images, val_coords = extract_images_and_coords(val_subset)
+    
+    # Create enhanced candidate datasets
+    print("\nCreating enhanced candidate-based datasets...")
+    
+    candidate_params = {
+        'min_distance': args.min_distance,
+        'threshold_rel': args.threshold_rel,
+        'exclude_border': args.exclude_border,
+        'max_candidates': args.max_candidates
+    }
+    
+    # Add multiscale parameters if enabled
+    if args.use_multiscale:
+        candidate_params['max_candidates_per_scale'] = args.max_candidates_per_scale
+    
+    train_candidate_dataset = EnhancedCandidateDataset(
+        train_images,
+        train_coords,
+        candidate_params,
+        min_candidates=3,
+        use_multiscale=args.use_multiscale,
+        scales=args.scales if args.use_multiscale else [1.0]
+    )
+    
+    val_candidate_dataset = EnhancedCandidateDataset(
+        val_images, 
+        val_coords,
+        candidate_params,
+        min_candidates=3,
+        use_multiscale=args.use_multiscale,
+        scales=args.scales if args.use_multiscale else [1.0]
+    )
+    
+    if len(train_candidate_dataset) == 0 or len(val_candidate_dataset) == 0:
+        print("Error: No valid candidate samples found. Try adjusting candidate parameters.")
+        return
+    
+    # Train model
+    print("\nStarting enhanced training...")
+    model, scaler, history = train_enhanced_classifier(
+        train_candidate_dataset, 
+        val_candidate_dataset, 
+        args
+    )
+    
+    print(f"\nTraining completed!")
+    print(f"Best validation accuracy: {history['best_val_accuracy']:.3f}")
+    print(f"Models saved to: {args.output_dir}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train Enhanced BCG Classifier")
+    
+    # Data arguments
+    parser.add_argument('--image_dir', type=str, required=True,
+                       help='Directory containing .tif image files')
+    parser.add_argument('--truth_table', type=str, required=True,
+                       help='Path to CSV file with BCG coordinates')
+    parser.add_argument('--dataset_type', type=str, default='SPT3G_1500d',
+                       choices=['SPT3G_1500d', 'megadeep500'],
+                       help='Type of dataset')
+    
+    # Training arguments
+    parser.add_argument('--epochs', type=int, default=50,
+                       help='Number of training epochs')
+    parser.add_argument('--batch_size', type=int, default=16,
+                       help='Batch size for training')
+    parser.add_argument('--lr', type=float, default=0.001,
+                       help='Learning rate')
+    parser.add_argument('--use_gpu', action='store_true',
+                       help='Use GPU if available')
+    
+    # Traditional candidate finding arguments
+    parser.add_argument('--min_distance', type=int, default=15,
+                       help='Minimum distance between candidates')
+    parser.add_argument('--threshold_rel', type=float, default=0.12,
+                       help='Relative threshold for candidate detection')
+    parser.add_argument('--exclude_border', type=int, default=30,
+                       help='Exclude candidates near borders')
+    parser.add_argument('--max_candidates', type=int, default=25,
+                       help='Maximum candidates per image (or per scale if multiscale)')
+    
+    # NEW: Multi-scale arguments
+    parser.add_argument('--use_multiscale', action='store_true',
+                       help='Enable multi-scale candidate detection')
+    parser.add_argument('--scales', type=str, default='0.5,1.0,1.5',
+                       help='Comma-separated scale factors for multiscale detection')
+    parser.add_argument('--max_candidates_per_scale', type=int, default=10,
+                       help='Maximum candidates per scale in multiscale mode')
+    
+    # NEW: Uncertainty quantification arguments
+    parser.add_argument('--use_uq', action='store_true',
+                       help='Enable uncertainty quantification with probabilistic outputs')
+    parser.add_argument('--detection_threshold', type=float, default=0.5,
+                       help='Probability threshold for BCG detection (0.0-1.0)')
+    
+    # Output arguments
+    parser.add_argument('--output_dir', type=str, default='./trained_models',
+                       help='Directory to save trained models')
+    parser.add_argument('--plot', action='store_true',
+                       help='Plot training curves')
+    
+    args = parser.parse_args()
+    
+    # Parse scales if multiscale is enabled
+    if args.use_multiscale:
+        args.scales = [float(s.strip()) for s in args.scales.split(',')]
+    else:
+        args.scales = [1.0]
+    
+    # Validate detection threshold
+    if args.use_uq:
+        args.detection_threshold = max(0.0, min(1.0, args.detection_threshold))
+    
+    main(args)"Preparing {'multi-scale' if self.use_multiscale else 'single-scale'} candidate samples from {len(self.images)} images...")
+        
+        valid_samples = 0
+        skipped_samples = 0
+        total_candidates = 0
+        
+        for img_idx, (image, true_bcg) in enumerate(zip(self.images, self.bcg_coords)):
+            # Convert image to numpy if needed
+            if hasattr(image, 'numpy'):
+                image = image.numpy()
+            elif torch.is_tensor(image):
+                image = image.numpy()
+            
+            # Find candidates with appropriate method
+            if self.use_multiscale:
+                from utils.multiscale_candidates import find_multiscale_bcg_candidates, extract_multiscale_candidate_features
+                candidates_with_scale, intensities, patch_sizes = find_multiscale_bcg_candidates(
+                    image, scales=self.scales, **self.candidate_params
+                )
+                if len(candidates_with_scale) < self.min_candidates:
+                    skipped_samples += 1
+                    continue
+                
+                candidates = candidates_with_scale[:, :2]  # Extract x, y coordinates
+                features, patches = extract_multiscale_candidate_features(
+                    image, candidates_with_scale, patch_sizes, include_context=True
+                )
+            else:
+                from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
+                candidates, intensities = find_bcg_candidates(image, **self.candidate_params)
+                
+                if len(candidates) < self.min_candidates:
+                    skipped_samples += 1
+                    continue
+                
+                features, patches = extract_candidate_features(
+                    image, candidates, patch_size=64, include_context=True
+                )
+            
+            if len(features) == 0:
+                skipped_samples += 1
+                continue
+            
+            # Find which candidate is closest to true BCG
+            distances = np.sqrt(np.sum((candidates - true_bcg)**2, axis=1))
+            target_label = np.argmin(distances)
+            
+            # Store sample
+            sample = {
+                'features': features.astype(np.float32),
+                'target': target_label,
+                'candidates': candidates,
+                'true_bcg': true_bcg,
+                'image_idx': img_idx,
+                'min_distance': distances[target_label]
+            }
+            
+            self.samples.append(sample)
+            valid_samples += 1
+            total_candidates += len(candidates)
+        
+        print(f"Created {valid_samples} candidate-based samples")
+        print(f"Skipped {skipped_samples} images (insufficient candidates)")
+        print(f"Average candidates per image: {total_candidates/valid_samples:.1f}")
+        
+        # Report distance statistics
+        min_distances = [s['min_distance'] for s in self.samples]
+        print(f"True BCG distance to nearest candidate:")
+        print(f"  Mean: {np.mean(min_distances):.1f} pixels")
+        print(f"  Median: {np.median(min_distances):.1f} pixels") 
+        print(f"  Max: {np.max(min_distances):.1f} pixels")
+
+
+class ProbabilisticTrainer(CandidateBasedTrainer):
+    """Enhanced trainer for probabilistic models with UQ."""
+    
+    def __init__(self, model, device='cpu', feature_scaler=None, use_uq=False):
+        super().__init__(model, device, feature_scaler)
+        self.use_uq = use_uq
+    
+    def train_step(self, batch, optimizer, criterion):
+        """Training step for probabilistic model."""
+        self.model.train()
+        
+        features = batch['features'].to(self.device)
+        targets = batch['targets'].to(self.device)
+        sample_indices = batch['sample_indices'].to(self.device)
+        batch_size = batch['batch_size']
+        
+        # Apply feature scaling if available
+        if self.feature_scaler is not None:
+            features_np = features.cpu().numpy()
+            features_scaled = self.feature_scaler.transform(features_np)
+            features = torch.FloatTensor(features_scaled).to(self.device)
+        
+        # Forward pass: get logits for all candidates
+        candidate_logits = self.model(features).squeeze()
+        
+        # For each sample, compute binary classification loss
+        total_loss = 0
+        correct_predictions = 0
+        
+        for sample_idx in range(batch_size):
+            # Get candidates for this sample
+            sample_mask = sample_indices == sample_idx
+            sample_logits = candidate_logits[sample_mask]
+            sample_targets = targets[sample_mask].float()  # Convert to float for BCE
+            
+            if len(sample_logits) == 0:
+                continue
+            
+            # Compute binary cross-entropy loss for each candidate
+            sample_loss = criterion(sample_logits, sample_targets)
+            total_loss += sample_loss
+            
+            # Check if prediction is correct (highest probability matches target)
+            sample_probs = torch.sigmoid(sample_logits)
+            predicted_idx = torch.argmax(sample_probs).item()
+            target_idx = torch.argmax(sample_targets).item()
+            
+            if predicted_idx == target_idx:
+                correct_predictions += 1
+        
+        # Average loss over batch
+        avg_loss = total_loss / batch_size if batch_size > 0 else 0
+        accuracy = correct_predictions / batch_size if batch_size > 0 else 0
+        
+        # Backward pass
+        optimizer.zero_grad()
+        avg_loss.backward()
+        optimizer.step()
+        
+        return avg_loss.item(), accuracy
+
+
+def train_enhanced_classifier(train_dataset, val_dataset, args):
+    """Train the enhanced BCG classifier with multi-scale and UQ options."""
+    print("Setting up enhanced candidate-based training...")
     
     # Create data loaders
     train_loader = DataLoader(
@@ -93,21 +387,35 @@ def train_candidate_classifier(train_dataset, val_dataset, args):
     feature_scaler = StandardScaler()
     feature_scaler.fit(all_train_features)
     
-    # Create model
-    model = BCGCandidateClassifier(
-        feature_dim=feature_dim,
-        hidden_dims=[128, 64, 32],
-        dropout_rate=0.2
-    )
+    # Create model based on UQ setting
+    if args.use_uq:
+        print("Creating probabilistic classifier with uncertainty quantification...")
+        model = BCGProbabilisticClassifier(
+            feature_dim=feature_dim,
+            hidden_dims=[128, 64, 32],
+            dropout_rate=0.2,
+            use_temperature_scaling=True
+        )
+        criterion = nn.BCEWithLogitsLoss()
+    else:
+        print("Creating standard classifier...")
+        model = BCGCandidateClassifier(
+            feature_dim=feature_dim,
+            hidden_dims=[128, 64, 32],
+            dropout_rate=0.2
+        )
+        criterion = nn.CrossEntropyLoss()
     
     device = torch.device('cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu')
     print(f"Using device: {device}")
     
     # Create trainer
-    trainer = CandidateBasedTrainer(model, device, feature_scaler)
+    if args.use_uq:
+        trainer = ProbabilisticTrainer(model, device, feature_scaler, use_uq=True)
+    else:
+        trainer = CandidateBasedTrainer(model, device, feature_scaler)
     
     # Loss and optimizer
-    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5, verbose=True)
     
@@ -176,11 +484,18 @@ def train_candidate_classifier(train_dataset, val_dataset, args):
         # Save best model
         if avg_val_acc > best_val_accuracy:
             best_val_accuracy = avg_val_acc
-            save_model(model, feature_scaler, args.output_dir, 'best_candidate_classifier')
+            model_name = 'best_probabilistic_classifier' if args.use_uq else 'best_candidate_classifier'
+            save_model(model, feature_scaler, args.output_dir, model_name)
             print(f"New best model saved with validation accuracy: {best_val_accuracy:.3f}")
     
+    # Temperature calibration for probabilistic models
+    if args.use_uq and hasattr(model, 'temperature'):
+        print("\nCalibrating temperature for probability calibration...")
+        model = calibrate_temperature(model, val_loader, device)
+    
     # Save final model
-    save_model(model, feature_scaler, args.output_dir, 'final_candidate_classifier')
+    final_model_name = 'final_probabilistic_classifier' if args.use_uq else 'final_candidate_classifier'
+    save_model(model, feature_scaler, args.output_dir, final_model_name)
     
     # Plot training curves
     if args.plot:
@@ -248,111 +563,6 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
 def main(args):
     """Main training function."""
     print("=" * 60)
-    print("CANDIDATE-BASED BCG CLASSIFIER TRAINING")
+    print("ENHANCED BCG CLASSIFIER TRAINING")
     print("=" * 60)
-    print(f"Dataset: {args.dataset_type}")
-    print(f"Images: {args.image_dir}")
-    print(f"Truth table: {args.truth_table}")
-    print(f"Epochs: {args.epochs}")
-    print(f"Batch size: {args.batch_size}")
-    print(f"Learning rate: {args.lr}")
-    print(f"Output directory: {args.output_dir}")
-    print()
-    
-    # Load dataset
-    print("Loading dataset...")
-    dataframe = prepare_dataframe(args.image_dir, args.truth_table, args.dataset_type)
-    print(f"Found {len(dataframe)} samples in dataset")
-    
-    # Create BCG dataset
-    dataset = BCGDataset(args.image_dir, dataframe)
-    
-    # Split into train/val/test
-    train_subset, val_subset, test_subset = split_dataset(dataset, train_ratio=0.7, val_ratio=0.2)
-    print(f"Dataset split: Train={len(train_subset)}, Val={len(val_subset)}, Test={len(test_subset)}")
-    
-    # Extract images and coordinates for candidate processing
-    train_images, train_coords = extract_images_and_coords(train_subset)
-    val_images, val_coords = extract_images_and_coords(val_subset)
-    
-    # Create candidate datasets
-    print("\nCreating candidate-based datasets...")
-    
-    candidate_params = {
-        'min_distance': args.min_distance,
-        'threshold_rel': args.threshold_rel,
-        'exclude_border': args.exclude_border,
-        'max_candidates': args.max_candidates
-    }
-    
-    train_candidate_dataset = BCGCandidateDataset(
-        train_images,
-        train_coords,
-        candidate_params,
-        min_candidates=3
-    )
-    
-    val_candidate_dataset = BCGCandidateDataset(
-        val_images, 
-        val_coords,
-        candidate_params,
-        min_candidates=3
-    )
-    
-    if len(train_candidate_dataset) == 0 or len(val_candidate_dataset) == 0:
-        print("Error: No valid candidate samples found. Try adjusting candidate parameters.")
-        return
-    
-    # Train model
-    print("\nStarting training...")
-    model, scaler, history = train_candidate_classifier(
-        train_candidate_dataset, 
-        val_candidate_dataset, 
-        args
-    )
-    
-    print(f"\nTraining completed!")
-    print(f"Best validation accuracy: {history['best_val_accuracy']:.3f}")
-    print(f"Models saved to: {args.output_dir}")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Candidate-Based BCG Classifier")
-    
-    # Data arguments
-    parser.add_argument('--image_dir', type=str, required=True,
-                       help='Directory containing .tif image files')
-    parser.add_argument('--truth_table', type=str, required=True,
-                       help='Path to CSV file with BCG coordinates')
-    parser.add_argument('--dataset_type', type=str, default='SPT3G_1500d',
-                       choices=['SPT3G_1500d', 'megadeep500'],
-                       help='Type of dataset')
-    
-    # Training arguments
-    parser.add_argument('--epochs', type=int, default=50,
-                       help='Number of training epochs')
-    parser.add_argument('--batch_size', type=int, default=16,
-                       help='Batch size for training')
-    parser.add_argument('--lr', type=float, default=0.001,
-                       help='Learning rate')
-    parser.add_argument('--use_gpu', action='store_true',
-                       help='Use GPU if available')
-    
-    # Candidate finding arguments
-    parser.add_argument('--min_distance', type=int, default=15,
-                       help='Minimum distance between candidates')
-    parser.add_argument('--threshold_rel', type=float, default=0.12,
-                       help='Relative threshold for candidate detection')
-    parser.add_argument('--exclude_border', type=int, default=30,
-                       help='Exclude candidates near borders')
-    parser.add_argument('--max_candidates', type=int, default=25,
-                       help='Maximum candidates per image')
-    
-    # Output arguments
-    parser.add_argument('--output_dir', type=str, default='./trained_models',
-                       help='Directory to save trained models')
-    parser.add_argument('--plot', action='store_true',
-                       help='Plot training curves')
-    
-    args = parser.parse_args()
-    main(args)
+    print(f
