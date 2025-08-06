@@ -182,7 +182,14 @@ The system reports:
 ### Evaluation
 - `CandidateBasedTesting_prediction_sample_*.png`: Visualization of best predictions
 - `CandidateBasedTesting_failure_sample_*.png`: Visualization of worst cases
-- `evaluation_results.csv`: Detailed per-sample results
+- `evaluation_results.csv`: Detailed per-sample results including:
+  - `cluster_name`: Original cluster identifier
+  - `z`: Redshift (if available in truth table)
+  - `bcg_prob`: BCG probability score (if available in truth table)
+  - `pred_x`, `pred_y`: Predicted BCG coordinates
+  - `true_x`, `true_y`: True BCG coordinates
+  - `distance_error`: Pixel distance between prediction and truth
+  - `n_candidates`: Number of candidates found in image
 
 ## Comparison with Original Repository
 

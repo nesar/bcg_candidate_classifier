@@ -55,7 +55,7 @@ def load_trained_model(model_path, scaler_path, feature_dim):
     return model, feature_scaler
 
 
-def evaluate_model(model, scaler, test_dataset, candidate_params):
+def evaluate_model(model, scaler, test_dataset, candidate_params, original_dataframe=None, dataset_type='SPT3G_1500d'):
     """Evaluate model on test set and compute metrics."""
     print(f"Evaluating model on {len(test_dataset)} test images...")
     
@@ -67,6 +67,7 @@ def evaluate_model(model, scaler, test_dataset, candidate_params):
     all_candidates_list = []
     all_scores_list = []
     test_images = []
+    sample_metadata = []  # Store additional info from truth table
     
     for i in range(len(test_dataset)):
         sample = test_dataset[i]
@@ -76,6 +77,29 @@ def evaluate_model(model, scaler, test_dataset, candidate_params):
         
         # Store image for visualization
         test_images.append(image)
+        
+        # Extract metadata from original dataframe if available
+        metadata = {'filename': filename}
+        if original_dataframe is not None:
+            # Extract cluster name (remove .tif extension and any suffix)
+            cluster_name = filename.replace('.tif', '').split('_')[0]
+            metadata['cluster_name'] = cluster_name
+            
+            # Find corresponding row in original dataframe by cluster name
+            cluster_col = 'Cluster name' if 'Cluster name' in original_dataframe.columns else 'cluster_name'
+            if cluster_col in original_dataframe.columns:
+                matching_rows = original_dataframe[original_dataframe[cluster_col] == cluster_name]
+                if not matching_rows.empty:
+                    row = matching_rows.iloc[0]
+                    
+                    # Add redshift if available
+                    if 'z' in row:
+                        metadata['z'] = row['z']
+                    
+                    # Look for BCG probability columns (various possible names)
+                    prob_cols = [col for col in row.index if 'prob' in col.lower()]
+                    if prob_cols:
+                        metadata['bcg_prob'] = row[prob_cols[0]]
         
         # Make prediction
         predicted_bcg, all_candidates, scores = predict_bcg_from_candidates(
@@ -93,6 +117,7 @@ def evaluate_model(model, scaler, test_dataset, candidate_params):
             # Add empty entries to maintain list consistency
             all_candidates_list.append(np.array([]).reshape(0, 2))
             all_scores_list.append(np.array([]))
+            sample_metadata.append(metadata)
             continue
         
         # Compute distance error
@@ -105,6 +130,7 @@ def evaluate_model(model, scaler, test_dataset, candidate_params):
         targets.append(true_bcg)
         all_candidates_list.append(all_candidates)
         all_scores_list.append(scores)
+        sample_metadata.append(metadata)
         
         # Check for potential failure cases
         if distance > 50:  # Large error threshold
@@ -140,7 +166,7 @@ def evaluate_model(model, scaler, test_dataset, candidate_params):
     }
     
     return (predictions, targets, distances, failed_predictions, metrics,
-            all_candidates_list, all_scores_list, test_images)
+            all_candidates_list, all_scores_list, test_images, sample_metadata)
 
 
 def print_evaluation_report(metrics, failed_predictions):
@@ -192,8 +218,12 @@ def main(args):
     print(f"Images: {args.image_dir}")
     print()
     
-    # Load dataset
-    print("Loading dataset...")
+    # Load original truth table for metadata
+    print("Loading original truth table...")
+    original_df = pd.read_csv(args.truth_table)
+    
+    # Load processed dataset
+    print("Loading processed dataset...")
     dataframe = prepare_dataframe(args.image_dir, args.truth_table, args.dataset_type)
     print(f"Found {len(dataframe)} samples in dataset")
     
@@ -222,8 +252,8 @@ def main(args):
     
     # Evaluate model
     (predictions, targets, distances, failures, metrics, 
-     all_candidates_list, all_scores_list, test_images) = evaluate_model(
-        model, scaler, test_subset, candidate_params
+     all_candidates_list, all_scores_list, test_images, sample_metadata) = evaluate_model(
+        model, scaler, test_subset, candidate_params, original_df, args.dataset_type
     )
     
     # Print results
@@ -276,17 +306,49 @@ def main(args):
     if args.save_results and len(predictions) > 0:
         results_file = os.path.join(args.output_dir, 'evaluation_results.csv')
         
-        results_df = pd.DataFrame({
+        # Create base results dictionary
+        results_data = {
             'pred_x': [pred[0] for pred in predictions],
             'pred_y': [pred[1] for pred in predictions], 
             'true_x': [target[0] for target in targets],
             'true_y': [target[1] for target in targets],
             'distance_error': distances,
             'n_candidates': [len(cand) for cand in all_candidates_list]
-        })
+        }
+        
+        # Add metadata columns
+        if sample_metadata:
+            # Extract cluster names
+            cluster_names = [meta.get('cluster_name', 'unknown') for meta in sample_metadata]
+            results_data['cluster_name'] = cluster_names
+            
+            # Extract redshifts if available
+            if any('z' in meta for meta in sample_metadata):
+                redshifts = [meta.get('z', np.nan) for meta in sample_metadata]
+                results_data['z'] = redshifts
+            
+            # Extract BCG probabilities if available
+            if any('bcg_prob' in meta for meta in sample_metadata):
+                bcg_probs = [meta.get('bcg_prob', np.nan) for meta in sample_metadata]
+                results_data['bcg_prob'] = bcg_probs
+        
+        results_df = pd.DataFrame(results_data)
+        
+        # Reorder columns to put metadata first
+        cols = ['cluster_name'] if 'cluster_name' in results_df.columns else []
+        if 'z' in results_df.columns:
+            cols.append('z')
+        if 'bcg_prob' in results_df.columns:
+            cols.append('bcg_prob')
+        cols.extend(['pred_x', 'pred_y', 'true_x', 'true_y', 'distance_error', 'n_candidates'])
+        
+        # Only include columns that exist
+        cols = [col for col in cols if col in results_df.columns]
+        results_df = results_df[cols]
         
         results_df.to_csv(results_file, index=False)
         print(f"\nDetailed results saved to: {results_file}")
+        print(f"Results include {len(results_df.columns)} columns: {', '.join(results_df.columns)}")
 
 
 if __name__ == "__main__":
