@@ -114,7 +114,7 @@ def main():
     
     # Output directory setup
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = f"./candidate_classifier_run_{timestamp}"
+    output_dir = f"./trained_models/candidate_classifier_run_{timestamp}"
     
     print(f"\nExperiment output directory: {output_dir}")
     
