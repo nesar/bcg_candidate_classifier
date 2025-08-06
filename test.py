@@ -90,6 +90,9 @@ def evaluate_model(model, scaler, test_dataset, candidate_params):
                 'reason': 'no_candidates',
                 'true_bcg': true_bcg
             })
+            # Add empty entries to maintain list consistency
+            all_candidates_list.append(np.array([]).reshape(0, 2))
+            all_scores_list.append(np.array([]))
             continue
         
         # Compute distance error

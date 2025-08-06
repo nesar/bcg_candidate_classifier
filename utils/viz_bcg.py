@@ -57,7 +57,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         target = targets[idx]
         prediction = predictions[idx]
         candidates = all_candidates_list[idx] if idx < len(all_candidates_list) else []
-        scores = candidate_scores_list[idx] if candidate_scores_list and idx < len(candidate_scores_list) else []
+        scores = candidate_scores_list[idx] if candidate_scores_list and idx < len(candidate_scores_list) else np.array([])
         
         # Calculate distance between target and prediction
         distance = np.sqrt(np.sum((target - prediction)**2))
@@ -100,8 +100,8 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         
         subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
         if len(scores) > 0:
-            max_score = max(scores) if scores else 0
-            avg_score = np.mean(scores) if scores else 0
+            max_score = np.max(scores)
+            avg_score = np.mean(scores)
             subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
         
         plt.title(f'{title}\n{subtitle}', fontsize=12)

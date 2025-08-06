@@ -376,6 +376,7 @@ def predict_bcg_from_candidates(image, model=None, feature_scaler=None, **candid
     if model is None or feature_scaler is None:
         # Fallback: return brightest candidate
         best_idx = 0  # Already sorted by brightness
+        # Return intensities as scores for consistency
         return tuple(candidates[best_idx]), candidates, intensities
     
     # Scale features
