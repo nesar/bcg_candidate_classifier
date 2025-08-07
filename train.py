@@ -25,7 +25,8 @@ from datetime import datetime
 from scipy.ndimage import maximum_filter, zoom
 
 from data.data_read import prepare_dataframe, BCGDataset
-from data.candidate_dataset import BCGCandidateDataset, collate_candidate_samples, CandidateBasedTrainer
+from data.candidate_dataset import BCGCandidateDataset, collate_candidate_samples
+from data.candidate_dataset import CandidateBasedTrainer
 from ml_models.candidate_classifier import BCGCandidateClassifier
 from utils.candidate_based_bcg import extract_patch_features, extract_context_features
 
@@ -331,14 +332,15 @@ class EnhancedCandidateDataset(BCGCandidateDataset):
         
         print(f"Created {valid_samples} candidate-based samples")
         print(f"Skipped {skipped_samples} images (insufficient candidates)")
-        print(f"Average candidates per image: {total_candidates/valid_samples:.1f}")
-        
-        # Report distance statistics
-        min_distances = [s['min_distance'] for s in self.samples]
-        print(f"True BCG distance to nearest candidate:")
-        print(f"  Mean: {np.mean(min_distances):.1f} pixels")
-        print(f"  Median: {np.median(min_distances):.1f} pixels") 
-        print(f"  Max: {np.max(min_distances):.1f} pixels")
+        if valid_samples > 0:
+            print(f"Average candidates per image: {total_candidates/valid_samples:.1f}")
+            
+            # Report distance statistics
+            min_distances = [s['min_distance'] for s in self.samples]
+            print(f"True BCG distance to nearest candidate:")
+            print(f"  Mean: {np.mean(min_distances):.1f} pixels")
+            print(f"  Median: {np.median(min_distances):.1f} pixels") 
+            print(f"  Max: {np.max(min_distances):.1f} pixels")
 
 
 class ProbabilisticTrainer(CandidateBasedTrainer):
@@ -347,6 +349,78 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
     def __init__(self, model, device='cpu', feature_scaler=None, use_uq=False):
         super().__init__(model, device, feature_scaler)
         self.use_uq = use_uq
+    
+    def evaluate_step(self, batch, criterion):
+        """Evaluation step for probabilistic model."""
+        self.model.eval()
+        
+        features = batch['features'].to(self.device)
+        targets = batch['targets'].to(self.device)
+        sample_indices = batch['sample_indices'].to(self.device)
+        batch_size = batch['batch_size']
+        
+        # Apply feature scaling if available
+        if self.feature_scaler is not None:
+            features_np = features.cpu().numpy()
+            features_scaled = self.feature_scaler.transform(features_np)
+            features = torch.FloatTensor(features_scaled).to(self.device)
+        
+        # Forward pass: get logits for all candidates
+        candidate_logits = self.model(features).squeeze()
+        
+        # For probabilistic models, we need to create binary targets
+        # Convert multi-class to binary (BCG vs non-BCG)
+        binary_targets = torch.zeros_like(candidate_logits)
+        
+        start_idx = 0
+        for sample_idx in range(batch_size):
+            # Count candidates in this sample
+            sample_mask = sample_indices == sample_idx
+            n_candidates = sample_mask.sum().item()
+            
+            if n_candidates == 0:
+                continue
+            
+            # Get the target index for this sample
+            sample_targets = targets[sample_mask]
+            if len(sample_targets) > 0:
+                target_idx = sample_targets[0].item()  # BCG index within this sample
+                # Set binary target: 1 for BCG, 0 for non-BCG
+                if target_idx < n_candidates:
+                    binary_targets[start_idx + target_idx] = 1.0
+            
+            start_idx += n_candidates
+        
+        # Compute binary cross-entropy loss
+        total_loss = criterion(candidate_logits, binary_targets)
+        
+        # Compute accuracy (fraction of samples where highest prob is BCG)
+        correct_predictions = 0
+        start_idx = 0
+        
+        for sample_idx in range(batch_size):
+            sample_mask = sample_indices == sample_idx
+            n_candidates = sample_mask.sum().item()
+            
+            if n_candidates == 0:
+                continue
+            
+            sample_logits = candidate_logits[start_idx:start_idx + n_candidates]
+            sample_binary_targets = binary_targets[start_idx:start_idx + n_candidates]
+            
+            # Find predicted and true BCG
+            predicted_idx = torch.argmax(torch.sigmoid(sample_logits)).item()
+            true_idx = torch.argmax(sample_binary_targets).item() if torch.any(sample_binary_targets > 0) else -1
+            
+            if predicted_idx == true_idx and true_idx >= 0:
+                correct_predictions += 1
+                
+            start_idx += n_candidates
+        
+        # Return loss and accuracy
+        accuracy = correct_predictions / batch_size if batch_size > 0 else 0
+        
+        return total_loss.item(), accuracy
     
     def train_step(self, batch, optimizer, criterion):
         """Training step for probabilistic model."""
@@ -366,33 +440,56 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
         # Forward pass: get logits for all candidates
         candidate_logits = self.model(features).squeeze()
         
-        # For each sample, compute binary classification loss
-        total_loss = 0
-        correct_predictions = 0
+        # For probabilistic models, we need to create binary targets
+        # Convert multi-class to binary (BCG vs non-BCG)
+        binary_targets = torch.zeros_like(candidate_logits)
         
+        start_idx = 0
         for sample_idx in range(batch_size):
-            # Get candidates for this sample
+            # Count candidates in this sample
             sample_mask = sample_indices == sample_idx
-            sample_logits = candidate_logits[sample_mask]
-            sample_targets = targets[sample_mask].float()  # Convert to float for BCE
+            n_candidates = sample_mask.sum().item()
             
-            if len(sample_logits) == 0:
+            if n_candidates == 0:
                 continue
             
-            # Compute binary cross-entropy loss for each candidate
-            sample_loss = criterion(sample_logits, sample_targets)
-            total_loss += sample_loss
+            # Get the target index for this sample
+            sample_targets = targets[sample_mask]
+            if len(sample_targets) > 0:
+                target_idx = sample_targets[0].item()  # BCG index within this sample
+                # Set binary target: 1 for BCG, 0 for non-BCG
+                if target_idx < n_candidates:
+                    binary_targets[start_idx + target_idx] = 1.0
             
-            # Check if prediction is correct (highest probability matches target)
-            sample_probs = torch.sigmoid(sample_logits)
-            predicted_idx = torch.argmax(sample_probs).item()
-            target_idx = torch.argmax(sample_targets).item()
-            
-            if predicted_idx == target_idx:
-                correct_predictions += 1
+            start_idx += n_candidates
         
-        # Average loss over batch
-        avg_loss = total_loss / batch_size if batch_size > 0 else 0
+        # Compute binary cross-entropy loss
+        total_loss = criterion(candidate_logits, binary_targets)
+        
+        # Compute accuracy (fraction of samples where highest prob is BCG)
+        correct_predictions = 0
+        start_idx = 0
+        
+        for sample_idx in range(batch_size):
+            sample_mask = sample_indices == sample_idx
+            n_candidates = sample_mask.sum().item()
+            
+            if n_candidates == 0:
+                continue
+            
+            sample_logits = candidate_logits[start_idx:start_idx + n_candidates]
+            sample_binary_targets = binary_targets[start_idx:start_idx + n_candidates]
+            
+            # Find predicted and true BCG
+            predicted_idx = torch.argmax(torch.sigmoid(sample_logits)).item()
+            true_idx = torch.argmax(sample_binary_targets).item() if torch.any(sample_binary_targets > 0) else -1
+            
+            if predicted_idx == true_idx and true_idx >= 0:
+                correct_predictions += 1
+                
+            start_idx += n_candidates
+        
+        # Return loss and accuracy
         accuracy = correct_predictions / batch_size if batch_size > 0 else 0
         
         # Backward pass
@@ -400,7 +497,7 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
         avg_loss.backward()
         optimizer.step()
         
-        return avg_loss.item(), accuracy
+        return total_loss.item(), accuracy
 
 
 # ============================================================================

@@ -326,13 +326,21 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
     # Get probabilities and uncertainties
     model.eval()
     with torch.no_grad():
-        if hasattr(model, 'predict_with_uncertainty'):
+        if hasattr(model, 'predict_with_uncertainty') and hasattr(model, 'temperature'):
+            # This is a probabilistic model with UQ
             probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
             probabilities = probabilities.numpy()
             uncertainties = uncertainties.numpy()
-        else:
+        elif hasattr(model, 'temperature'):
+            # This is a probabilistic model without MC dropout
             logits = model(features_tensor).squeeze()
             probabilities = torch.sigmoid(logits).numpy()
+            uncertainties = np.zeros_like(probabilities)  # No uncertainty available
+        else:
+            # This is a traditional classifier, convert scores to probabilities
+            scores = model(features_tensor).squeeze()
+            # Convert scores to probabilities using softmax
+            probabilities = torch.softmax(scores, dim=0).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
     
     # Find detections above threshold
@@ -879,10 +887,51 @@ def main(args):
     train_subset, val_subset, test_subset = split_dataset(dataset, train_ratio=0.7, val_ratio=0.2)
     print(f"Using test split: {len(test_subset)} samples")
     
-    # Feature dimension (should match training)
-    base_feature_dim = 30
+    # Determine feature dimension by analyzing a sample
+    # This ensures we get the correct dimension regardless of options
+    print("Determining feature dimension from a sample...")
+    sample_image = dataset[0]['image']
+    if hasattr(sample_image, 'numpy'):
+        sample_image = sample_image.numpy()
+    elif torch.is_tensor(sample_image):
+        sample_image = sample_image.numpy()
+    
+    # Get candidate parameters for feature extraction
+    candidate_params_sample = {
+        'min_distance': args.min_distance,
+        'threshold_rel': args.threshold_rel,
+        'exclude_border': args.exclude_border,
+        'max_candidates': args.max_candidates
+    }
+    
     if args.use_multiscale:
-        base_feature_dim += 3  # Additional scale features
+        multiscale_params = {
+            'scales': args.scales,
+            'base_min_distance': args.min_distance,
+            'threshold_rel': args.threshold_rel,
+            'exclude_border': args.exclude_border,
+            'max_candidates_per_scale': args.max_candidates_per_scale
+        }
+        candidates_with_scale, _, patch_sizes = find_multiscale_bcg_candidates(
+            sample_image, **multiscale_params
+        )
+        if len(candidates_with_scale) > 0:
+            features, _ = extract_multiscale_candidate_features(
+                sample_image, candidates_with_scale, patch_sizes, include_context=True
+            )
+            base_feature_dim = features.shape[1] if len(features) > 0 else 33
+        else:
+            base_feature_dim = 33  # Default for multiscale
+    else:
+        from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
+        candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
+        if len(candidates) > 0:
+            features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
+            base_feature_dim = features.shape[1] if len(features) > 0 else 30
+        else:
+            base_feature_dim = 30  # Default for single-scale
+    
+    print(f"Detected feature dimension: {base_feature_dim}")
     
     # Load trained model
     print("Loading trained model...")
