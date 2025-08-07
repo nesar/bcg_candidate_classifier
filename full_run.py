@@ -53,15 +53,15 @@ def main():
     
     dataset_choice = input("\nSelect dataset (1 or 2): ").strip()
     
-    if dataset_choice == "1":
-        DATASET_TYPE = "SPT3G_1500d"
-        IMAGE_DIR = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/SPT3G_1500d_data/1-5-7mix/'
-        TRUTH_TABLE = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/ML/1-5-7mix_cart.csv'
-        print(f"\nSelected: {DATASET_TYPE} dataset")
-    else:
+    if dataset_choice == "2":
         DATASET_TYPE = "megadeep500"
         IMAGE_DIR = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/pruned_megadeep500/'
         TRUTH_TABLE = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/ML/truth_table.csv'
+        print(f"\nSelected: {DATASET_TYPE} dataset")
+    else:
+        DATASET_TYPE = "SPT3G_1500d"
+        IMAGE_DIR = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/SPT3G_1500d_data/1-5-7mix/'
+        TRUTH_TABLE = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/ML/1-5-7mix_cart.csv'
         print(f"\nSelected: {DATASET_TYPE} dataset")
     
     # Check if real data exists
@@ -199,7 +199,7 @@ def main():
     
     print(f"\nExperiment output directory: {output_dir}")
     
-    # Build training command
+    # Build training command - Use the enhanced train.py script
     train_command = f"""python train.py \\
         --image_dir "{IMAGE_DIR}" \\
         --truth_table "{TRUTH_TABLE}" \\
@@ -269,7 +269,7 @@ def main():
         print("No trained models found. Training may have failed.")
         return
     
-    # Step 3: Testing
+    # Step 3: Testing - Use the enhanced test.py script
     print("\n" + "="*80)
     print("STEP 2: TESTING ENHANCED BCG CLASSIFIER")
     print("="*80)
@@ -319,13 +319,13 @@ def main():
     if use_multiscale:
         print(f"  Multi-scale predictions: {test_output_dir}/MultiscaleTesting_prediction_sample_*.png")
     else:
-        print(f"  Sample predictions: {test_output_dir}/CandidateBasedTesting_prediction_sample_*.png")
+        print(f"  Sample predictions: {test_output_dir}/EnhancedTesting_prediction_sample_*.png")
     
     print(f"  Failure cases: {test_output_dir}/*Testing_failure_sample_*.png")
     
     if use_uq:
         print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
-        print(f"  Uncertainty plots: {test_output_dir}/uncertainty_analysis_*.png")
+        print(f"  Uncertainty plots: {test_output_dir}/probability_analysis.png")
     
     print(f"  Detailed results: {test_output_dir}/evaluation_results.csv")
     
@@ -386,6 +386,11 @@ def main():
         print("- Better handling of ambiguous cases")
         print("- Risk-aware predictions for downstream tasks")
         print("- Identification of out-of-distribution samples")
+    
+    print("\nNext steps:")
+    print("1. Enhanced test.py script provides full UQ/multi-scale evaluation")
+    print("2. Model comparison scripts can compare traditional vs enhanced approaches")
+    print("3. Ablation studies can isolate the impact of each enhancement")
 
 
 if __name__ == "__main__":

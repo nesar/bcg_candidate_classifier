@@ -9,22 +9,553 @@ This script evaluates trained BCG classifiers with:
 4. Enhanced visualizations with probability information
 """
 
-import argparse
 import os
+# Fix NUMEXPR warning
+os.environ['NUMEXPR_MAX_THREADS'] = '64'
+
+import argparse
 import torch
+import torch.nn as nn
 import numpy as np
 import pandas as pd
 import joblib
 import matplotlib.pyplot as plt
 from datetime import datetime
+from scipy.ndimage import maximum_filter, zoom
 
 from data.data_read import prepare_dataframe, BCGDataset
 from ml_models.candidate_classifier import BCGCandidateClassifier
-from utils.uq_classifier import BCGProbabilisticClassifier, predict_bcg_with_probabilities
-from utils.multiscale_candidates import predict_bcg_from_multiscale_candidates
-from utils.candidate_based_bcg import predict_bcg_from_candidates
-from utils.viz_bcg import show_predictions_with_candidates, show_failures
+from utils.candidate_based_bcg import extract_patch_features, extract_context_features
+from utils.viz_bcg import show_failures
 
+
+# ============================================================================
+# MULTI-SCALE CANDIDATE DETECTION (COPY FROM TRAIN.PY)
+# ============================================================================
+
+def find_multiscale_bcg_candidates(image, scales=[0.5, 1.0, 1.5], 
+                                  base_min_distance=15, threshold_rel=0.12, 
+                                  exclude_border=30, max_candidates_per_scale=10):
+    """Find candidates at multiple scales to capture objects of different sizes."""
+    # Convert to grayscale if RGB
+    if len(image.shape) == 3:
+        grayscale = 0.299 * image[:, :, 0] + 0.587 * image[:, :, 1] + 0.114 * image[:, :, 2]
+    else:
+        grayscale = image.copy()
+    
+    all_candidates = []
+    all_intensities = []
+    all_scales = []
+    
+    for scale in scales:
+        # Adjust parameters based on scale
+        min_distance = max(int(base_min_distance * scale), 5)
+        filter_size = max(int(3 * scale), 3)
+        
+        # Find local maxima with scale-adjusted filter
+        local_max_mask = (grayscale == maximum_filter(grayscale, size=filter_size))
+        
+        # Apply threshold
+        threshold_abs = threshold_rel * grayscale.max()
+        local_max_mask &= (grayscale > threshold_abs)
+        
+        # Exclude border
+        if exclude_border > 0:
+            local_max_mask[:exclude_border, :] = False
+            local_max_mask[-exclude_border:, :] = False
+            local_max_mask[:, :exclude_border] = False
+            local_max_mask[:, -exclude_border:] = False
+        
+        # Extract coordinates and intensities
+        y_coords, x_coords = np.where(local_max_mask)
+        if len(y_coords) == 0:
+            continue
+        
+        candidates = np.column_stack((x_coords, y_coords))
+        intensities = grayscale[y_coords, x_coords]
+        
+        # Sort by intensity (brightest first)
+        sort_indices = np.argsort(intensities)[::-1]
+        candidates = candidates[sort_indices]
+        intensities = intensities[sort_indices]
+        
+        # Apply non-maximum suppression
+        selected_candidates = []
+        selected_intensities = []
+        
+        for candidate, intensity in zip(candidates, intensities):
+            # Check distance to previously selected candidates
+            too_close = False
+            
+            # Check against candidates from this scale
+            for selected_candidate in selected_candidates:
+                distance = np.sqrt(np.sum((candidate - selected_candidate)**2))
+                if distance < min_distance:
+                    too_close = True
+                    break
+            
+            # Check against candidates from other scales
+            if not too_close:
+                for prev_candidate in all_candidates:
+                    distance = np.sqrt(np.sum((candidate - prev_candidate[:2])**2))
+                    min_scale_distance = min(min_distance, base_min_distance * prev_candidate[2])
+                    if distance < min_scale_distance:
+                        too_close = True
+                        break
+            
+            if not too_close:
+                selected_candidates.append(candidate)
+                selected_intensities.append(intensity)
+                
+                if len(selected_candidates) >= max_candidates_per_scale:
+                    break
+        
+        # Add scale information and store
+        for candidate, intensity in zip(selected_candidates, selected_intensities):
+            all_candidates.append(np.append(candidate, scale))
+            all_intensities.append(intensity)
+            all_scales.append(scale)
+    
+    if not all_candidates:
+        return np.array([]), np.array([]), np.array([])
+    
+    # Convert to arrays
+    candidates_with_scale = np.array(all_candidates)
+    intensities_array = np.array(all_intensities)
+    scales_array = np.array(all_scales)
+    
+    # Compute adaptive patch sizes based on scale
+    base_patch_size = 64
+    patch_sizes = (base_patch_size * scales_array).astype(int)
+    patch_sizes = np.clip(patch_sizes, 32, 128)
+    
+    return candidates_with_scale, intensities_array, patch_sizes
+
+
+def extract_multiscale_candidate_features(image, candidate_coords_with_scale, patch_sizes, include_context=True):
+    """Extract features for multi-scale candidates with adaptive patch sizes."""
+    if len(candidate_coords_with_scale) == 0:
+        return np.array([]), np.array([])
+    
+    # Ensure image is 3D
+    if len(image.shape) == 2:
+        image = np.stack([image, image, image], axis=2)
+    
+    H, W = image.shape[:2]
+    features_list = []
+    patches_list = []
+    
+    for i, (candidate_info, patch_size) in enumerate(zip(candidate_coords_with_scale, patch_sizes)):
+        x, y, scale = candidate_info[0], candidate_info[1], candidate_info[2]
+        x, y = int(x), int(y)
+        
+        half_patch = patch_size // 2
+        
+        # Extract patch around candidate
+        x_min = max(0, x - half_patch)
+        x_max = min(W, x + half_patch)
+        y_min = max(0, y - half_patch)
+        y_max = min(H, y + half_patch)
+        
+        patch = image[y_min:y_max, x_min:x_max]
+        
+        # Resize to consistent size for feature extraction
+        base_patch_size = 64
+        if patch.shape[0] != base_patch_size or patch.shape[1] != base_patch_size:
+            if patch.shape[0] > 0 and patch.shape[1] > 0:
+                scale_y = base_patch_size / patch.shape[0]
+                scale_x = base_patch_size / patch.shape[1]
+                patch = zoom(patch, (scale_y, scale_x, 1), order=1)
+                patch = patch.astype(image.dtype)
+            else:
+                patch = np.zeros((base_patch_size, base_patch_size, image.shape[2]), dtype=image.dtype)
+        
+        patches_list.append(patch)
+        
+        # Extract features from patch
+        patch_features = extract_patch_features(patch, x, y, image.shape[:2])
+        
+        # Add scale-specific features
+        scale_features = np.array([
+            scale,                    # Scale factor
+            patch_size,              # Actual patch size used
+            scale / np.mean([s[2] for s in candidate_coords_with_scale])  # Relative scale
+        ])
+        
+        if include_context:
+            context_features = extract_context_features(image, x, y, patch_size)
+            patch_features = np.concatenate([patch_features, context_features, scale_features])
+        else:
+            patch_features = np.concatenate([patch_features, scale_features])
+        
+        features_list.append(patch_features)
+    
+    features = np.array(features_list) if features_list else np.array([])
+    patches = np.array(patches_list) if patches_list else np.array([])
+    
+    return features, patches
+
+
+# ============================================================================
+# PROBABILISTIC CLASSIFIER (COPY FROM TRAIN.PY)
+# ============================================================================
+
+class BCGProbabilisticClassifier(nn.Module):
+    """Probabilistic BCG classifier that outputs calibrated probabilities."""
+    
+    def __init__(self, feature_dim, hidden_dims=[128, 64, 32], dropout_rate=0.2):
+        super(BCGProbabilisticClassifier, self).__init__()
+        
+        self.feature_dim = feature_dim
+        self.hidden_dims = hidden_dims
+        self.dropout_rate = dropout_rate
+        
+        layers = []
+        prev_dim = feature_dim
+        
+        # Create hidden layers
+        for hidden_dim in hidden_dims:
+            layers.extend([
+                nn.Linear(prev_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(dropout_rate),
+            ])
+            prev_dim = hidden_dim
+        
+        # Output layer - logits for binary classification (BCG vs non-BCG)
+        layers.append(nn.Linear(prev_dim, 1))
+        
+        self.network = nn.Sequential(*layers)
+        
+        # Temperature parameter for calibration
+        self.temperature = nn.Parameter(torch.ones(1))
+    
+    def forward(self, features):
+        """Forward pass to get logits."""
+        logits = self.network(features)
+        # Apply temperature scaling
+        logits = logits / self.temperature
+        return logits
+    
+    def predict_probabilities(self, features):
+        """Predict calibrated probabilities for being BCG."""
+        logits = self.forward(features)
+        probabilities = torch.sigmoid(logits)
+        return probabilities
+    
+    def predict_with_uncertainty(self, features, n_samples=10):
+        """Predict with epistemic uncertainty using Monte Carlo Dropout."""
+        self.train()  # Enable dropout for MC sampling
+        
+        predictions = []
+        with torch.no_grad():
+            for _ in range(n_samples):
+                logits = self.forward(features)
+                probs = torch.sigmoid(logits)
+                predictions.append(probs)
+        
+        self.eval()  # Return to eval mode
+        
+        predictions = torch.stack(predictions)  # (n_samples, n_candidates, 1)
+        
+        mean_probs = predictions.mean(dim=0)
+        uncertainty = predictions.std(dim=0)  # Epistemic uncertainty
+        
+        return mean_probs.squeeze(), uncertainty.squeeze()
+
+
+# ============================================================================
+# ENHANCED PREDICTION FUNCTIONS
+# ============================================================================
+
+def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
+                                 detection_threshold=0.5, use_multiscale=False, 
+                                 return_all_candidates=False, **candidate_kwargs):
+    """Predict BCG candidates with calibrated probabilities and uncertainty."""
+    
+    # Find candidates using appropriate method
+    if use_multiscale:
+        # Map candidate_kwargs to multiscale function parameters
+        multiscale_params = {
+            'scales': candidate_kwargs.get('scales', [0.5, 1.0, 1.5]),
+            'base_min_distance': candidate_kwargs.get('min_distance', 15),
+            'threshold_rel': candidate_kwargs.get('threshold_rel', 0.12),
+            'exclude_border': candidate_kwargs.get('exclude_border', 30),
+            'max_candidates_per_scale': candidate_kwargs.get('max_candidates_per_scale', 10)
+        }
+        candidates_with_scale, intensities, patch_sizes = find_multiscale_bcg_candidates(
+            image, **multiscale_params
+        )
+        if len(candidates_with_scale) == 0:
+            return {
+                'best_bcg': None,
+                'all_candidates': np.array([]),
+                'probabilities': np.array([]),
+                'uncertainties': np.array([]),
+                'detections': np.array([]),
+                'detection_probabilities': np.array([])
+            }
+        
+        # Extract features
+        features, _ = extract_multiscale_candidate_features(image, candidates_with_scale, patch_sizes)
+        all_candidates = candidates_with_scale[:, :2]  # Extract x, y coordinates
+        
+    else:
+        from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
+        all_candidates, intensities = find_bcg_candidates(image, **candidate_kwargs)
+        
+        if len(all_candidates) == 0:
+            return {
+                'best_bcg': None,
+                'all_candidates': np.array([]),
+                'probabilities': np.array([]),
+                'uncertainties': np.array([]),
+                'detections': np.array([]),
+                'detection_probabilities': np.array([])
+            }
+        
+        features, _ = extract_candidate_features(image, all_candidates)
+    
+    # Scale features
+    if feature_scaler is not None:
+        scaled_features = feature_scaler.transform(features)
+        features_tensor = torch.FloatTensor(scaled_features)
+    else:
+        features_tensor = torch.FloatTensor(features)
+    
+    # Get probabilities and uncertainties
+    model.eval()
+    with torch.no_grad():
+        if hasattr(model, 'predict_with_uncertainty'):
+            probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
+            probabilities = probabilities.numpy()
+            uncertainties = uncertainties.numpy()
+        else:
+            logits = model(features_tensor).squeeze()
+            probabilities = torch.sigmoid(logits).numpy()
+            uncertainties = np.zeros_like(probabilities)  # No uncertainty available
+    
+    # Find detections above threshold
+    detection_mask = probabilities >= detection_threshold
+    detections = all_candidates[detection_mask]
+    detection_probabilities = probabilities[detection_mask]
+    
+    # Find best BCG (highest probability)
+    if len(probabilities) > 0:
+        best_idx = np.argmax(probabilities)
+        best_bcg = tuple(all_candidates[best_idx])
+    else:
+        best_bcg = None
+    
+    results = {
+        'best_bcg': best_bcg,
+        'all_candidates': all_candidates,
+        'probabilities': probabilities,
+        'uncertainties': uncertainties,
+        'detections': detections,
+        'detection_probabilities': detection_probabilities
+    }
+    
+    return results
+
+
+# ============================================================================
+# ENHANCED VISUALIZATION FUNCTIONS
+# ============================================================================
+
+def show_enhanced_predictions(images, targets, predictions, all_candidates_list, 
+                            all_scores_list, all_probabilities_list=None,
+                            indices=None, save_dir=None, phase=None, use_uq=False):
+    """Enhanced visualization with probability information."""
+    if indices is None:
+        indices = range(min(5, len(images)))
+    
+    for i, idx in enumerate(indices):
+        if idx >= len(images):
+            continue
+            
+        image = images[idx]
+        target = targets[idx]
+        prediction = predictions[idx]
+        candidates = all_candidates_list[idx] if idx < len(all_candidates_list) else []
+        scores = all_scores_list[idx] if idx < len(all_scores_list) else np.array([])
+        
+        # Get probabilities if available
+        if use_uq and all_probabilities_list and idx < len(all_probabilities_list):
+            probabilities = all_probabilities_list[idx]
+        else:
+            probabilities = scores  # Use scores as proxy
+        
+        # Calculate distance between target and prediction
+        distance = np.sqrt(np.sum((target - prediction)**2))
+        
+        # Create figure
+        plt.figure(figsize=(12, 8))
+        
+        # Display image
+        if len(image.shape) == 3 and image.shape[2] == 3:
+            display_image = np.clip(image.astype(np.uint8), 0, 255)
+        else:
+            display_image = image
+        
+        plt.imshow(display_image)
+        
+        # Plot all candidates with probability-based coloring
+        if len(candidates) > 0:
+            candidates_array = np.array(candidates)
+            
+            if len(probabilities) > 0 and use_uq:
+                # Color by probability
+                scatter = plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
+                                    c=probabilities, cmap='coolwarm', 
+                                    marker='s', s=200, alpha=0.7, 
+                                    vmin=0, vmax=1, edgecolors='black', linewidths=1)
+                cbar = plt.colorbar(scatter, ax=plt.gca(), shrink=0.8)
+                cbar.set_label('BCG Probability', rotation=270, labelpad=20)
+                candidate_label = f'Candidates ({len(candidates)}) - colored by probability'
+            else:
+                # Traditional visualization
+                plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
+                          marker='s', s=200, facecolors='none', edgecolors='cyan', 
+                          linewidths=1, alpha=0.5, label=f'Candidates ({len(candidates)})')
+                candidate_label = f'Candidates ({len(candidates)})'
+        
+        # Plot selected BCG (prediction) as red circle
+        plt.scatter(prediction[0], prediction[1], marker='o', s=400, 
+                   facecolors='none', edgecolors='red', linewidths=3, alpha=0.9,
+                   label='Predicted BCG')
+        
+        # Plot true BCG location as yellow circle
+        plt.scatter(target[0], target[1], marker='o', s=250, 
+                   facecolors='none', edgecolors='yellow', linewidths=3, alpha=0.9,
+                   label='True BCG')
+        
+        # Enhanced title with UQ information
+        title = f'Enhanced BCG Prediction - Sample {idx+1}'
+        if phase:
+            title = f'{phase} - Sample {idx+1}'
+        
+        subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
+        
+        if len(scores) > 0:
+            if use_uq and len(probabilities) > 0:
+                max_prob = np.max(probabilities)
+                avg_prob = np.mean(probabilities)
+                subtitle += f' | Max Prob: {max_prob:.3f} | Avg Prob: {avg_prob:.3f}'
+            else:
+                max_score = np.max(scores)
+                avg_score = np.mean(scores)
+                subtitle += f' | Max Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
+        
+        plt.title(f'{title}\n{subtitle}', fontsize=12)
+        
+        # Adjust legend
+        if not (len(probabilities) > 0 and use_uq):
+            plt.legend(loc='upper right', bbox_to_anchor=(1, 1))
+        
+        plt.axis('off')
+        
+        # Save plot
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            phase_str = f"{phase}_" if phase else ""
+            uq_str = "Probabilistic_" if use_uq else ""
+            filename = f'{phase_str}{uq_str}prediction_sample_{idx+1}.png'
+            save_path = os.path.join(save_dir, filename)
+            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            print(f"Enhanced prediction plot saved: {save_path}")
+        
+        plt.show()
+        plt.close()
+
+
+def plot_probability_analysis(all_probabilities_list, all_uncertainties_list, 
+                            distances, save_dir=None):
+    """Plot probability and uncertainty analysis."""
+    if not all_probabilities_list or not any(len(p) > 0 for p in all_probabilities_list):
+        return
+    
+    # Collect all probabilities and uncertainties
+    all_probs = []
+    all_uncs = []
+    best_probs = []  # Probability of best candidate
+    best_uncs = []   # Uncertainty of best candidate
+    
+    for i, (probs, uncs) in enumerate(zip(all_probabilities_list, all_uncertainties_list)):
+        if len(probs) > 0:
+            all_probs.extend(probs)
+            best_probs.append(np.max(probs))
+            
+            if len(uncs) > 0:
+                all_uncs.extend(uncs)
+                best_idx = np.argmax(probs)
+                best_uncs.append(uncs[best_idx])
+    
+    if not all_probs:
+        return
+    
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    
+    # Probability distribution
+    axes[0, 0].hist(all_probs, bins=30, alpha=0.7, edgecolor='black')
+    axes[0, 0].set_xlabel('BCG Probability')
+    axes[0, 0].set_ylabel('Count')
+    axes[0, 0].set_title('Distribution of All Candidate Probabilities')
+    axes[0, 0].grid(True, alpha=0.3)
+    
+    # Best candidate probabilities
+    axes[0, 1].hist(best_probs, bins=20, alpha=0.7, color='orange', edgecolor='black')
+    axes[0, 1].set_xlabel('Best Candidate Probability')
+    axes[0, 1].set_ylabel('Count')
+    axes[0, 1].set_title('Distribution of Best Candidate Probabilities')
+    axes[0, 1].grid(True, alpha=0.3)
+    
+    # Uncertainty analysis
+    if all_uncs:
+        axes[1, 0].hist(all_uncs, bins=30, alpha=0.7, color='red', edgecolor='black')
+        axes[1, 0].set_xlabel('Uncertainty')
+        axes[1, 0].set_ylabel('Count')
+        axes[1, 0].set_title('Distribution of All Candidate Uncertainties')
+        axes[1, 0].grid(True, alpha=0.3)
+        
+        # Probability vs Uncertainty scatter
+        if len(best_probs) == len(best_uncs):
+            scatter = axes[1, 1].scatter(best_probs, best_uncs, c=distances[:len(best_probs)], 
+                                       cmap='viridis', alpha=0.6)
+            axes[1, 1].set_xlabel('Best Candidate Probability')
+            axes[1, 1].set_ylabel('Best Candidate Uncertainty')
+            axes[1, 1].set_title('Probability vs Uncertainty (colored by distance error)')
+            axes[1, 1].grid(True, alpha=0.3)
+            plt.colorbar(scatter, ax=axes[1, 1], label='Distance Error (pixels)')
+    else:
+        # If no uncertainties, just show probability vs distance
+        if len(best_probs) <= len(distances):
+            axes[1, 0].scatter(best_probs, distances[:len(best_probs)], alpha=0.6)
+            axes[1, 0].set_xlabel('Best Candidate Probability')
+            axes[1, 0].set_ylabel('Distance Error (pixels)')
+            axes[1, 0].set_title('Probability vs Distance Error')
+            axes[1, 0].grid(True, alpha=0.3)
+        
+        axes[1, 1].text(0.5, 0.5, 'No uncertainty\ninformation available', 
+                       ha='center', va='center', transform=axes[1, 1].transAxes,
+                       fontsize=12)
+        axes[1, 1].set_title('Uncertainty Analysis')
+    
+    plt.tight_layout()
+    
+    if save_dir:
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, 'probability_analysis.png')
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        print(f"Probability analysis saved to: {save_path}")
+    
+    plt.show()
+    plt.close()
+
+
+# ============================================================================
+# MAIN TESTING FUNCTIONS
+# ============================================================================
 
 def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, random_seed=42):
     """Split dataset into train/validation/test sets (same as training)."""
@@ -138,13 +669,59 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         else:
             # Use traditional method
             if use_multiscale:
-                predicted_bcg, all_candidates, scores = predict_bcg_from_multiscale_candidates(
-                    image, model, scaler, use_multiscale=True, **candidate_params
+                # Map candidate_params to multiscale function parameters
+                multiscale_params = {
+                    'scales': candidate_params.get('scales', [0.5, 1.0, 1.5]),
+                    'base_min_distance': candidate_params.get('min_distance', 15),
+                    'threshold_rel': candidate_params.get('threshold_rel', 0.12),
+                    'exclude_border': candidate_params.get('exclude_border', 30),
+                    'max_candidates_per_scale': candidate_params.get('max_candidates_per_scale', 10)
+                }
+                candidates_with_scale, intensities, patch_sizes = find_multiscale_bcg_candidates(
+                    image, **multiscale_params
                 )
+                if len(candidates_with_scale) == 0:
+                    predicted_bcg = None
+                    all_candidates = np.array([])
+                    scores = np.array([])
+                else:
+                    all_candidates = candidates_with_scale[:, :2]
+                    features, _ = extract_multiscale_candidate_features(
+                        image, candidates_with_scale, patch_sizes
+                    )
+                    
+                    if scaler is not None:
+                        scaled_features = scaler.transform(features)
+                        features_tensor = torch.FloatTensor(scaled_features)
+                    else:
+                        features_tensor = torch.FloatTensor(features)
+                    
+                    with torch.no_grad():
+                        scores = model(features_tensor).squeeze().numpy()
+                    
+                    best_idx = np.argmax(scores)
+                    predicted_bcg = tuple(all_candidates[best_idx])
             else:
-                predicted_bcg, all_candidates, scores = predict_bcg_from_candidates(
-                    image, model, scaler, **candidate_params
-                )
+                from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
+                all_candidates, intensities = find_bcg_candidates(image, **candidate_params)
+                
+                if len(all_candidates) == 0:
+                    predicted_bcg = None
+                    scores = np.array([])
+                else:
+                    features, _ = extract_candidate_features(image, all_candidates)
+                    
+                    if scaler is not None:
+                        scaled_features = scaler.transform(features)
+                        features_tensor = torch.FloatTensor(scaled_features)
+                    else:
+                        features_tensor = torch.FloatTensor(features)
+                    
+                    with torch.no_grad():
+                        scores = model(features_tensor).squeeze().numpy()
+                    
+                    best_idx = np.argmax(scores)
+                    predicted_bcg = tuple(all_candidates[best_idx])
             
             # No UQ information available
             probabilities = np.array([])
@@ -268,196 +845,6 @@ def print_enhanced_evaluation_report(metrics, failed_predictions, use_uq=False):
         
         for reason, count in failure_reasons.items():
             print(f"  {reason}: {count} cases")
-
-
-def plot_probability_analysis(all_probabilities_list, all_uncertainties_list, 
-                            distances, save_dir=None):
-    """Plot probability and uncertainty analysis."""
-    if not all_probabilities_list or not any(len(p) > 0 for p in all_probabilities_list):
-        return
-    
-    # Collect all probabilities and uncertainties
-    all_probs = []
-    all_uncs = []
-    best_probs = []  # Probability of best candidate
-    best_uncs = []   # Uncertainty of best candidate
-    
-    for i, (probs, uncs) in enumerate(zip(all_probabilities_list, all_uncertainties_list)):
-        if len(probs) > 0:
-            all_probs.extend(probs)
-            best_probs.append(np.max(probs))
-            
-            if len(uncs) > 0:
-                all_uncs.extend(uncs)
-                best_idx = np.argmax(probs)
-                best_uncs.append(uncs[best_idx])
-    
-    if not all_probs:
-        return
-    
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    
-    # Probability distribution
-    axes[0, 0].hist(all_probs, bins=30, alpha=0.7, edgecolor='black')
-    axes[0, 0].set_xlabel('BCG Probability')
-    axes[0, 0].set_ylabel('Count')
-    axes[0, 0].set_title('Distribution of All Candidate Probabilities')
-    axes[0, 0].grid(True, alpha=0.3)
-    
-    # Best candidate probabilities
-    axes[0, 1].hist(best_probs, bins=20, alpha=0.7, color='orange', edgecolor='black')
-    axes[0, 1].set_xlabel('Best Candidate Probability')
-    axes[0, 1].set_ylabel('Count')
-    axes[0, 1].set_title('Distribution of Best Candidate Probabilities')
-    axes[0, 1].grid(True, alpha=0.3)
-    
-    # Uncertainty analysis
-    if all_uncs:
-        axes[1, 0].hist(all_uncs, bins=30, alpha=0.7, color='red', edgecolor='black')
-        axes[1, 0].set_xlabel('Uncertainty')
-        axes[1, 0].set_ylabel('Count')
-        axes[1, 0].set_title('Distribution of All Candidate Uncertainties')
-        axes[1, 0].grid(True, alpha=0.3)
-        
-        # Probability vs Uncertainty scatter
-        if len(best_probs) == len(best_uncs):
-            scatter = axes[1, 1].scatter(best_probs, best_uncs, c=distances[:len(best_probs)], 
-                                       cmap='viridis', alpha=0.6)
-            axes[1, 1].set_xlabel('Best Candidate Probability')
-            axes[1, 1].set_ylabel('Best Candidate Uncertainty')
-            axes[1, 1].set_title('Probability vs Uncertainty (colored by distance error)')
-            axes[1, 1].grid(True, alpha=0.3)
-            plt.colorbar(scatter, ax=axes[1, 1], label='Distance Error (pixels)')
-    else:
-        # If no uncertainties, just show probability vs distance
-        if len(best_probs) <= len(distances):
-            axes[1, 0].scatter(best_probs, distances[:len(best_probs)], alpha=0.6)
-            axes[1, 0].set_xlabel('Best Candidate Probability')
-            axes[1, 0].set_ylabel('Distance Error (pixels)')
-            axes[1, 0].set_title('Probability vs Distance Error')
-            axes[1, 0].grid(True, alpha=0.3)
-        
-        axes[1, 1].text(0.5, 0.5, 'No uncertainty\ninformation available', 
-                       ha='center', va='center', transform=axes[1, 1].transAxes,
-                       fontsize=12)
-        axes[1, 1].set_title('Uncertainty Analysis')
-    
-    plt.tight_layout()
-    
-    if save_dir:
-        os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, 'probability_analysis.png')
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        print(f"Probability analysis saved to: {save_path}")
-    
-    plt.show()
-    plt.close()
-
-
-def show_enhanced_predictions(images, targets, predictions, all_candidates_list, 
-                            all_scores_list, all_probabilities_list=None,
-                            indices=None, save_dir=None, phase=None, use_uq=False):
-    """Enhanced visualization with probability information."""
-    if indices is None:
-        indices = range(min(5, len(images)))
-    
-    for i, idx in enumerate(indices):
-        if idx >= len(images):
-            continue
-            
-        image = images[idx]
-        target = targets[idx]
-        prediction = predictions[idx]
-        candidates = all_candidates_list[idx] if idx < len(all_candidates_list) else []
-        scores = all_scores_list[idx] if idx < len(all_scores_list) else np.array([])
-        
-        # Get probabilities if available
-        if use_uq and all_probabilities_list and idx < len(all_probabilities_list):
-            probabilities = all_probabilities_list[idx]
-        else:
-            probabilities = scores  # Use scores as proxy
-        
-        # Calculate distance between target and prediction
-        distance = np.sqrt(np.sum((target - prediction)**2))
-        
-        # Create figure
-        plt.figure(figsize=(12, 8))
-        
-        # Display image
-        if len(image.shape) == 3 and image.shape[2] == 3:
-            display_image = np.clip(image.astype(np.uint8), 0, 255)
-        else:
-            display_image = image
-        
-        plt.imshow(display_image)
-        
-        # Plot all candidates with probability-based coloring
-        if len(candidates) > 0:
-            candidates_array = np.array(candidates)
-            
-            if len(probabilities) > 0 and use_uq:
-                # Color by probability
-                scatter = plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
-                                    c=probabilities, cmap='coolwarm', 
-                                    marker='s', s=200, alpha=0.7, 
-                                    vmin=0, vmax=1, edgecolors='black', linewidths=1)
-                cbar = plt.colorbar(scatter, ax=plt.gca(), shrink=0.8)
-                cbar.set_label('BCG Probability', rotation=270, labelpad=20)
-                candidate_label = f'Candidates ({len(candidates)}) - colored by probability'
-            else:
-                # Traditional visualization
-                plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
-                          marker='s', s=200, facecolors='none', edgecolors='cyan', 
-                          linewidths=1, alpha=0.5, label=f'Candidates ({len(candidates)})')
-                candidate_label = f'Candidates ({len(candidates)})'
-        
-        # Plot selected BCG (prediction) as red circle
-        plt.scatter(prediction[0], prediction[1], marker='o', s=400, 
-                   facecolors='none', edgecolors='red', linewidths=3, alpha=0.9,
-                   label='Predicted BCG')
-        
-        # Plot true BCG location as yellow circle
-        plt.scatter(target[0], target[1], marker='o', s=250, 
-                   facecolors='none', edgecolors='yellow', linewidths=3, alpha=0.9,
-                   label='True BCG')
-        
-        # Enhanced title with UQ information
-        title = f'Enhanced BCG Prediction - Sample {idx+1}'
-        if phase:
-            title = f'{phase} - Sample {idx+1}'
-        
-        subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
-        
-        if len(scores) > 0:
-            if use_uq and len(probabilities) > 0:
-                max_prob = np.max(probabilities)
-                avg_prob = np.mean(probabilities)
-                subtitle += f' | Max Prob: {max_prob:.3f} | Avg Prob: {avg_prob:.3f}'
-            else:
-                max_score = np.max(scores)
-                avg_score = np.mean(scores)
-                subtitle += f' | Max Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
-        
-        plt.title(f'{title}\n{subtitle}', fontsize=12)
-        
-        # Adjust legend
-        if not (len(probabilities) > 0 and use_uq):
-            plt.legend(loc='upper right', bbox_to_anchor=(1, 1))
-        
-        plt.axis('off')
-        
-        # Save plot
-        if save_dir:
-            os.makedirs(save_dir, exist_ok=True)
-            phase_str = f"{phase}_" if phase else ""
-            uq_str = "Probabilistic_" if use_uq else ""
-            filename = f'{phase_str}{uq_str}prediction_sample_{idx+1}.png'
-            save_path = os.path.join(save_dir, filename)
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
-            print(f"Enhanced prediction plot saved: {save_path}")
-        
-        plt.show()
-        plt.close()
 
 
 def main(args):

@@ -119,7 +119,7 @@ def main():
     print(f"\nExperiment output directory: {output_dir}")
     
     # Build training command
-    train_command = f"""python train.py \\
+    train_command = f"""python old_train.py \\
         --image_dir "{IMAGE_DIR}" \\
         --truth_table "{TRUTH_TABLE}" \\
         --dataset_type {DATASET_TYPE} \\
@@ -170,7 +170,7 @@ def main():
     
     test_output_dir = os.path.join(output_dir, "evaluation_results")
     
-    test_command = f"""python test.py \\
+    test_command = f"""python old_test.py \\
         --model_path "{model_path}" \\
         --scaler_path "{scaler_path}" \\
         --image_dir "{IMAGE_DIR}" \\
