@@ -494,7 +494,7 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
         
         # Backward pass
         optimizer.zero_grad()
-        avg_loss.backward()
+        total_loss.backward()
         optimizer.step()
         
         return total_loss.item(), accuracy
