@@ -42,8 +42,26 @@ def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, random_seed=42):
     return train_subset, val_subset, test_subset
 
 
-def load_trained_model(model_path, scaler_path, feature_dim):
+def load_trained_model(model_path, scaler_path, feature_dim, saved_files_dir=None):
     """Load trained model and feature scaler."""
+    # Determine actual paths
+    if saved_files_dir is not None:
+        # If saved_files_dir is provided, look for files there first
+        model_filename = os.path.basename(model_path)
+        scaler_filename = os.path.basename(scaler_path)
+        
+        # Check if files exist in saved_files_dir
+        saved_model_path = os.path.join(saved_files_dir, model_filename)
+        saved_scaler_path = os.path.join(saved_files_dir, scaler_filename)
+        
+        if os.path.exists(saved_model_path):
+            model_path = saved_model_path
+            print(f"Using model from saved files directory: {model_path}")
+        
+        if os.path.exists(saved_scaler_path):
+            scaler_path = saved_scaler_path
+            print(f"Using scaler from saved files directory: {scaler_path}")
+    
     # Load model
     model = BCGCandidateClassifier(feature_dim)
     model.load_state_dict(torch.load(model_path, map_location='cpu'))
@@ -240,7 +258,7 @@ def main(args):
     
     # Load trained model
     print("Loading trained model...")
-    model, scaler = load_trained_model(args.model_path, args.scaler_path, feature_dim)
+    model, scaler = load_trained_model(args.model_path, args.scaler_path, feature_dim, args.saved_files_dir)
     
     # Set up candidate parameters
     candidate_params = {
@@ -359,6 +377,8 @@ if __name__ == "__main__":
                        help='Path to trained model (.pth file)')
     parser.add_argument('--scaler_path', type=str, required=True,
                        help='Path to feature scaler (.pkl file)')
+    parser.add_argument('--saved_files_dir', type=str, default=None,
+                       help='Directory containing saved model and scaler files (optional)')
     
     # Data arguments
     parser.add_argument('--image_dir', type=str, required=True,
