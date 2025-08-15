@@ -318,6 +318,24 @@ def main():
         print("Testing failed.")
         return
     
+    # Step 3: Generate Diagnostic Plots
+    print("\n" + "="*80)
+    print("STEP 3: GENERATING DIAGNOSTIC PLOTS")
+    print("="*80)
+    
+    # Generate diagnostic plots from evaluation results
+    evaluation_csv = os.path.join(test_output_dir, "evaluation_results.csv")
+    if os.path.exists(evaluation_csv):
+        diagnostic_command = f"python -c \"from utils.diagnostic_plots import create_diagnostic_plots; create_diagnostic_plots('{evaluation_csv}', '{output_dir}')\""
+        
+        if not run_command(diagnostic_command, "Generating diagnostic plots"):
+            print("Diagnostic plotting failed, but continuing...")
+        else:
+            print(f"Diagnostic plots saved to: {output_dir}/diagnostic_plots.png")
+    else:
+        print(f"Warning: Evaluation results file not found: {evaluation_csv}")
+        print("Skipping diagnostic plots generation.")
+    
     # Step 4: Summary
     print("\n" + "="*80)
     print("ENHANCED WORKFLOW COMPLETED SUCCESSFULLY!")
@@ -332,6 +350,8 @@ def main():
     print(f"  Sample predictions: {test_output_dir}/*_prediction_sample_*.png")
     print(f"  Failure cases: {test_output_dir}/*_failure_sample_*.png")
     print(f"  Detailed results: {test_output_dir}/evaluation_results.csv")
+    print(f"  Diagnostic plots: {output_dir}/diagnostic_plots.png")
+    print(f"  Diagnostic plots (PDF): {output_dir}/diagnostic_plots.pdf")
     
     if use_uq:
         print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
