@@ -44,7 +44,7 @@ class BCGCandidateDataset(Dataset):
             candidate_params = {
                 'min_distance': 15,
                 'threshold_rel': 0.12,
-                'exclude_border': 8,
+                'exclude_border': 0,
                 'max_candidates': 32
             }
         self.candidate_params = candidate_params
