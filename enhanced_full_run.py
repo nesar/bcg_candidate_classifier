@@ -146,18 +146,18 @@ def main():
     
     if modify_params in ['y', 'yes']:
         print("\nCandidate detection parameters:")
-        min_distance = int(input("Minimum distance between candidates (default 15): ") or "15")
+        min_distance = int(input("Minimum distance between candidates (default 20): ") or "20")
         threshold_rel = float(input("Relative brightness threshold (default 0.12): ") or "0.12")
-        exclude_border = int(input("Exclude border pixels (default 30): ") or "30")
+        exclude_border = int(input("Exclude border pixels (default 0): ") or "0")
         if not use_multiscale:
-            max_candidates = int(input("Maximum candidates per image (default 25): ") or "25")
+            max_candidates = int(input("Maximum candidates per image (default 30): ") or "30")
         else:
             max_candidates = max_per_scale  # Use multiscale parameter
     else:
-        min_distance = 15
+        min_distance = 20
         threshold_rel = 0.12
-        exclude_border = 30
-        max_candidates = max_per_scale if use_multiscale else 25
+        exclude_border = 0
+        max_candidates = max_per_scale if use_multiscale else 30
         print(f"Using defaults: min_distance={min_distance}, threshold_rel={threshold_rel}")
     
     # Training parameters
@@ -167,13 +167,13 @@ def main():
     modify_training = input("Modify training parameters? (y/N): ").strip().lower()
     
     if modify_training in ['y', 'yes']:
-        epochs = int(input("Number of epochs (default 50): ") or "50")
+        epochs = int(input("Number of epochs (default 100): ") or "100")
         batch_size = int(input("Batch size (default 16): ") or "16")
-        lr = float(input("Learning rate (default 0.001): ") or "0.001")
+        lr = float(input("Learning rate (default 0.0001): ") or "0.0001")
     else:
-        epochs = 50
+        epochs = 100
         batch_size = 16
-        lr = 0.001
+        lr = 0.0001
         print(f"Using defaults: epochs={epochs}, batch_size={batch_size}, lr={lr}")
     
     # Choose which implementation to use
