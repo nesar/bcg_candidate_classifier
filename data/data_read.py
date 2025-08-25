@@ -121,7 +121,7 @@ class BCGDataset(Dataset):
         pil_image = pillow.open(image_path)
         
         # Extract the desired frame from multi-frame TIFF (frame 1, not 0)
-        pil_image.seek(1) 
+        pil_image.seek(0) 
         image_array = np.asarray(pil_image)
         
         # Get WCS information
