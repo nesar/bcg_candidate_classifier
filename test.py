@@ -28,6 +28,13 @@ from ml_models.candidate_classifier import BCGCandidateClassifier
 from utils.candidate_based_bcg import extract_patch_features, extract_context_features
 from utils.viz_bcg import show_failures
 
+# NEW: BCG dataset support
+from data.data_read_bcgs import create_bcg_datasets, BCGDataset as NewBCGDataset
+from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loader, 
+                                        create_desprior_candidate_dataset_from_files,
+                                        collate_bcg_candidate_samples)
+from ml_models.probabilistic_classifier import BCGProbabilisticClassifier
+
 
 # ============================================================================
 # MULTI-SCALE CANDIDATE DETECTION (COPY FROM TRAIN.PY)
@@ -875,17 +882,39 @@ def main(args):
     print("Loading original truth table...")
     original_df = pd.read_csv(args.truth_table)
     
-    # Load processed dataset
-    print("Loading processed dataset...")
-    dataframe = prepare_dataframe(args.image_dir, args.truth_table, args.dataset_type)
-    print(f"Found {len(dataframe)} samples in dataset")
-    
-    # Create BCG dataset
-    dataset = BCGDataset(args.image_dir, dataframe)
-    
-    # Split dataset (use same random seed as training)
-    train_subset, val_subset, test_subset = split_dataset(dataset, train_ratio=0.7, val_ratio=0.2)
-    print(f"Using test split: {len(test_subset)} samples")
+    if args.use_bcg_data:
+        # Use new BCG dataset
+        print("Loading new BCG dataset...")
+        print(f"Dataset type: {args.bcg_arcmin_type}")
+        if args.z_range:
+            print(f"Redshift filter: {args.z_range}")
+        if args.delta_mstar_z_range:
+            print(f"Delta M* z filter: {args.delta_mstar_z_range}")
+        
+        # Create train and test datasets using the new BCG data reader
+        train_dataset, test_dataset = create_bcg_datasets(
+            dataset_type=args.bcg_arcmin_type,
+            split_ratio=0.8,  # 80% train, 20% test
+            z_range=args.z_range,
+            delta_mstar_z_range=args.delta_mstar_z_range,
+            include_additional_features=args.use_additional_features
+        )
+        
+        # Use test split for evaluation
+        test_subset = test_dataset
+        print(f"Found {len(test_dataset)} samples in test split")
+    else:
+        # Load processed dataset (original approach)
+        print("Loading processed dataset...")
+        dataframe = prepare_dataframe(args.image_dir, args.truth_table, args.dataset_type)
+        print(f"Found {len(dataframe)} samples in dataset")
+        
+        # Create BCG dataset
+        dataset = BCGDataset(args.image_dir, dataframe)
+        
+        # Split dataset (use same random seed as training)
+        train_subset, val_subset, test_subset = split_dataset(dataset, train_ratio=0.7, val_ratio=0.2)
+        print(f"Using test split: {len(test_subset)} samples")
     
     # Determine feature dimension by analyzing a sample
     # This ensures we get the correct dimension regardless of options
@@ -1198,6 +1227,23 @@ if __name__ == "__main__":
     parser.add_argument('--detection_threshold', type=float, default=0.5,
                        help='Probability threshold for BCG detection (0.0-1.0)')
     
+    # BCG dataset arguments
+    parser.add_argument('--use_bcg_data', action='store_true',
+                       help='Use new BCG dataset (2.2 or 3.8 arcmin)')
+    parser.add_argument('--bcg_arcmin_type', type=str, default='2p2arcmin',
+                       choices=['2p2arcmin', '3p8arcmin'],
+                       help='BCG image scale (2.2 or 3.8 arcmin)')
+    parser.add_argument('--z_range', type=str, default=None,
+                       help='Redshift filter range as "z_min,z_max" (e.g. "0.3,0.7")')
+    parser.add_argument('--delta_mstar_z_range', type=str, default=None,
+                       help='Delta M* z filter range as "min,max" (e.g. "-2.0,-1.0")')
+    parser.add_argument('--use_additional_features', action='store_true',
+                       help='Include redshift and delta_mstar_z as additional features')
+    parser.add_argument('--use_desprior_candidates', action='store_true',
+                       help='Use DESprior candidates instead of automatic detection')
+    parser.add_argument('--candidate_delta_mstar_range', type=str, default=None,
+                       help='Filter DESprior candidates by delta_mstar range as "min,max"')
+    
     # Visualization arguments
     parser.add_argument('--show_samples', type=int, default=5,
                        help='Number of sample predictions to visualize')
@@ -1219,5 +1265,20 @@ if __name__ == "__main__":
     # Validate detection threshold
     if args.use_uq:
         args.detection_threshold = max(0.0, min(1.0, args.detection_threshold))
+    
+    # Parse BCG dataset arguments
+    if args.use_bcg_data:
+        # Parse range arguments
+        if args.z_range:
+            z_min, z_max = map(float, args.z_range.split(','))
+            args.z_range = (z_min, z_max)
+        
+        if args.delta_mstar_z_range:
+            delta_min, delta_max = map(float, args.delta_mstar_z_range.split(','))
+            args.delta_mstar_z_range = (delta_min, delta_max)
+        
+        if args.candidate_delta_mstar_range:
+            delta_min, delta_max = map(float, args.candidate_delta_mstar_range.split(','))
+            args.candidate_delta_mstar_range = (delta_min, delta_max)
     
     main(args)

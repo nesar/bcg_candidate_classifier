@@ -28,6 +28,11 @@ from data.data_read import prepare_dataframe, BCGDataset
 from data.candidate_dataset import BCGCandidateDataset, collate_candidate_samples
 from data.candidate_dataset import CandidateBasedTrainer
 from ml_models.candidate_classifier import BCGCandidateClassifier
+# NEW: BCG dataset support
+from data.data_read_bcgs import create_bcg_datasets, BCGDataset as NewBCGDataset
+from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loader, 
+                                        create_desprior_candidate_dataset_from_files,
+                                        collate_bcg_candidate_samples)
 from utils.candidate_based_bcg import extract_patch_features, extract_context_features
 
 
@@ -539,23 +544,27 @@ def extract_images_and_coords(dataset):
     return images, coords
 
 
-def train_enhanced_classifier(train_dataset, val_dataset, args):
+def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None):
     """Train the enhanced BCG classifier with multi-scale and UQ options."""
     print("Setting up enhanced candidate-based training...")
+    
+    # Use provided collate function or default
+    if collate_fn is None:
+        collate_fn = collate_candidate_samples
     
     # Create data loaders
     train_loader = DataLoader(
         train_dataset, 
         batch_size=args.batch_size,
         shuffle=True,
-        collate_fn=collate_candidate_samples
+        collate_fn=collate_fn
     )
     
     val_loader = DataLoader(
         val_dataset,
         batch_size=args.batch_size, 
         shuffle=False,
-        collate_fn=collate_candidate_samples
+        collate_fn=collate_fn
     )
     
     # Determine feature dimension from first batch
@@ -762,62 +771,149 @@ def main(args):
     
     # Load dataset
     print("Loading dataset...")
-    dataframe = prepare_dataframe(args.image_dir, args.truth_table, args.dataset_type)
-    print(f"Found {len(dataframe)} samples in dataset")
     
-    # Create BCG dataset
-    dataset = BCGDataset(args.image_dir, dataframe)
+    if args.use_bcg_data:
+        # Use new BCG dataset
+        print(f"Using BCG dataset: {args.bcg_arcmin_type}")
+        if args.z_range:
+            print(f"Redshift filter: {args.z_range}")
+        if args.delta_mstar_z_range:
+            print(f"Delta M* z filter: {args.delta_mstar_z_range}")
+        
+        # Create train and test datasets using the new BCG data reader
+        train_dataset, test_dataset = create_bcg_datasets(
+            dataset_type=args.bcg_arcmin_type,
+            split_ratio=0.8,  # 80% train, 20% test
+            z_range=args.z_range,
+            delta_mstar_z_range=args.delta_mstar_z_range,
+            include_additional_features=args.use_additional_features
+        )
+        
+        # Split training set into train/val (70% train, 10% val, 20% test total)
+        train_size = int(0.875 * len(train_dataset))  # 0.875 * 0.8 = 0.7 total
+        val_size = len(train_dataset) - train_size
+        
+        train_subset, val_subset = torch.utils.data.random_split(
+            train_dataset, [train_size, val_size]
+        )
+        test_subset = test_dataset
+        
+        print(f"BCG Dataset split: Train={len(train_subset)}, Val={len(val_subset)}, Test={len(test_subset)}")
+        
+    else:
+        # Use original dataset
+        dataframe = prepare_dataframe(args.image_dir, args.truth_table, args.dataset_type)
+        print(f"Found {len(dataframe)} samples in dataset")
+        
+        # Create BCG dataset
+        dataset = BCGDataset(args.image_dir, dataframe)
+        
+        # Split into train/val/test
+        train_subset, val_subset, test_subset = split_dataset(dataset, train_ratio=0.7, val_ratio=0.2)
+        print(f"Dataset split: Train={len(train_subset)}, Val={len(val_subset)}, Test={len(test_subset)}")
     
-    # Split into train/val/test
-    train_subset, val_subset, test_subset = split_dataset(dataset, train_ratio=0.7, val_ratio=0.2)
-    print(f"Dataset split: Train={len(train_subset)}, Val={len(val_subset)}, Test={len(test_subset)}")
+    # Create candidate datasets based on data type
+    print("\nCreating candidate-based datasets...")
     
-    # Extract images and coordinates for candidate processing
-    train_images, train_coords = extract_images_and_coords(train_subset)
-    val_images, val_coords = extract_images_and_coords(val_subset)
-    
-    # Create enhanced candidate datasets
-    print("\nCreating enhanced candidate-based datasets...")
-    
-    candidate_params = {
-        'min_distance': args.min_distance,
-        'threshold_rel': args.threshold_rel,
-        'exclude_border': args.exclude_border,
-        'max_candidates': args.max_candidates
-    }
-    
-    # Add multiscale parameters if enabled
-    if args.use_multiscale:
-        candidate_params['max_candidates_per_scale'] = args.max_candidates_per_scale
-    
-    train_candidate_dataset = EnhancedCandidateDataset(
-        train_images,
-        train_coords,
-        candidate_params,
-        min_candidates=3,
-        use_multiscale=args.use_multiscale,
-        scales=args.scales if args.use_multiscale else [1.0]
-    )
-    
-    val_candidate_dataset = EnhancedCandidateDataset(
-        val_images, 
-        val_coords,
-        candidate_params,
-        min_candidates=3,
-        use_multiscale=args.use_multiscale,
-        scales=args.scales if args.use_multiscale else [1.0]
-    )
+    if args.use_bcg_data and args.use_desprior_candidates:
+        # Use DESprior candidates for BCG data
+        print("Using DESprior candidates...")
+        
+        # Create full datasets with DESprior candidates 
+        full_train_candidate_dataset = create_desprior_candidate_dataset_from_files(
+            dataset_type=args.bcg_arcmin_type,
+            z_range=args.z_range,
+            delta_mstar_z_range=args.delta_mstar_z_range,
+            candidate_delta_mstar_range=args.candidate_delta_mstar_range,
+            filter_inside_image=args.filter_inside_image
+        )
+        
+        # Split the DESprior dataset to match our train/val split ratios
+        total_samples = len(full_train_candidate_dataset)
+        train_size = int(0.875 * total_samples)  # Match the BCG dataset split
+        val_size = total_samples - train_size
+        
+        train_candidate_dataset, val_candidate_dataset = torch.utils.data.random_split(
+            full_train_candidate_dataset, [train_size, val_size]
+        )
+        
+        # Use DESprior-specific collate function
+        collate_fn = collate_bcg_candidate_samples
+        
+    elif args.use_bcg_data:
+        # Use automatic candidates with BCG data
+        print("Using automatic candidates with BCG data...")
+        
+        candidate_params = {
+            'min_distance': args.min_distance,
+            'threshold_rel': args.threshold_rel,
+            'exclude_border': args.exclude_border,
+            'max_candidates': args.max_candidates
+        }
+        
+        train_candidate_dataset = create_bcg_candidate_dataset_from_loader(
+            train_subset, candidate_params, candidate_type='automatic'
+        )
+        val_candidate_dataset = create_bcg_candidate_dataset_from_loader(
+            val_subset, candidate_params, candidate_type='automatic'
+        )
+        
+        # Use BCG-specific collate function
+        collate_fn = collate_bcg_candidate_samples
+        
+    else:
+        # Use original candidate system
+        print("Using original candidate system...")
+        
+        # Extract images and coordinates for candidate processing
+        train_images, train_coords = extract_images_and_coords(train_subset)
+        val_images, val_coords = extract_images_and_coords(val_subset)
+        
+        candidate_params = {
+            'min_distance': args.min_distance,
+            'threshold_rel': args.threshold_rel,
+            'exclude_border': args.exclude_border,
+            'max_candidates': args.max_candidates
+        }
+        
+        # Add multiscale parameters if enabled
+        if args.use_multiscale:
+            candidate_params['max_candidates_per_scale'] = args.max_candidates_per_scale
+        
+        train_candidate_dataset = EnhancedCandidateDataset(
+            train_images,
+            train_coords,
+            candidate_params,
+            min_candidates=3,
+            use_multiscale=args.use_multiscale,
+            scales=args.scales if args.use_multiscale else [1.0]
+        )
+        
+        val_candidate_dataset = EnhancedCandidateDataset(
+            val_images, 
+            val_coords,
+            candidate_params,
+            min_candidates=3,
+            use_multiscale=args.use_multiscale,
+            scales=args.scales if args.use_multiscale else [1.0]
+        )
+        
+        # Use original collate function
+        collate_fn = collate_candidate_samples
     
     if len(train_candidate_dataset) == 0 or len(val_candidate_dataset) == 0:
         print("Error: No valid candidate samples found. Try adjusting candidate parameters.")
         return
+    
+    print(f"Candidate datasets: Train={len(train_candidate_dataset)}, Val={len(val_candidate_dataset)}")
     
     # Train model
     print("\nStarting enhanced training...")
     model, scaler, history = train_enhanced_classifier(
         train_candidate_dataset, 
         val_candidate_dataset, 
-        args
+        args,
+        collate_fn=collate_fn
     )
     
     print(f"\nTraining completed!")
@@ -834,7 +930,7 @@ if __name__ == "__main__":
     parser.add_argument('--truth_table', type=str, required=True,
                        help='Path to CSV file with BCG coordinates')
     parser.add_argument('--dataset_type', type=str, default='SPT3G_1500d',
-                       choices=['SPT3G_1500d', 'megadeep500'],
+                       choices=['SPT3G_1500d', 'megadeep500', 'bcg_2p2arcmin', 'bcg_3p8arcmin'],
                        help='Type of dataset')
     
     # Training arguments
@@ -871,6 +967,27 @@ if __name__ == "__main__":
     parser.add_argument('--detection_threshold', type=float, default=0.5,
                        help='Probability threshold for BCG detection (0.0-1.0)')
     
+    # NEW: BCG dataset specific arguments
+    parser.add_argument('--use_bcg_data', action='store_true',
+                       help='Use new BCG dataset (2.2 or 3.8 arcmin)')
+    parser.add_argument('--bcg_arcmin_type', type=str, default='2p2arcmin',
+                       choices=['2p2arcmin', '3p8arcmin'],
+                       help='BCG image scale (2.2 or 3.8 arcmin)')
+    parser.add_argument('--z_range', type=str, default=None,
+                       help='Redshift filter range as "z_min,z_max" (e.g. "0.3,0.7")')
+    parser.add_argument('--delta_mstar_z_range', type=str, default=None,
+                       help='Delta M* z filter range as "min,max" (e.g. "-2.0,-1.0")')
+    parser.add_argument('--use_additional_features', action='store_true',
+                       help='Include redshift and delta_mstar_z as additional features')
+    
+    # NEW: DESprior candidate arguments
+    parser.add_argument('--use_desprior_candidates', action='store_true',
+                       help='Use DESprior candidates instead of automatic detection')
+    parser.add_argument('--candidate_delta_mstar_range', type=str, default=None,
+                       help='Filter DESprior candidates by delta_mstar range as "min,max"')
+    parser.add_argument('--filter_inside_image', action='store_true', default=True,
+                       help='Filter out DESprior candidates outside image bounds')
+    
     # Output arguments
     parser.add_argument('--output_dir', type=str, default='./trained_models',
                        help='Directory to save trained models')
@@ -888,5 +1005,26 @@ if __name__ == "__main__":
     # Validate detection threshold
     if args.use_uq:
         args.detection_threshold = max(0.0, min(1.0, args.detection_threshold))
+    
+    # Parse BCG filtering ranges
+    if args.z_range:
+        args.z_range = tuple(float(x.strip()) for x in args.z_range.split(','))
+        if len(args.z_range) != 2:
+            raise ValueError("z_range must be two values: 'min,max'")
+    
+    if args.delta_mstar_z_range:
+        args.delta_mstar_z_range = tuple(float(x.strip()) for x in args.delta_mstar_z_range.split(','))
+        if len(args.delta_mstar_z_range) != 2:
+            raise ValueError("delta_mstar_z_range must be two values: 'min,max'")
+    
+    if args.candidate_delta_mstar_range:
+        args.candidate_delta_mstar_range = tuple(float(x.strip()) for x in args.candidate_delta_mstar_range.split(','))
+        if len(args.candidate_delta_mstar_range) != 2:
+            raise ValueError("candidate_delta_mstar_range must be two values: 'min,max'")
+    
+    # Auto-set BCG data mode if BCG dataset types are selected
+    if args.dataset_type in ['bcg_2p2arcmin', 'bcg_3p8arcmin']:
+        args.use_bcg_data = True
+        args.bcg_arcmin_type = args.dataset_type.replace('bcg_', '')
     
     main(args)

@@ -49,10 +49,35 @@ def main():
     print("\nDataset options:")
     print("1. SPT3G_1500d (default)")
     print("2. megadeep500")
+    print("3. BCG 2.2 arcmin (new dataset)")
+    print("4. BCG 3.8 arcmin (new dataset)")
     
-    dataset_choice = input("\nSelect dataset (1 or 2): ").strip()
+    dataset_choice = input("\nSelect dataset (1-4): ").strip()
     
-    if dataset_choice == "2":
+    # Initialize BCG-specific variables
+    use_bcg_data = False
+    bcg_arcmin_type = None
+    z_range = None
+    delta_mstar_z_range = None
+    use_additional_features = False
+    use_desprior_candidates = False
+    candidate_delta_mstar_range = None
+    
+    if dataset_choice == "3":
+        DATASET_TYPE = "bcg_2p2arcmin"
+        IMAGE_DIR = "/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/"
+        TRUTH_TABLE = "/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv"
+        use_bcg_data = True
+        bcg_arcmin_type = "2p2arcmin"
+        print(f"\nSelected: BCG 2.2 arcmin dataset")
+    elif dataset_choice == "4":
+        DATASET_TYPE = "bcg_3p8arcmin" 
+        IMAGE_DIR = "/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/"
+        TRUTH_TABLE = "/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv"
+        use_bcg_data = True
+        bcg_arcmin_type = "3p8arcmin"
+        print(f"\nSelected: BCG 3.8 arcmin dataset")
+    elif dataset_choice == "2":
         DATASET_TYPE = "megadeep500"
         IMAGE_DIR = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/pruned_megadeep500/'
         TRUTH_TABLE = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/ryanwalker/ML/truth_table.csv'
@@ -75,6 +100,71 @@ def main():
         if use_real_data not in ['y', 'yes']:
             print("Please update the data paths and run again.")
             return
+    
+    # BCG dataset specific options
+    if use_bcg_data:
+        print("\n" + "="*60)
+        print("BCG DATASET CONFIGURATION")
+        print("="*60)
+        print("Configure options specific to the new BCG dataset.")
+        
+        # Additional features option
+        use_additional_features_input = input("\nInclude redshift and delta_mstar_z as additional features? (Y/n): ").strip().lower()
+        use_additional_features = use_additional_features_input not in ['n', 'no']
+        
+        # Filtering options
+        print("\nFiltering options:")
+        apply_filters = input("Apply redshift or delta_mstar_z filters? (y/N): ").strip().lower()
+        
+        if apply_filters in ['y', 'yes']:
+            # Redshift filtering
+            z_input = input("Redshift range (format: min,max, e.g., '0.3,0.7', or press Enter to skip): ").strip()
+            if z_input:
+                try:
+                    z_min, z_max = map(float, z_input.split(','))
+                    z_range = f"{z_min},{z_max}"
+                    print(f"Applied redshift filter: [{z_min}, {z_max}]")
+                except:
+                    print("Invalid format, skipping redshift filter")
+            
+            # Delta M* z filtering
+            delta_input = input("Delta M* z range (format: min,max, e.g., '-2.0,-1.0', or press Enter to skip): ").strip()
+            if delta_input:
+                try:
+                    delta_min, delta_max = map(float, delta_input.split(','))
+                    delta_mstar_z_range = f"{delta_min},{delta_max}"
+                    print(f"Applied delta M* z filter: [{delta_min}, {delta_max}]")
+                except:
+                    print("Invalid format, skipping delta M* z filter")
+        
+        # DESprior candidates option
+        print("\nCandidate selection:")
+        use_desprior_input = input("Use DESprior candidates instead of automatic detection? (y/N): ").strip().lower()
+        use_desprior_candidates = use_desprior_input in ['y', 'yes']
+        
+        if use_desprior_candidates:
+            # DESprior candidate filtering
+            candidate_delta_input = input("Filter DESprior candidates by delta_mstar range (format: min,max, or press Enter to skip): ").strip()
+            if candidate_delta_input:
+                try:
+                    candidate_delta_min, candidate_delta_max = map(float, candidate_delta_input.split(','))
+                    candidate_delta_mstar_range = f"{candidate_delta_min},{candidate_delta_max}"
+                    print(f"Applied candidate delta_mstar filter: [{candidate_delta_min}, {candidate_delta_max}]")
+                except:
+                    print("Invalid format, skipping candidate delta_mstar filter")
+            
+            print("\nUsing DESprior catalog candidates")
+        else:
+            print("Using automatic candidate detection")
+        
+        print(f"\nBCG Configuration Summary:")
+        print(f"  Dataset: {bcg_arcmin_type}")
+        print(f"  Additional features: {use_additional_features}")
+        print(f"  Redshift filter: {z_range if z_range else 'None'}")
+        print(f"  Delta M* z filter: {delta_mstar_z_range if delta_mstar_z_range else 'None'}")
+        print(f"  DESprior candidates: {use_desprior_candidates}")
+        if candidate_delta_mstar_range:
+            print(f"  Candidate delta_mstar filter: {candidate_delta_mstar_range}")
     
     # ENHANCEMENT 1: Multi-scale inference option
     print("\n" + "="*60)
@@ -232,6 +322,25 @@ def main():
         if use_uq:
             train_command += f" --use_uq --detection_threshold {detection_threshold}"
     
+    # Add BCG dataset flags
+    if use_bcg_data:
+        train_command += f" --use_bcg_data --bcg_arcmin_type {bcg_arcmin_type}"
+        
+        if use_additional_features:
+            train_command += " --use_additional_features"
+        
+        if z_range:
+            train_command += f" --z_range {z_range}"
+        
+        if delta_mstar_z_range:
+            train_command += f" --delta_mstar_z_range {delta_mstar_z_range}"
+        
+        if use_desprior_candidates:
+            train_command += " --use_desprior_candidates"
+            
+            if candidate_delta_mstar_range:
+                train_command += f" --candidate_delta_mstar_range {candidate_delta_mstar_range}"
+    
     # Check for GPU
     gpu_available = input("\nUse GPU if available? (Y/n): ").strip().lower()
     if gpu_available not in ['n', 'no']:
@@ -314,6 +423,25 @@ def main():
         if use_uq:
             test_command += f" --use_uq --detection_threshold {detection_threshold}"
     
+    # Add BCG dataset flags to test command
+    if use_bcg_data:
+        test_command += f" --use_bcg_data --bcg_arcmin_type {bcg_arcmin_type}"
+        
+        if use_additional_features:
+            test_command += " --use_additional_features"
+        
+        if z_range:
+            test_command += f" --z_range {z_range}"
+        
+        if delta_mstar_z_range:
+            test_command += f" --delta_mstar_z_range {delta_mstar_z_range}"
+        
+        if use_desprior_candidates:
+            test_command += " --use_desprior_candidates"
+            
+            if candidate_delta_mstar_range:
+                test_command += f" --candidate_delta_mstar_range {candidate_delta_mstar_range}"
+    
     if not run_command(test_command, f"Testing BCG classifier with {test_script}"):
         print("Testing failed.")
         return
@@ -369,6 +497,21 @@ def main():
     if use_uq:
         print(f"Uncertainty quantification: threshold={detection_threshold}")
     
+    # Add BCG dataset info to summary
+    if use_bcg_data:
+        print(f"BCG Dataset: {bcg_arcmin_type}")
+        print(f"Additional features: {use_additional_features}")
+        if z_range:
+            print(f"Redshift filtering: {z_range}")
+        if delta_mstar_z_range:
+            print(f"Delta M* z filtering: {delta_mstar_z_range}")
+        if use_desprior_candidates:
+            print(f"DESprior candidates: enabled")
+            if candidate_delta_mstar_range:
+                print(f"Candidate delta_mstar filtering: {candidate_delta_mstar_range}")
+        else:
+            print(f"Candidate detection: automatic")
+    
     print(f"\nEnhancements implemented:")
     if use_multiscale:
         print("1. ✓ Multi-scale candidate detection:")
@@ -386,16 +529,39 @@ def main():
     else:
         print("2. ✗ Uncertainty quantification (using deterministic scores)")
     
+    if use_bcg_data:
+        print("3. ✓ BCG Dataset Integration:")
+        print(f"   - New astronomical data ({bcg_arcmin_type} scale)")
+        if use_additional_features:
+            print("   - Additional features: redshift, delta_mstar_z")
+        if use_desprior_candidates:
+            print("   - DESprior catalog candidates")
+            print("   - Advanced candidate filtering")
+        else:
+            print("   - Automatic candidate detection")
+        if z_range or delta_mstar_z_range:
+            print("   - Data filtering by physical properties")
+    else:
+        print("3. ✗ BCG Dataset Integration (using original dataset)")
+    
     print(f"\nTo re-run evaluation with different parameters:")
     test_cmd_simple = f"python {test_script} --model_path '{model_path}' --scaler_path '{scaler_path}'"
     if use_enhanced and use_multiscale:
         test_cmd_simple += " --use_multiscale"
     if use_enhanced and use_uq:
         test_cmd_simple += " --use_uq"
+    if use_bcg_data:
+        test_cmd_simple += f" --use_bcg_data --bcg_arcmin_type {bcg_arcmin_type}"
     print(f"{test_cmd_simple} [other args]")
     
     print("\nWorkflow demonstration completed successfully!")
-    print("Both requested enhancements have been implemented while preserving")
+    if use_bcg_data:
+        print("All enhancements have been implemented with new BCG dataset support:")
+        print("- Multi-scale and uncertainty quantification features")
+        print("- BCG dataset integration with additional features")
+        print("- DESprior candidate system with filtering capabilities")
+    else:
+        print("Both requested enhancements have been implemented while preserving")
     print("all existing functionality and maintaining backward compatibility.")
 
 

@@ -42,12 +42,14 @@ def read_wcs(file):
     return wcs
 
 
-def prepare_bcg_dataframe(csv_path):
+def prepare_bcg_dataframe(csv_path, z_range=None, delta_mstar_z_range=None):
     """
     Prepare dataframe from BCG CSV with coordinates already calculated.
     
     Args:
         csv_path: Path to CSV file with BCG information including x,y coordinates
+        z_range: Tuple (z_min, z_max) to filter by redshift. None for no filtering.
+        delta_mstar_z_range: Tuple (delta_min, delta_max) to filter by delta_mstar_z. None for no filtering.
         
     Returns:
         pandas DataFrame with columns: Filename, BCG RA, BCG Dec, x, y, Cluster z, BCG Probability, delta_mstar_z
@@ -68,6 +70,20 @@ def prepare_bcg_dataframe(csv_path):
     df_clean = df[valid_mask].copy()
     
     print(f"Loaded {len(df_clean)} valid BCG entries from {len(df)} total entries")
+    
+    # Apply redshift filtering if specified
+    if z_range is not None:
+        z_min, z_max = z_range
+        before_z_filter = len(df_clean)
+        df_clean = df_clean[(df_clean['Cluster z'] >= z_min) & (df_clean['Cluster z'] <= z_max)]
+        print(f"Applied redshift filter [{z_min}, {z_max}]: {len(df_clean)} entries remaining (filtered out {before_z_filter - len(df_clean)})")
+    
+    # Apply delta_mstar_z filtering if specified
+    if delta_mstar_z_range is not None:
+        delta_min, delta_max = delta_mstar_z_range
+        before_delta_filter = len(df_clean)
+        df_clean = df_clean[(df_clean['delta_mstar_z'] >= delta_min) & (df_clean['delta_mstar_z'] <= delta_max)]
+        print(f"Applied delta_mstar_z filter [{delta_min}, {delta_max}]: {len(df_clean)} entries remaining (filtered out {before_delta_filter - len(df_clean)})")
     
     return df_clean
 
@@ -142,7 +158,9 @@ class BCGDataset(Dataset):
 
 
 # Utility function to create datasets
-def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=42):
+def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=42, 
+                        z_range=None, delta_mstar_z_range=None, include_additional_features=True,
+                        use_clean_data=True):
     """
     Create train/test datasets for BCG data.
     
@@ -150,24 +168,35 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
         dataset_type: Either '2p2arcmin' or '3p8arcmin'
         split_ratio: Fraction of data to use for training
         random_seed: Random seed for reproducible splits
+        z_range: Tuple (z_min, z_max) to filter by redshift. None for no filtering.
+        delta_mstar_z_range: Tuple (delta_min, delta_max) to filter by delta_mstar_z. None for no filtering.
+        include_additional_features: Whether to include redshift and delta_mstar_z as features
+        use_clean_data: Use clean matched datasets for pristine ML training (recommended: True)
         
     Returns:
         train_dataset, test_dataset
     """
     np.random.seed(random_seed)
     
-    # Single scale dataset
+    # Single scale dataset - use clean matched data by default for pristine ML training
     if dataset_type == '2p2arcmin':
         image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/'
-        csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv'
+        if use_clean_data:
+            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_clean_matched.csv'
+        else:
+            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv'
     elif dataset_type == '3p8arcmin':
         image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
-        csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv'
+        if use_clean_data:
+            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_clean_matched.csv'
+        else:
+            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv'
     else:
         raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
     
-    df = prepare_bcg_dataframe(csv_path)
-    full_dataset = BCGDataset(image_dir, df)
+    print(f"Loading BCG data from: {'clean matched' if use_clean_data else 'all available'} dataset")
+    df = prepare_bcg_dataframe(csv_path, z_range=z_range, delta_mstar_z_range=delta_mstar_z_range)
+    full_dataset = BCGDataset(image_dir, df, include_additional_features=include_additional_features)
     
     # Create train/test split
     n_total = len(full_dataset)
