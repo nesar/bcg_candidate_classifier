@@ -268,7 +268,7 @@ class BCGProbabilisticClassifier(nn.Module):
         mean_probs = predictions.mean(dim=0)
         uncertainty = predictions.std(dim=0)  # Epistemic uncertainty
         
-        return mean_probs.squeeze(), uncertainty.squeeze()
+        return mean_probs.squeeze(-1), uncertainty.squeeze(-1)
 
 
 # ============================================================================
@@ -340,12 +340,12 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             uncertainties = uncertainties.numpy()
         elif hasattr(model, 'temperature'):
             # This is a probabilistic model without MC dropout
-            logits = model(features_tensor).squeeze()
+            logits = model(features_tensor).squeeze(-1)
             probabilities = torch.sigmoid(logits).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
         else:
             # This is a traditional classifier, convert scores to probabilities
-            scores = model(features_tensor).squeeze()
+            scores = model(features_tensor).squeeze(-1)
             # Convert scores to probabilities using softmax
             probabilities = torch.softmax(scores, dim=0).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
@@ -712,7 +712,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         features_tensor = torch.FloatTensor(features)
                     
                     with torch.no_grad():
-                        scores = model(features_tensor).squeeze().numpy()
+                        scores = model(features_tensor).squeeze(-1).numpy()
                     
                     best_idx = np.argmax(scores)
                     predicted_bcg = tuple(all_candidates[best_idx])
@@ -733,7 +733,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         features_tensor = torch.FloatTensor(features)
                     
                     with torch.no_grad():
-                        scores = model(features_tensor).squeeze().numpy()
+                        scores = model(features_tensor).squeeze(-1).numpy()
                     
                     best_idx = np.argmax(scores)
                     predicted_bcg = tuple(all_candidates[best_idx])

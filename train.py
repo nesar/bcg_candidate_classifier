@@ -371,7 +371,7 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
             features = torch.FloatTensor(features_scaled).to(self.device)
         
         # Forward pass: get logits for all candidates
-        candidate_logits = self.model(features).squeeze()
+        candidate_logits = self.model(features).squeeze(-1)
         
         # For probabilistic models, we need to create binary targets
         # Convert multi-class to binary (BCG vs non-BCG)
@@ -443,7 +443,7 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
             features = torch.FloatTensor(features_scaled).to(self.device)
         
         # Forward pass: get logits for all candidates
-        candidate_logits = self.model(features).squeeze()
+        candidate_logits = self.model(features).squeeze(-1)
         
         # For probabilistic models, we need to create binary targets
         # Convert multi-class to binary (BCG vs non-BCG)

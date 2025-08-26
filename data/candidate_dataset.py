@@ -206,7 +206,7 @@ class CandidateBasedTrainer:
             features = torch.FloatTensor(features_scaled).to(self.device)
         
         # Forward pass: get scores for all candidates
-        candidate_scores = self.model(features).squeeze()  # Shape: (total_candidates,)
+        candidate_scores = self.model(features).squeeze(-1)  # Shape: (total_candidates,)
         
         # For each sample, compute loss over its candidates
         total_loss = 0
@@ -263,7 +263,7 @@ class CandidateBasedTrainer:
                 features = torch.FloatTensor(features_scaled).to(self.device)
             
             # Forward pass
-            candidate_scores = self.model(features).squeeze()
+            candidate_scores = self.model(features).squeeze(-1)
             
             # Compute metrics
             total_loss = 0
