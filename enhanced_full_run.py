@@ -150,7 +150,7 @@ def main():
             z_input = input(f"Redshift range (format: min,max, data range: {z_data_range}, or press Enter to skip): ").strip()
             if z_input:
                 try:
-                    z_min, z_max = map(float, z_input.split(','))
+                    z_min, z_max = map(lambda x: float(x.strip()), z_input.split(','))
                     z_range = f"{z_min},{z_max}"
                     print(f"Applied redshift filter: [{z_min}, {z_max}]")
                 except:
@@ -160,7 +160,7 @@ def main():
             delta_input = input(f"Delta M* z range (format: min,max, data range: {delta_data_range}, or press Enter to skip): ").strip()
             if delta_input:
                 try:
-                    delta_min, delta_max = map(float, delta_input.split(','))
+                    delta_min, delta_max = map(lambda x: float(x.strip()), delta_input.split(','))
                     delta_mstar_z_range = f"{delta_min},{delta_max}"
                     print(f"Applied delta M* z filter: [{delta_min}, {delta_max}]")
                 except:
@@ -176,7 +176,7 @@ def main():
             candidate_delta_input = input("Filter DESprior candidates by delta_mstar range (format: min,max, or press Enter to skip): ").strip()
             if candidate_delta_input:
                 try:
-                    candidate_delta_min, candidate_delta_max = map(float, candidate_delta_input.split(','))
+                    candidate_delta_min, candidate_delta_max = map(lambda x: float(x.strip()), candidate_delta_input.split(','))
                     candidate_delta_mstar_range = f"{candidate_delta_min},{candidate_delta_max}"
                     print(f"Applied candidate delta_mstar filter: [{candidate_delta_min}, {candidate_delta_max}]")
                 except:
