@@ -613,7 +613,8 @@ def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False):
 
 def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params, 
                           original_dataframe=None, dataset_type='SPT3G_1500d',
-                          use_multiscale=False, use_uq=False, detection_threshold=0.5):
+                          use_multiscale=False, use_uq=False, detection_threshold=0.5,
+                          use_desprior_candidates=False):
     """Evaluate enhanced model with multiscale and UQ capabilities."""
     print(f"Evaluating {'probabilistic' if use_uq else 'deterministic'} model on {len(test_dataset)} test images...")
     if use_multiscale:
@@ -716,6 +717,62 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     
                     best_idx = np.argmax(scores)
                     predicted_bcg = tuple(all_candidates[best_idx])
+            elif use_desprior_candidates:
+                # Use DESprior candidates from BCG dataset
+                from data.candidate_dataset_bcgs import create_desprior_candidate_dataset_from_files
+                
+                # For testing, we need to extract DESprior candidates for this specific image
+                # This is a simplified approach - in practice, you'd want to cache this
+                filename = sample_metadata[img_idx]['filename']  # Get filename for this sample
+                
+                # Import required modules
+                import pandas as pd
+                from data.data_read_bcgs import BCGDataset
+                
+                # Load DESprior candidates for this specific image/cluster
+                if dataset_type == 'bcg_2p2arcmin':
+                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
+                else:  # bcg_3p8arcmin
+                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
+                
+                try:
+                    candidates_df = pd.read_csv(candidates_csv)
+                    file_candidates = candidates_df[candidates_df['filename'] == filename]
+                    
+                    if len(file_candidates) == 0:
+                        predicted_bcg = None
+                        scores = np.array([])
+                        all_candidates = np.array([])
+                    else:
+                        # Extract coordinates and candidate features
+                        all_candidates = file_candidates[['x', 'y']].values
+                        candidate_specific_features = file_candidates[['delta_mstar', 'starflag']].values
+                        
+                        # Extract visual features and combine with candidate features
+                        from utils.candidate_based_bcg import extract_candidate_features
+                        visual_features, _ = extract_candidate_features(image, all_candidates, include_context=True)
+                        
+                        # Combine visual features with candidate-specific features
+                        combined_features = np.hstack([visual_features, candidate_specific_features])
+                        
+                        if scaler is not None:
+                            scaled_features = scaler.transform(combined_features)
+                            features_tensor = torch.FloatTensor(scaled_features)
+                        else:
+                            features_tensor = torch.FloatTensor(combined_features)
+                        
+                        with torch.no_grad():
+                            scores = model(features_tensor).squeeze(-1).numpy()
+                        
+                        best_idx = np.argmax(scores)
+                        predicted_bcg = tuple(all_candidates[best_idx])
+                        
+                except Exception as e:
+                    print(f"Warning: Failed to load DESprior candidates for {filename}: {e}")
+                    predicted_bcg = None
+                    scores = np.array([])
+                    all_candidates = np.array([])
+                    
             else:
                 from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
                 all_candidates, intensities = find_bcg_candidates(image, **candidate_params)
@@ -996,7 +1053,8 @@ def main(args):
     results = evaluate_enhanced_model(
         model, scaler, test_subset, candidate_params, original_df, args.dataset_type,
         use_multiscale=args.use_multiscale, use_uq=args.use_uq, 
-        detection_threshold=args.detection_threshold
+        detection_threshold=args.detection_threshold,
+        use_desprior_candidates=args.use_desprior_candidates
     )
     
     (predictions, targets, distances, failures, metrics, 
