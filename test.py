@@ -380,7 +380,8 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
 
 def show_enhanced_predictions(images, targets, predictions, all_candidates_list, 
                             all_scores_list, all_probabilities_list=None,
-                            indices=None, save_dir=None, phase=None, use_uq=False):
+                            indices=None, save_dir=None, phase=None, use_uq=False,
+                            metadata_list=None):
     """Enhanced visualization with probability information."""
     if indices is None:
         indices = range(min(5, len(images)))
@@ -445,10 +446,14 @@ def show_enhanced_predictions(images, targets, predictions, all_candidates_list,
                    facecolors='none', edgecolors='yellow', linewidths=3, alpha=0.9,
                    label='True BCG')
         
-        # Enhanced title with UQ information
-        title = f'Enhanced BCG Prediction - Sample {idx+1}'
+        # Enhanced title with UQ information and cluster name
+        cluster_name = 'Unknown'
+        if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
+            cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
+        
+        title = f'Enhanced BCG Prediction - Sample {idx+1} ({cluster_name})'
         if phase:
-            title = f'{phase} - Sample {idx+1}'
+            title = f'{phase} - Sample {idx+1} ({cluster_name})'
         
         subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
         
@@ -1090,6 +1095,7 @@ def main(args):
         sample_predictions = [predictions[i] for i in sorted_indices]
         sample_candidates = [all_candidates_list[i] for i in sorted_indices]
         sample_scores = [all_scores_list[i] for i in sorted_indices]
+        sample_metadata_list = [sample_metadata[i] for i in sorted_indices]
         
         # Get probabilities if available
         if args.use_uq:
@@ -1111,34 +1117,58 @@ def main(args):
             indices=range(len(sample_images)),
             save_dir=args.output_dir,
             phase=phase_name,
-            use_uq=args.use_uq
+            use_uq=args.use_uq,
+            metadata_list=sample_metadata_list
         )
     
     # Show failure cases
     if args.show_failures and len(distances) > 0:
         print(f"\nShowing worst prediction failures...")
         
-        # Get worst cases
-        worst_indices = np.argsort(distances)[-args.show_failures:]
+        # Handle both finite and infinite distances for failures
+        finite_distances = np.array(distances)
+        finite_mask = np.isfinite(finite_distances)
+        infinite_mask = ~finite_mask
         
-        failure_images = [test_images[i] for i in worst_indices]
-        failure_targets = [targets[i] for i in worst_indices]
-        failure_predictions = [predictions[i] for i in worst_indices]
+        failure_indices = []
         
-        phase_name = "EnhancedTesting"
-        if args.use_multiscale:
-            phase_name = "MultiscaleTesting"
-        if args.use_uq:
-            phase_name = "ProbabilisticTesting"
-        if args.use_multiscale and args.use_uq:
-            phase_name = "MultiscaleProbabilisticTesting"
+        # First, add cases with infinite distances (complete failures)
+        infinite_indices = np.where(infinite_mask)[0]
+        failure_indices.extend(infinite_indices[:args.show_failures])
         
-        show_failures(
-            failure_images, failure_targets, failure_predictions,
-            threshold=20, max_failures=args.show_failures,
-            save_dir=args.output_dir,
-            phase=phase_name
-        )
+        # Then add worst finite distances if we need more samples
+        if len(failure_indices) < args.show_failures and np.any(finite_mask):
+            finite_indices = np.where(finite_mask)[0]
+            finite_distances_only = finite_distances[finite_mask]
+            worst_finite = np.argsort(finite_distances_only)[-max(0, args.show_failures - len(failure_indices)):]
+            failure_indices.extend(finite_indices[worst_finite])
+        
+        # Limit to requested number
+        failure_indices = failure_indices[:args.show_failures]
+        
+        if len(failure_indices) > 0:
+            failure_images = [test_images[i] for i in failure_indices]
+            failure_targets = [targets[i] for i in failure_indices]
+            failure_predictions = [predictions[i] for i in failure_indices]
+            failure_metadata_list = [sample_metadata[i] for i in failure_indices]
+        
+            phase_name = "CandidateBasedTesting"  # Changed name to match your request
+            if args.use_multiscale:
+                phase_name = "MultiscaleTesting"
+            if args.use_uq:
+                phase_name = "ProbabilisticTesting"
+            if args.use_multiscale and args.use_uq:
+                phase_name = "MultiscaleProbabilisticTesting"
+            
+            show_failures(
+                failure_images, failure_targets, failure_predictions,
+                threshold=20, max_failures=args.show_failures,
+                save_dir=args.output_dir,
+                phase=phase_name,
+                metadata_list=failure_metadata_list
+            )
+        else:
+            print("No failure cases to show")
     
     # Save detailed results
     if args.save_results and len(predictions) > 0:

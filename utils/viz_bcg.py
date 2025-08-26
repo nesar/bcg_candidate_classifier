@@ -203,7 +203,7 @@ def find_failed(targets, predictions, threshold=50):
     return failed_indices
 
 
-def show_failures(images, targets, predictions, threshold=50, max_failures=5, save_dir=None, phase=None):
+def show_failures(images, targets, predictions, threshold=50, max_failures=5, save_dir=None, phase=None, metadata_list=None):
     """
     Show worst prediction failures.
     
@@ -252,10 +252,14 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
                    facecolors='none', edgecolors='yellow', linewidths=3,
                    label='True BCG')
         
-        # Add title with failure information
-        title = f'Prediction Failure - Sample {idx+1}'
+        # Add title with failure information and cluster name
+        cluster_name = 'Unknown'
+        if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
+            cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
+        
+        title = f'Prediction Failure - Sample {idx+1} ({cluster_name})'
         if phase:
-            title = f'{phase} Failure - Sample {idx+1}'
+            title = f'{phase} Failure - Sample {idx+1} ({cluster_name})'
         
         plt.title(f'{title}\nError: {distance:.1f} px', fontsize=12, color='red')
         plt.legend()

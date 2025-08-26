@@ -91,29 +91,46 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
     ax2 = axes[0, 1]
     distances = df['distance_error'].dropna()
     
-    # Histogram with KDE
-    ax2.hist(distances, bins=30, density=True, alpha=0.7, color='skyblue', edgecolor='black')
+    # Filter out infinite values for plotting
+    finite_distances = distances[np.isfinite(distances)]
+    n_infinite = len(distances) - len(finite_distances)
     
-    # Add KDE if scipy is available
-    try:
-        from scipy import stats
-        kde = stats.gaussian_kde(distances)
-        x_range = np.linspace(distances.min(), distances.max(), 200)
-        ax2.plot(x_range, kde(x_range), 'r-', linewidth=2, label='KDE')
-        ax2.legend()
-    except ImportError:
-        pass
-    
-    # Add statistics
-    median_dist = np.median(distances)
-    mean_dist = np.mean(distances)
-    ax2.axvline(median_dist, color='red', linestyle='--', alpha=0.8, label=f'Median: {median_dist:.1f}')
-    ax2.axvline(mean_dist, color='orange', linestyle='--', alpha=0.8, label=f'Mean: {mean_dist:.1f}')
-    ax2.axvline(distance_threshold, color='green', linestyle=':', alpha=0.8, label=f'Threshold: {distance_threshold}')
+    if len(finite_distances) > 0:
+        # Histogram with KDE for finite distances only
+        ax2.hist(finite_distances, bins=30, density=True, alpha=0.7, color='skyblue', edgecolor='black')
+        
+        # Add KDE if scipy is available
+        try:
+            from scipy import stats
+            if len(finite_distances) > 1:  # Need at least 2 points for KDE
+                kde = stats.gaussian_kde(finite_distances)
+                x_range = np.linspace(finite_distances.min(), finite_distances.max(), 200)
+                ax2.plot(x_range, kde(x_range), 'r-', linewidth=2, label='KDE')
+                ax2.legend()
+        except ImportError:
+            pass
+        
+        # Add statistics for finite distances
+        median_dist = np.median(finite_distances)
+        mean_dist = np.mean(finite_distances)
+        ax2.axvline(median_dist, color='red', linestyle='--', alpha=0.8, label=f'Median: {median_dist:.1f}')
+        ax2.axvline(mean_dist, color='orange', linestyle='--', alpha=0.8, label=f'Mean: {mean_dist:.1f}')
+        ax2.axvline(distance_threshold, color='green', linestyle=':', alpha=0.8, label=f'Threshold: {distance_threshold}')
+        
+        title_text = f'Distance Error Distribution\n({len(finite_distances)} finite values'
+        if n_infinite > 0:
+            title_text += f', {n_infinite} failed predictions)'
+        else:
+            title_text += ')'
+            
+        ax2.set_title(title_text)
+    else:
+        ax2.text(0.5, 0.5, f'No finite distance errors found\n({n_infinite} failed predictions)', 
+                ha='center', va='center', transform=ax2.transAxes, fontsize=12)
+        ax2.set_title('Distance Error Distribution')
     
     ax2.set_xlabel('Distance Error (pixels)')
     ax2.set_ylabel('Density')
-    ax2.set_title('Distance Error Distribution')
     ax2.legend()
     ax2.grid(True, alpha=0.3)
     
