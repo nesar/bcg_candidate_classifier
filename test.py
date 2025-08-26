@@ -33,7 +33,7 @@ from data.data_read_bcgs import create_bcg_datasets, BCGDataset as NewBCGDataset
 from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loader, 
                                         create_desprior_candidate_dataset_from_files,
                                         collate_bcg_candidate_samples)
-from ml_models.probabilistic_classifier import BCGProbabilisticClassifier
+from ml_models.uq_classifier import BCGProbabilisticClassifier
 
 
 # ============================================================================

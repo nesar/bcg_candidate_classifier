@@ -15,6 +15,32 @@ import sys
 from datetime import datetime
 
 
+def get_bcg_data_ranges(bcg_arcmin_type):
+    """Get the actual min/max ranges from BCG data files."""
+    try:
+        import pandas as pd
+        
+        if bcg_arcmin_type == "2p2arcmin":
+            csv_path = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_clean_matched.csv"
+        else:  # 3p8arcmin
+            csv_path = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_clean_matched.csv"
+        
+        if not os.path.exists(csv_path):
+            # Fall back to non-clean version
+            csv_path = csv_path.replace("_clean_matched.csv", "_with_coordinates.csv")
+            
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            z_min, z_max = df['Cluster z'].min(), df['Cluster z'].max()
+            delta_min, delta_max = df['delta_mstar_z'].min(), df['delta_mstar_z'].max()
+            return f"{z_min:.2f},{z_max:.2f}", f"{delta_min:.2f},{delta_max:.2f}"
+    except:
+        pass
+    
+    # Default fallback ranges
+    return "0.1,1.2", "-4.0,2.0"
+
+
 def run_command(command, description):
     """Run a subprocess command and handle errors."""
     print(f"\n{'='*60}")
@@ -117,8 +143,11 @@ def main():
         apply_filters = input("Apply redshift or delta_mstar_z filters? (y/N): ").strip().lower()
         
         if apply_filters in ['y', 'yes']:
+            # Get actual data ranges
+            z_data_range, delta_data_range = get_bcg_data_ranges(bcg_arcmin_type)
+            
             # Redshift filtering
-            z_input = input("Redshift range (format: min,max, e.g., '0.3,0.7', or press Enter to skip): ").strip()
+            z_input = input(f"Redshift range (format: min,max, data range: {z_data_range}, or press Enter to skip): ").strip()
             if z_input:
                 try:
                     z_min, z_max = map(float, z_input.split(','))
@@ -128,7 +157,7 @@ def main():
                     print("Invalid format, skipping redshift filter")
             
             # Delta M* z filtering
-            delta_input = input("Delta M* z range (format: min,max, e.g., '-2.0,-1.0', or press Enter to skip): ").strip()
+            delta_input = input(f"Delta M* z range (format: min,max, data range: {delta_data_range}, or press Enter to skip): ").strip()
             if delta_input:
                 try:
                     delta_min, delta_max = map(float, delta_input.split(','))
@@ -226,29 +255,40 @@ def main():
     else:
         print("Using traditional deterministic classification")
     
-    # Traditional candidate detection parameters
-    print("\n" + "="*60)
-    print("TRADITIONAL CANDIDATE DETECTION PARAMETERS")
-    print("="*60)
-    print("These control the base candidate finding algorithm")
-    
-    modify_params = input("Modify candidate detection parameters? (y/N): ").strip().lower()
-    
-    if modify_params in ['y', 'yes']:
-        print("\nCandidate detection parameters:")
-        min_distance = int(input("Minimum distance between candidates (default 20): ") or "20")
-        threshold_rel = float(input("Relative brightness threshold (default 0.12): ") or "0.12")
-        exclude_border = int(input("Exclude border pixels (default 0): ") or "0")
-        if not use_multiscale:
-            max_candidates = int(input("Maximum candidates per image (default 30): ") or "30")
+    # Traditional candidate detection parameters (only for automatic candidate detection)
+    if not use_desprior_candidates:
+        print("\n" + "="*60)
+        print("TRADITIONAL CANDIDATE DETECTION PARAMETERS")
+        print("="*60)
+        print("These control the base candidate finding algorithm")
+        
+        modify_params = input("Modify candidate detection parameters? (y/N): ").strip().lower()
+        
+        if modify_params in ['y', 'yes']:
+            print("\nCandidate detection parameters:")
+            min_distance = int(input("Minimum distance between candidates (default 20): ") or "20")
+            threshold_rel = float(input("Relative brightness threshold (default 0.12): ") or "0.12")
+            exclude_border = int(input("Exclude border pixels (default 0): ") or "0")
+            if not use_multiscale:
+                max_candidates = int(input("Maximum candidates per image (default 30): ") or "30")
+            else:
+                max_candidates = max_per_scale  # Use multiscale parameter
         else:
-            max_candidates = max_per_scale  # Use multiscale parameter
+            min_distance = 20
+            threshold_rel = 0.12
+            exclude_border = 0
+            max_candidates = max_per_scale if use_multiscale else 30
+            print(f"Using defaults: min_distance={min_distance}, threshold_rel={threshold_rel}")
     else:
+        # Use default values for DESprior (these parameters won't be used in DESprior mode)
         min_distance = 20
         threshold_rel = 0.12
         exclude_border = 0
         max_candidates = max_per_scale if use_multiscale else 30
-        print(f"Using defaults: min_distance={min_distance}, threshold_rel={threshold_rel}")
+        print("\n" + "="*60)
+        print("CANDIDATE DETECTION PARAMETERS")
+        print("="*60)
+        print("Using DESprior catalog candidates - automatic detection parameters not needed")
     
     # Training parameters
     print("\n" + "="*60)
@@ -271,8 +311,17 @@ def main():
     print("IMPLEMENTATION CHOICE")
     print("="*60)
     
-    if use_multiscale or use_uq:
-        print("Enhanced features requested - using enhanced scripts")
+    if use_multiscale or use_uq or use_bcg_data:
+        reasons = []
+        if use_multiscale:
+            reasons.append("Multi-scale inference")
+        if use_uq:
+            reasons.append("Uncertainty quantification") 
+        if use_bcg_data:
+            reasons.append("BCG dataset support")
+        
+        print(f"Enhanced features requested - using enhanced scripts")
+        print(f"Reasons: {', '.join(reasons)}")
         use_enhanced = True
         train_script = "train.py"
         test_script = "test.py"
@@ -330,16 +379,16 @@ def main():
             train_command += " --use_additional_features"
         
         if z_range:
-            train_command += f" --z_range {z_range}"
+            train_command += f" --z_range \"{z_range}\""
         
         if delta_mstar_z_range:
-            train_command += f" --delta_mstar_z_range {delta_mstar_z_range}"
+            train_command += f" --delta_mstar_z_range \"{delta_mstar_z_range}\""
         
         if use_desprior_candidates:
             train_command += " --use_desprior_candidates"
             
             if candidate_delta_mstar_range:
-                train_command += f" --candidate_delta_mstar_range {candidate_delta_mstar_range}"
+                train_command += f" --candidate_delta_mstar_range \"{candidate_delta_mstar_range}\""
     
     # Check for GPU
     gpu_available = input("\nUse GPU if available? (Y/n): ").strip().lower()
@@ -431,16 +480,16 @@ def main():
             test_command += " --use_additional_features"
         
         if z_range:
-            test_command += f" --z_range {z_range}"
+            test_command += f" --z_range \"{z_range}\""
         
         if delta_mstar_z_range:
-            test_command += f" --delta_mstar_z_range {delta_mstar_z_range}"
+            test_command += f" --delta_mstar_z_range \"{delta_mstar_z_range}\""
         
         if use_desprior_candidates:
             test_command += " --use_desprior_candidates"
             
             if candidate_delta_mstar_range:
-                test_command += f" --candidate_delta_mstar_range {candidate_delta_mstar_range}"
+                test_command += f" --candidate_delta_mstar_range \"{candidate_delta_mstar_range}\""
     
     if not run_command(test_command, f"Testing BCG classifier with {test_script}"):
         print("Testing failed.")

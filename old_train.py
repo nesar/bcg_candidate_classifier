@@ -325,7 +325,7 @@ if __name__ == "__main__":
     parser.add_argument('--truth_table', type=str, required=True,
                        help='Path to CSV file with BCG coordinates')
     parser.add_argument('--dataset_type', type=str, default='SPT3G_1500d',
-                       choices=['SPT3G_1500d', 'megadeep500'],
+                       choices=['SPT3G_1500d', 'megadeep500', 'bcg_2p2arcmin', 'bcg_3p8arcmin'],
                        help='Type of dataset')
     
     # Training arguments
