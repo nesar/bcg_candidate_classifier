@@ -838,7 +838,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         sample_metadata.append(metadata)
         
         # Check for potential failure cases
-        if distance > 50:  # Large error threshold
+        if distance > 100:  # Large error threshold
             failed_predictions.append({
                 'index': i,
                 'filename': filename,
@@ -1350,7 +1350,7 @@ if __name__ == "__main__":
     # Visualization arguments
     parser.add_argument('--show_samples', type=int, default=5,
                        help='Number of sample predictions to visualize')
-    parser.add_argument('--show_failures', type=int, default=3,
+    parser.add_argument('--show_failures', type=int, default=20,
                        help='Number of failure cases to visualize')
     parser.add_argument('--output_dir', type=str, default='./evaluation_results',
                        help='Directory to save evaluation results')
