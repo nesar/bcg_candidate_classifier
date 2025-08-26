@@ -217,13 +217,24 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         phase: Optional phase indicator for title
     """
     # Calculate distances and find worst cases
-    distances = [np.sqrt(np.sum((target - pred)**2)) for target, pred in zip(targets, predictions)]
+    distances = []
+    for target, pred in zip(targets, predictions):
+        if np.any(np.isnan(pred)):
+            # Complete failure case (no candidates found)
+            distances.append(float('inf'))
+        else:
+            distances.append(np.sqrt(np.sum((target - pred)**2)))
     
-    # Get indices sorted by distance (worst first)
-    worst_indices = sorted(range(len(distances)), key=lambda i: distances[i], reverse=True)
+    # Separate infinite and finite distance cases
+    infinite_indices = [i for i, d in enumerate(distances) if np.isinf(d)]
+    finite_indices = [i for i, d in enumerate(distances) if np.isfinite(d) and d > threshold]
     
-    # Filter for actual failures and limit number
-    failure_indices = [i for i in worst_indices if distances[i] > threshold][:max_failures]
+    # Sort finite cases by distance (worst first)
+    finite_indices = sorted(finite_indices, key=lambda i: distances[i], reverse=True)
+    
+    # Combine: infinite distance failures first, then worst finite failures
+    failure_indices = infinite_indices + finite_indices
+    failure_indices = failure_indices[:max_failures]
     
     if not failure_indices:
         print(f"No failures found with threshold {threshold} pixels")
@@ -243,9 +254,15 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         display_image = np.clip(image.astype(np.uint8), 0, 255)
         plt.imshow(display_image)
         
-        # Plot predicted BCG as red X
-        plt.scatter(prediction[0], prediction[1], marker='x', s=400, 
-                   c='red', linewidths=4, label='Predicted BCG')
+        # Plot predicted BCG (if valid coordinates)
+        if not np.any(np.isnan(prediction)):
+            plt.scatter(prediction[0], prediction[1], marker='x', s=400, 
+                       c='red', linewidths=4, label='Predicted BCG')
+        else:
+            # For complete failures, add text indicating no prediction
+            plt.text(0.05, 0.95, 'NO PREDICTION\n(No candidates found)', 
+                    transform=plt.gca().transAxes, fontsize=12, color='red',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
         
         # Plot true BCG location as yellow circle
         plt.scatter(target[0], target[1], marker='o', s=200, 
@@ -261,7 +278,13 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         if phase:
             title = f'{phase} Failure - Sample {idx+1} ({cluster_name})'
         
-        plt.title(f'{title}\nError: {distance:.1f} px', fontsize=12, color='red')
+        # Handle infinite distance display
+        if np.isinf(distance):
+            error_text = "Error: Complete Failure (No candidates)"
+        else:
+            error_text = f"Error: {distance:.1f} px"
+            
+        plt.title(f'{title}\n{error_text}', fontsize=12, color='red')
         plt.legend()
         plt.axis('off')
         
