@@ -147,7 +147,7 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
     Create train/test datasets for BCG data.
     
     Args:
-        dataset_type: Either '2p2arcmin', '3p8arcmin', or 'multiscale'
+        dataset_type: Either '2p2arcmin' or '3p8arcmin'
         split_ratio: Fraction of data to use for training
         random_seed: Random seed for reproducible splits
         
@@ -156,31 +156,18 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
     """
     np.random.seed(random_seed)
     
-    if dataset_type == 'multiscale':
-        # Multiscale dataset
-        image_dir_2p2 = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/'
-        image_dir_3p8 = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
-        csv_path_2p2 = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv'
-        csv_path_3p8 = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv'
-        
-        df_2p2 = prepare_bcg_dataframe(csv_path_2p2)
-        df_3p8 = prepare_bcg_dataframe(csv_path_3p8)
-        
-        full_dataset = MultiScaleBCGDataset(image_dir_2p2, image_dir_3p8, df_2p2, df_3p8)
-        
+    # Single scale dataset
+    if dataset_type == '2p2arcmin':
+        image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/'
+        csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv'
+    elif dataset_type == '3p8arcmin':
+        image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
+        csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv'
     else:
-        # Single scale dataset
-        if dataset_type == '2p2arcmin':
-            image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/'
-            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv'
-        elif dataset_type == '3p8arcmin':
-            image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
-            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv'
-        else:
-            raise ValueError(f"Unknown dataset_type: {dataset_type}")
-        
-        df = prepare_bcg_dataframe(csv_path)
-        full_dataset = BCGDataset(image_dir, df)
+        raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
+    
+    df = prepare_bcg_dataframe(csv_path)
+    full_dataset = BCGDataset(image_dir, df)
     
     # Create train/test split
     n_total = len(full_dataset)
