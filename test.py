@@ -723,7 +723,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 
                 # For testing, we need to extract DESprior candidates for this specific image
                 # This is a simplified approach - in practice, you'd want to cache this
-                filename = sample_metadata[img_idx]['filename']  # Get filename for this sample
+                # filename is already available from the loop variable
                 
                 # Import required modules
                 import pandas as pd
