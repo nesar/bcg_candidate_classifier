@@ -30,8 +30,8 @@ def test_csv_files():
     print("\nTesting CSV files...")
     
     files_to_check = [
-        '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv',
-        '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/desprior_candidates_2p2arcmin_with_coordinates.csv'
+        '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv',
+        '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_with_coordinates.csv'
     ]
     
     try:
@@ -60,7 +60,7 @@ def test_small_dataset():
         
         # Test just the dataframe preparation with heavy filtering to get small dataset
         df = prepare_bcg_dataframe(
-            '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv',
+            '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv',
             z_range=(0.5, 0.6),  # Very narrow range
             delta_mstar_z_range=(-2.0, -1.5)  # Very narrow range
         )

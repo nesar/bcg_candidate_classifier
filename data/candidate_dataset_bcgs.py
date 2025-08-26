@@ -436,21 +436,21 @@ def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_ran
     
     # Load BCG data with filtering - use clean matched data by default for pristine ML training
     if dataset_type == '2p2arcmin':
-        image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/'
+        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/'
         if use_clean_data:
-            bcg_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_clean_matched.csv'
-            candidates_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/desprior_candidates_2p2arcmin_clean_matched.csv'
+            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_clean_matched.csv'
+            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
         else:
-            bcg_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv'
-            candidates_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/desprior_candidates_2p2arcmin_with_coordinates.csv'
+            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv'
+            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_with_coordinates.csv'
     elif dataset_type == '3p8arcmin':
-        image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
+        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/'
         if use_clean_data:
-            bcg_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_clean_matched.csv'
-            candidates_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/desprior_candidates_3p8arcmin_clean_matched.csv'
+            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_clean_matched.csv'
+            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
         else:
-            bcg_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv'
-            candidates_csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/desprior_candidates_3p8arcmin_with_coordinates.csv'
+            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_with_coordinates.csv'
+            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_with_coordinates.csv'
     else:
         raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
     

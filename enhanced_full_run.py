@@ -65,15 +65,15 @@ def main():
     
     if dataset_choice == "3":
         DATASET_TYPE = "bcg_2p2arcmin"
-        IMAGE_DIR = "/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/"
-        TRUTH_TABLE = "/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv"
+        IMAGE_DIR = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/"
+        TRUTH_TABLE = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv"
         use_bcg_data = True
         bcg_arcmin_type = "2p2arcmin"
         print(f"\nSelected: BCG 2.2 arcmin dataset")
     elif dataset_choice == "4":
         DATASET_TYPE = "bcg_3p8arcmin" 
-        IMAGE_DIR = "/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/"
-        TRUTH_TABLE = "/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv"
+        IMAGE_DIR = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/"
+        TRUTH_TABLE = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_with_coordinates.csv"
         use_bcg_data = True
         bcg_arcmin_type = "3p8arcmin"
         print(f"\nSelected: BCG 3.8 arcmin dataset")

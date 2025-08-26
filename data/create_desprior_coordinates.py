@@ -45,15 +45,15 @@ def create_desprior_coordinates_csv():
     Create CSV files with x,y coordinates for DESprior candidates in both 2.2 and 3.8 arcmin images
     """
     # Read prior locations
-    prior_locations_path = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/prior_locations.csv'
+    prior_locations_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/prior_locations.csv'
     prior_df = pd.read_csv(prior_locations_path)
     
     print(f"Loaded {len(prior_df)} candidate locations for {len(prior_df['cluster'].unique())} clusters")
     
     # Process both image directories
     directories = {
-        '2p2arcmin': '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/',
-        '3p8arcmin': '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
+        '2p2arcmin': '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/',
+        '3p8arcmin': '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/'
     }
     
     for dir_name, image_dir in directories.items():
@@ -129,7 +129,7 @@ def create_desprior_coordinates_csv():
         
         # Create DataFrame and save
         results_df = pd.DataFrame(results)
-        output_path = f'/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/desprior_candidates_{dir_name}_with_coordinates.csv'
+        output_path = f'/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_{dir_name}_with_coordinates.csv'
         results_df.to_csv(output_path, index=False)
         
         print(f"Results for {dir_name}:")

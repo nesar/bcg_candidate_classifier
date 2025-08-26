@@ -45,13 +45,13 @@ def create_bcg_coordinates_csv():
     Create CSV files with x,y coordinates for both 2.2 and 3.8 arcmin images
     """
     # Read truth table
-    truth_table_path = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/bcgs_parsed_for_truth_table_post_human_inspect.csv'
+    truth_table_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_parsed_for_truth_table_post_human_inspect.csv'
     input_df = pd.read_csv(truth_table_path)
     
     # Process both image directories
     directories = {
-        '2p2arcmin': '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/',
-        '3p8arcmin': '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
+        '2p2arcmin': '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/',
+        '3p8arcmin': '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/'
     }
     
     for dir_name, image_dir in directories.items():
@@ -105,7 +105,7 @@ def create_bcg_coordinates_csv():
         
         # Create DataFrame and save
         results_df = pd.DataFrame(results)
-        output_path = f'/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_{dir_name}_with_coordinates.csv'
+        output_path = f'/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_{dir_name}_with_coordinates.csv'
         results_df.to_csv(output_path, index=False)
         print(f"Saved {len(results_df)} entries to {output_path}")
 

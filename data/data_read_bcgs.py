@@ -180,17 +180,17 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
     
     # Single scale dataset - use clean matched data by default for pristine ML training
     if dataset_type == '2p2arcmin':
-        image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/2p2arcmin/'
+        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/'
         if use_clean_data:
-            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_clean_matched.csv'
+            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_clean_matched.csv'
         else:
-            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_2p2arcmin_with_coordinates.csv'
+            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv'
     elif dataset_type == '3p8arcmin':
-        image_dir = '/Users/nesar/Projects/HEP/IMGmarker/data/bcgs/3p8arcmin/'
+        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/'
         if use_clean_data:
-            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_clean_matched.csv'
+            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_clean_matched.csv'
         else:
-            csv_path = '/Users/nesar/Projects/HEP/IMGmarker/bcg_candidate_classifier/data/bcgs_3p8arcmin_with_coordinates.csv'
+            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_with_coordinates.csv'
     else:
         raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
     
