@@ -935,31 +935,41 @@ def main(args):
     }
     
     if args.use_multiscale:
-        multiscale_params = {
-            'scales': args.scales,
-            'base_min_distance': args.min_distance,
-            'threshold_rel': args.threshold_rel,
-            'exclude_border': args.exclude_border,
-            'max_candidates_per_scale': args.max_candidates_per_scale
-        }
-        candidates_with_scale, _, patch_sizes = find_multiscale_bcg_candidates(
-            sample_image, **multiscale_params
-        )
-        if len(candidates_with_scale) > 0:
-            features, _ = extract_multiscale_candidate_features(
-                sample_image, candidates_with_scale, patch_sizes, include_context=True
+        if args.use_desprior_candidates:
+            # Multiscale + DESprior combination - features depend on multiscale output + candidate features
+            # This might vary, so we need to determine it properly
+            base_feature_dim = 35  # Approximate: multiscale features + candidate features
+        else:
+            multiscale_params = {
+                'scales': args.scales,
+                'base_min_distance': args.min_distance,
+                'threshold_rel': args.threshold_rel,
+                'exclude_border': args.exclude_border,
+                'max_candidates_per_scale': args.max_candidates_per_scale
+            }
+            candidates_with_scale, _, patch_sizes = find_multiscale_bcg_candidates(
+                sample_image, **multiscale_params
             )
-            base_feature_dim = features.shape[1] if len(features) > 0 else 33
-        else:
-            base_feature_dim = 33  # Default for multiscale
+            if len(candidates_with_scale) > 0:
+                features, _ = extract_multiscale_candidate_features(
+                    sample_image, candidates_with_scale, patch_sizes, include_context=True
+                )
+                base_feature_dim = features.shape[1] if len(features) > 0 else 33
+            else:
+                base_feature_dim = 33  # Default for multiscale
     else:
-        from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
-        candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
-        if len(candidates) > 0:
-            features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
-            base_feature_dim = features.shape[1] if len(features) > 0 else 30
+        if args.use_desprior_candidates:
+            # For DESprior candidates, we need to account for additional features (delta_mstar, starflag)
+            # Visual features (30) + candidate features (2) = 32 total
+            base_feature_dim = 32
         else:
-            base_feature_dim = 30  # Default for single-scale
+            from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
+            candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
+            if len(candidates) > 0:
+                features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
+                base_feature_dim = features.shape[1] if len(features) > 0 else 30
+            else:
+                base_feature_dim = 30  # Default for single-scale
     
     print(f"Detected feature dimension: {base_feature_dim}")
     
