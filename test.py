@@ -42,7 +42,7 @@ from ml_models.uq_classifier import BCGProbabilisticClassifier
 
 def find_multiscale_bcg_candidates(image, scales=[0.5, 1.0, 1.5], 
                                   base_min_distance=15, threshold_rel=0.12, 
-                                  exclude_border=30, max_candidates_per_scale=10):
+                                  exclude_border=0, max_candidates_per_scale=10):
     """Find candidates at multiple scales to capture objects of different sizes."""
     # Convert to grayscale if RGB
     if len(image.shape) == 3:
