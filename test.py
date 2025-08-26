@@ -810,7 +810,11 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 'reason': 'no_candidates',
                 'true_bcg': true_bcg
             })
-            # Add empty entries to maintain list consistency
+            # Add placeholder entries to maintain list consistency
+            predictions.append((np.nan, np.nan))  # Placeholder prediction
+            targets.append(true_bcg)  # Still add the true target
+            distances.append(np.inf)  # Infinite distance for failed predictions
+            candidate_counts.append(0)  # No candidates found
             all_candidates_list.append(np.array([]).reshape(0, 2))
             all_scores_list.append(np.array([]))
             sample_metadata.append(metadata)
