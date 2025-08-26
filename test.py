@@ -902,6 +902,7 @@ def main(args):
         
         # Use test split for evaluation
         test_subset = test_dataset
+        dataset = test_dataset  # Set dataset for feature dimension analysis
         print(f"Found {len(test_dataset)} samples in test split")
     else:
         # Load processed dataset (original approach)
