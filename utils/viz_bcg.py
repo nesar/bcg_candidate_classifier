@@ -256,8 +256,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         
         # Plot predicted BCG (if valid coordinates)
         if not np.any(np.isnan(prediction)):
-            plt.scatter(prediction[0], prediction[1], marker='x', s=400, 
-                       c='red', linewidths=4, label='Predicted BCG')
+            plt.scatter(prediction[0], prediction[1], marker='o', s=400, facecolors='none',
+                       edgecolors='red', linewidths=3, label='Predicted BCG')
         else:
             # For complete failures, add text indicating no prediction
             plt.text(0.05, 0.95, 'NO PREDICTION\n(No candidates found)', 
