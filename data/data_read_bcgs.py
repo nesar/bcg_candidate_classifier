@@ -93,16 +93,18 @@ class BCGDataset(Dataset):
     Dataset class for loading astronomical images and BCG coordinates with additional features.
     """
     
-    def __init__(self, image_dir, dataframe, include_additional_features=True):
+    def __init__(self, image_dir, dataframe, include_additional_features=True, include_redmapper_probs=False):
         """
         Args:
             image_dir: Directory containing .tif image files
             dataframe: DataFrame with BCG information including coordinates
             include_additional_features: Whether to include redshift and delta_mstar_z as features
+            include_redmapper_probs: Whether to include RedMapper BCG probabilities as features
         """
         self.image_dir = image_dir
         self.dataframe = dataframe.reset_index(drop=True)
         self.include_additional_features = include_additional_features
+        self.include_redmapper_probs = include_redmapper_probs
         
     def __len__(self):
         return len(self.dataframe)
@@ -148,8 +150,14 @@ class BCGDataset(Dataset):
         }
         
         # Add additional features if requested
+        additional_features = []
         if self.include_additional_features:
-            result['additional_features'] = np.array([cluster_z, delta_mstar_z])
+            additional_features.extend([cluster_z, delta_mstar_z])
+        if self.include_redmapper_probs:
+            additional_features.append(bcg_probability)
+            
+        if additional_features:
+            result['additional_features'] = np.array(additional_features)
         
         return result
 
@@ -160,7 +168,7 @@ class BCGDataset(Dataset):
 # Utility function to create datasets
 def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=42, 
                         z_range=None, delta_mstar_z_range=None, include_additional_features=True,
-                        use_clean_data=True):
+                        include_redmapper_probs=False, use_clean_data=True):
     """
     Create train/test datasets for BCG data.
     
@@ -171,6 +179,7 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
         z_range: Tuple (z_min, z_max) to filter by redshift. None for no filtering.
         delta_mstar_z_range: Tuple (delta_min, delta_max) to filter by delta_mstar_z. None for no filtering.
         include_additional_features: Whether to include redshift and delta_mstar_z as features
+        include_redmapper_probs: Whether to include RedMapper BCG probabilities as features
         use_clean_data: Use clean matched datasets for pristine ML training (recommended: True)
         
     Returns:
@@ -196,7 +205,8 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
     
     print(f"Loading BCG data from: {'clean matched' if use_clean_data else 'all available'} dataset")
     df = prepare_bcg_dataframe(csv_path, z_range=z_range, delta_mstar_z_range=delta_mstar_z_range)
-    full_dataset = BCGDataset(image_dir, df, include_additional_features=include_additional_features)
+    full_dataset = BCGDataset(image_dir, df, include_additional_features=include_additional_features, 
+                             include_redmapper_probs=include_redmapper_probs)
     
     # Create train/test split
     n_total = len(full_dataset)

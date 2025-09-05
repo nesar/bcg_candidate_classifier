@@ -882,7 +882,8 @@ def main(args):
             split_ratio=0.8,  # 80% train, 20% test
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
-            include_additional_features=args.use_additional_features
+            include_additional_features=args.use_additional_features,
+            include_redmapper_probs=args.use_redmapper_probs
         )
         
         # Use test split for evaluation
