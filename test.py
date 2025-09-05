@@ -1021,10 +1021,15 @@ def main(args):
                 base_feature_dim = 30  # Default for single-scale
     
     # Adjust feature dimension for BCG dataset additional features
-    if args.use_bcg_data and args.use_additional_features:
+    # NOTE: When using DESprior candidates, additional BCG features may already be included
+    if args.use_bcg_data and args.use_additional_features and not args.use_desprior_candidates:
         print(f"Base feature dimension: {base_feature_dim}")
         print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
         base_feature_dim += 2
+    elif args.use_bcg_data and args.use_additional_features and args.use_desprior_candidates:
+        print(f"Base feature dimension: {base_feature_dim}")
+        print("Note: Using DESprior candidates - additional BCG features may already be included")
+        # Don't add extra features as DESprior candidates already include them
     
     print(f"Final feature dimension: {base_feature_dim}")
     
