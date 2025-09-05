@@ -32,9 +32,11 @@ def show_BCG(image, BCG, sample_idx=None, save_path=None):
     plt.show()
 
 
-def show_predictions_with_candidates(images, targets, predictions, all_candidates_list, candidate_scores_list=None, indices=None, save_dir=None, phase=None):
+def show_predictions_with_candidates(images, targets, predictions, all_candidates_list, candidate_scores_list=None, indices=None, save_dir=None, phase=None, 
+                                   probabilities_list=None, detection_threshold=0.5, use_uq=False):
     """
     Show images with candidate local maxima (squares) and selected BCG (circle).
+    Enhanced with UQ support: probability labels and adaptive candidate display.
     
     Args:
         images: Array of images
@@ -45,6 +47,9 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         indices: List of indices to display (default: first 5)
         save_dir: Optional directory to save plots
         phase: Optional phase indicator for title (e.g., 'CandidateBasedTesting')
+        probabilities_list: List of probability arrays for each image (for UQ mode)
+        detection_threshold: Probability threshold for detections (for UQ mode)
+        use_uq: Whether to use UQ-specific visualization features
     """
     if indices is None:
         indices = range(min(5, len(images)))
@@ -58,6 +63,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         prediction = predictions[idx]
         candidates = all_candidates_list[idx] if idx < len(all_candidates_list) else []
         scores = candidate_scores_list[idx] if candidate_scores_list and idx < len(candidate_scores_list) else np.array([])
+        probabilities = probabilities_list[idx] if probabilities_list and idx < len(probabilities_list) else np.array([])
         
         # Calculate distance between target and prediction
         distance = np.sqrt(np.sum((target - prediction)**2))
@@ -75,20 +81,70 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         
         plt.imshow(display_image)
         
-        # Plot all candidates as cyan squares (transparent with edges only)
-        if len(candidates) > 0:
+        # Enhanced UQ visualization
+        if use_uq and len(probabilities) > 0 and len(candidates) > 0:
+            # Determine number of candidates to show based on max probability
+            max_prob = np.max(probabilities)
+            if max_prob >= 0.85:
+                n_candidates_to_show = 1
+            elif max_prob >= 0.6:
+                n_candidates_to_show = 2
+            else:
+                n_candidates_to_show = min(3, len(candidates))
+            
+            # Get top candidates by probability
+            top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
+            colors = ['red', 'orange', 'yellow']  # Different colors for multiple candidates
+            
+            # Plot all candidates as light gray squares first
             candidates_array = np.array(candidates)
             plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
-                      marker='s', s=200, facecolors='none', edgecolors='cyan', 
-                      linewidths=1, alpha=0.5,
-                      label=f'Candidates ({len(candidates)})')
+                      marker='s', s=150, facecolors='none', edgecolors='lightgray', 
+                      linewidths=1, alpha=0.3)
+            
+            # Plot top candidates with different colors and probability labels
+            for rank, cand_idx in enumerate(top_indices):
+                if cand_idx >= len(candidates):
+                    continue
+                    
+                candidate = candidates[cand_idx]
+                prob = probabilities[cand_idx]
+                color = colors[rank] if rank < len(colors) else 'red'
+                size = 400 - rank * 50  # Decreasing size for lower ranks
+                
+                # Plot candidate circle
+                plt.scatter(candidate[0], candidate[1], marker='o', s=size, 
+                           facecolors='none', edgecolors=color, linewidths=3, alpha=0.9,
+                           label=f'Candidate {rank+1}' if rank < 3 else None)
+                
+                # Add probability label
+                plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
+                        fontsize=10, color=color, weight='bold', 
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.8))
+                
+            # Update label for best candidate
+            if len(top_indices) > 0:
+                best_idx = top_indices[0]
+                best_prob = probabilities[best_idx]
+                plt.scatter([], [], marker='o', s=400, 
+                           facecolors='none', edgecolors='red', linewidths=3, alpha=0.9,
+                           label=f'Best BCG (p={best_prob:.2f})')
+        else:
+            # Traditional visualization
+            # Plot all candidates as cyan squares (transparent with edges only)
+            if len(candidates) > 0:
+                candidates_array = np.array(candidates)
+                plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
+                          marker='s', s=200, facecolors='none', edgecolors='cyan', 
+                          linewidths=1, alpha=0.5,
+                          label=f'Candidates ({len(candidates)})')
+            
+            # Plot selected BCG (prediction) as red circle (transparent with edges only)
+            plt.scatter(prediction[0], prediction[1], marker='o', s=400, 
+                       facecolors='none', edgecolors='red', linewidths=3, alpha=0.9,
+                       label='Predicted BCG')
         
-        # Plot selected BCG (prediction) as red circle (transparent with edges only)
-        plt.scatter(prediction[0], prediction[1], marker='o', s=400, 
-                   facecolors='none', edgecolors='red', linewidths=3, alpha=0.9,
-                   label='Predicted BCG')
-        
-        # Plot true BCG location as yellow circle (transparent with edges only)
+        # Always plot true BCG location as yellow circle (transparent with edges only)
         plt.scatter(target[0], target[1], marker='o', s=250, 
                    facecolors='none', edgecolors='yellow', linewidths=3, alpha=0.9,
                    label='True BCG')
@@ -99,7 +155,11 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
             title = f'{phase} - Sample {idx+1}'
         
         subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
-        if len(scores) > 0:
+        if use_uq and len(probabilities) > 0:
+            max_prob = np.max(probabilities)
+            n_detections = np.sum(probabilities >= detection_threshold)
+            subtitle += f' | Max Prob: {max_prob:.3f} | Detections: {n_detections} (≥{detection_threshold:.2f})'
+        elif len(scores) > 0:
             max_score = np.max(scores)
             avg_score = np.mean(scores)
             subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'

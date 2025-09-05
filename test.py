@@ -258,8 +258,11 @@ class BCGProbabilisticClassifier(nn.Module):
         with torch.no_grad():
             for _ in range(n_samples):
                 logits = self.forward(features)
-                probs = torch.sigmoid(logits)
-                predictions.append(probs)
+                raw_probs = torch.sigmoid(logits)
+                # Normalize probabilities to sum to 1 across all candidates
+                prob_sum = raw_probs.sum()
+                normalized_probs = raw_probs / prob_sum if prob_sum > 0 else raw_probs
+                predictions.append(normalized_probs)
         
         self.eval()  # Return to eval mode
         
@@ -338,10 +341,14 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
             probabilities = probabilities.numpy()
             uncertainties = uncertainties.numpy()
+            # Additional normalization to ensure probabilities sum to 1 (in case of numerical errors)
+            probabilities = probabilities / np.sum(probabilities) if np.sum(probabilities) > 0 else probabilities
         elif hasattr(model, 'temperature'):
             # This is a probabilistic model without MC dropout
             logits = model(features_tensor).squeeze(-1)
-            probabilities = torch.sigmoid(logits).numpy()
+            raw_probabilities = torch.sigmoid(logits).numpy()
+            # Normalize probabilities to sum to 1 across all candidates
+            probabilities = raw_probabilities / np.sum(raw_probabilities) if np.sum(raw_probabilities) > 0 else raw_probabilities
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
         else:
             # This is a traditional classifier, convert scores to probabilities
@@ -381,112 +388,24 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
 def show_enhanced_predictions(images, targets, predictions, all_candidates_list, 
                             all_scores_list, all_probabilities_list=None,
                             indices=None, save_dir=None, phase=None, use_uq=False,
-                            metadata_list=None):
-    """Enhanced visualization with probability information."""
-    if indices is None:
-        indices = range(min(5, len(images)))
+                            metadata_list=None, detection_threshold=0.5):
+    """Enhanced visualization with probability information, adaptive candidate display, and probability labels."""
+    from utils.viz_bcg import show_predictions_with_candidates
     
-    for i, idx in enumerate(indices):
-        if idx >= len(images):
-            continue
-            
-        image = images[idx]
-        target = targets[idx]
-        prediction = predictions[idx]
-        candidates = all_candidates_list[idx] if idx < len(all_candidates_list) else []
-        scores = all_scores_list[idx] if idx < len(all_scores_list) else np.array([])
-        
-        # Get probabilities if available
-        if use_uq and all_probabilities_list and idx < len(all_probabilities_list):
-            probabilities = all_probabilities_list[idx]
-        else:
-            probabilities = scores  # Use scores as proxy
-        
-        # Calculate distance between target and prediction
-        distance = np.sqrt(np.sum((target - prediction)**2))
-        
-        # Create figure
-        plt.figure(figsize=(12, 8))
-        
-        # Display image
-        if len(image.shape) == 3 and image.shape[2] == 3:
-            display_image = np.clip(image.astype(np.uint8), 0, 255)
-        else:
-            display_image = image
-        
-        plt.imshow(display_image)
-        
-        # Plot all candidates with probability-based coloring
-        if len(candidates) > 0:
-            candidates_array = np.array(candidates)
-            
-            if len(probabilities) > 0 and use_uq:
-                # Color by probability
-                scatter = plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
-                                    c=probabilities, cmap='coolwarm', 
-                                    marker='s', s=200, alpha=0.7, 
-                                    vmin=0, vmax=1, edgecolors='black', linewidths=1)
-                cbar = plt.colorbar(scatter, ax=plt.gca(), shrink=0.8)
-                cbar.set_label('BCG Probability', rotation=270, labelpad=20)
-                candidate_label = f'Candidates ({len(candidates)}) - colored by probability'
-            else:
-                # Traditional visualization
-                plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
-                          marker='s', s=200, facecolors='none', edgecolors='cyan', 
-                          linewidths=1, alpha=0.5, label=f'Candidates ({len(candidates)})')
-                candidate_label = f'Candidates ({len(candidates)})'
-        
-        # Plot selected BCG (prediction) as red circle
-        plt.scatter(prediction[0], prediction[1], marker='o', s=400, 
-                   facecolors='none', edgecolors='red', linewidths=3, alpha=0.9,
-                   label='Predicted BCG')
-        
-        # Plot true BCG location as yellow circle
-        plt.scatter(target[0], target[1], marker='o', s=250, 
-                   facecolors='none', edgecolors='yellow', linewidths=3, alpha=0.9,
-                   label='True BCG')
-        
-        # Enhanced title with UQ information and cluster name
-        cluster_name = 'Unknown'
-        if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-            cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
-        
-        title = f'Enhanced BCG Prediction - Sample {idx+1} ({cluster_name})'
-        if phase:
-            title = f'{phase} - Sample {idx+1} ({cluster_name})'
-        
-        subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
-        
-        if len(scores) > 0:
-            if use_uq and len(probabilities) > 0:
-                max_prob = np.max(probabilities)
-                avg_prob = np.mean(probabilities)
-                subtitle += f' | Max Prob: {max_prob:.3f} | Avg Prob: {avg_prob:.3f}'
-            else:
-                max_score = np.max(scores)
-                avg_score = np.mean(scores)
-                subtitle += f' | Max Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
-        
-        plt.title(f'{title}\n{subtitle}', fontsize=12)
-        
-        # Adjust legend
-        if not (len(probabilities) > 0 and use_uq):
-            plt.legend(loc='upper right', bbox_to_anchor=(1, 1))
-        
-        plt.axis('off')
-        
-        # Save plot
-        if save_dir:
-            os.makedirs(save_dir, exist_ok=True)
-            phase_str = f"{phase}_" if phase else ""
-            uq_str = "Probabilistic_" if use_uq else ""
-            filename = f'{phase_str}{uq_str}prediction_sample_{idx+1}.png'
-            save_path = os.path.join(save_dir, filename)
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
-            print(f"Enhanced prediction plot saved: {save_path}")
-        
-        plt.show()
-        plt.close()
+    # Use the enhanced visualization function from viz_bcg
+    show_predictions_with_candidates(
+        images=images,
+        targets=targets, 
+        predictions=predictions,
+        all_candidates_list=all_candidates_list,
+        candidate_scores_list=all_scores_list,
+        indices=indices,
+        save_dir=save_dir,
+        phase=phase,
+        probabilities_list=all_probabilities_list,
+        detection_threshold=detection_threshold,
+        use_uq=use_uq
+    )
 
 
 def plot_probability_analysis(all_probabilities_list, all_uncertainties_list, 
@@ -1118,7 +1037,8 @@ def main(args):
             save_dir=args.output_dir,
             phase=phase_name,
             use_uq=args.use_uq,
-            metadata_list=sample_metadata_list
+            metadata_list=sample_metadata_list,
+            detection_threshold=args.detection_threshold
         )
     
     # Show failure cases
@@ -1342,6 +1262,8 @@ if __name__ == "__main__":
                        help='Delta M* z filter range as "min,max" (e.g. "-2.0,-1.0")')
     parser.add_argument('--use_additional_features', action='store_true',
                        help='Include redshift and delta_mstar_z as additional features')
+    parser.add_argument('--use_redmapper_probs', action='store_true',
+                       help='Include RedMapper BCG probabilities as training targets/features')
     parser.add_argument('--use_desprior_candidates', action='store_true',
                        help='Use DESprior candidates instead of automatic detection')
     parser.add_argument('--candidate_delta_mstar_range', type=str, default=None,

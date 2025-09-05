@@ -86,6 +86,7 @@ def main():
     z_range = None
     delta_mstar_z_range = None
     use_additional_features = False
+    use_redmapper_probs = False
     use_desprior_candidates = False
     candidate_delta_mstar_range = None
     
@@ -138,6 +139,10 @@ def main():
         use_additional_features_input = input("\nInclude redshift and delta_mstar_z as additional features? (Y/n): ").strip().lower()
         use_additional_features = use_additional_features_input not in ['n', 'no']
         
+        # RedMapper probabilities option
+        use_redmapper_probs_input = input("Include RedMapper BCG probabilities in training? (y/N): ").strip().lower()
+        use_redmapper_probs = use_redmapper_probs_input in ['y', 'yes']
+        
         # Filtering options
         print("\nFiltering options:")
         apply_filters = input("Apply redshift or delta_mstar_z filters? (y/N): ").strip().lower()
@@ -189,6 +194,7 @@ def main():
         print(f"\nBCG Configuration Summary:")
         print(f"  Dataset: {bcg_arcmin_type}")
         print(f"  Additional features: {use_additional_features}")
+        print(f"  RedMapper probabilities: {use_redmapper_probs}")
         print(f"  Redshift filter: {z_range if z_range else 'None'}")
         print(f"  Delta M* z filter: {delta_mstar_z_range if delta_mstar_z_range else 'None'}")
         print(f"  DESprior candidates: {use_desprior_candidates}")
@@ -377,6 +383,9 @@ def main():
         
         if use_additional_features:
             train_command += " --use_additional_features"
+            
+        if use_redmapper_probs:
+            train_command += " --use_redmapper_probs"
         
         if z_range:
             train_command += f" --z_range \"{z_range}\""
@@ -478,6 +487,9 @@ def main():
         
         if use_additional_features:
             test_command += " --use_additional_features"
+            
+        if use_redmapper_probs:
+            test_command += " --use_redmapper_probs"
         
         if z_range:
             test_command += f" --z_range \"{z_range}\""
@@ -550,6 +562,7 @@ def main():
     if use_bcg_data:
         print(f"BCG Dataset: {bcg_arcmin_type}")
         print(f"Additional features: {use_additional_features}")
+        print(f"RedMapper probabilities: {use_redmapper_probs}")
         if z_range:
             print(f"Redshift filtering: {z_range}")
         if delta_mstar_z_range:
@@ -583,6 +596,8 @@ def main():
         print(f"   - New astronomical data ({bcg_arcmin_type} scale)")
         if use_additional_features:
             print("   - Additional features: redshift, delta_mstar_z")
+        if use_redmapper_probs:
+            print("   - RedMapper BCG probabilities for enhanced training")
         if use_desprior_candidates:
             print("   - DESprior catalog candidates")
             print("   - Advanced candidate filtering")

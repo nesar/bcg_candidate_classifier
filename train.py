@@ -979,6 +979,8 @@ if __name__ == "__main__":
                        help='Delta M* z filter range as "min,max" (e.g. "-2.0,-1.0")')
     parser.add_argument('--use_additional_features', action='store_true',
                        help='Include redshift and delta_mstar_z as additional features')
+    parser.add_argument('--use_redmapper_probs', action='store_true',
+                       help='Include RedMapper BCG probabilities as training targets/features')
     
     # NEW: DESprior candidate arguments
     parser.add_argument('--use_desprior_candidates', action='store_true',
