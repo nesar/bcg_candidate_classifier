@@ -280,8 +280,12 @@ class BCGProbabilisticClassifier(nn.Module):
 
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
                                  detection_threshold=0.5, use_multiscale=False, 
-                                 return_all_candidates=False, **candidate_kwargs):
-    """Predict BCG candidates with calibrated probabilities and uncertainty."""
+                                 return_all_candidates=False, additional_features=None, **candidate_kwargs):
+    """Predict BCG candidates with calibrated probabilities and uncertainty.
+    
+    Args:
+        additional_features: Additional features to append to visual features (e.g., redshift, delta_mstar_z)
+    """
     
     # Find candidates using appropriate method
     if use_multiscale:
@@ -310,6 +314,16 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         features, _ = extract_multiscale_candidate_features(image, candidates_with_scale, patch_sizes)
         all_candidates = candidates_with_scale[:, :2]  # Extract x, y coordinates
         
+        # Append additional features if provided (e.g., from BCG dataset)
+        if additional_features is not None and len(features) > 0:
+            print(f"Debug: Original multiscale features shape: {features.shape}")
+            print(f"Debug: Additional features: {additional_features}")
+            # Replicate additional features for each candidate
+            additional_features_repeated = np.tile(additional_features, (len(features), 1))
+            print(f"Debug: Additional features repeated shape: {additional_features_repeated.shape}")
+            features = np.concatenate([features, additional_features_repeated], axis=1)
+            print(f"Debug: Final multiscale features shape after concatenation: {features.shape}")
+        
     else:
         from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
         all_candidates, intensities = find_bcg_candidates(image, **candidate_kwargs)
@@ -325,13 +339,26 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             }
         
         features, _ = extract_candidate_features(image, all_candidates)
+        
+        # Append additional features if provided (e.g., from BCG dataset)
+        if additional_features is not None and len(features) > 0:
+            print(f"Debug: Original single-scale features shape: {features.shape}")
+            print(f"Debug: Additional features: {additional_features}")
+            # Replicate additional features for each candidate
+            additional_features_repeated = np.tile(additional_features, (len(features), 1))
+            print(f"Debug: Additional features repeated shape: {additional_features_repeated.shape}")
+            features = np.concatenate([features, additional_features_repeated], axis=1)
+            print(f"Debug: Final single-scale features shape after concatenation: {features.shape}")
     
     # Scale features
     if feature_scaler is not None:
+        print(f"Debug: Features shape before scaling: {features.shape}")
         scaled_features = feature_scaler.transform(features)
         features_tensor = torch.FloatTensor(scaled_features)
+        print(f"Debug: Features scaled successfully")
     else:
         features_tensor = torch.FloatTensor(features)
+        print(f"Debug: No scaling applied, features shape: {features.shape}")
     
     # Get probabilities and uncertainties
     model.eval()
@@ -585,12 +612,46 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     if prob_cols:
                         metadata['bcg_prob'] = row[prob_cols[0]]
         
+        # Extract additional features if using BCG data
+        additional_features = None
+        if args.use_bcg_data and args.use_additional_features:
+            if 'additional_features' in sample:
+                additional_features = sample['additional_features']
+                if hasattr(additional_features, 'numpy'):
+                    additional_features = additional_features.numpy()
+                elif torch.is_tensor(additional_features):
+                    additional_features = additional_features.numpy()
+            else:
+                # Fallback: extract additional features directly from sample
+                if 'cluster_z' in sample and 'delta_mstar_z' in sample:
+                    cluster_z = sample['cluster_z']
+                    delta_mstar_z = sample['delta_mstar_z']
+                    if hasattr(cluster_z, 'numpy'):
+                        cluster_z = cluster_z.numpy()
+                    elif torch.is_tensor(cluster_z):
+                        cluster_z = cluster_z.numpy()
+                    if hasattr(delta_mstar_z, 'numpy'):
+                        delta_mstar_z = delta_mstar_z.numpy()
+                    elif torch.is_tensor(delta_mstar_z):
+                        delta_mstar_z = delta_mstar_z.numpy()
+                    
+                    additional_features = np.array([cluster_z, delta_mstar_z])
+                    print(f"Debug: Extracted additional features from sample: {additional_features}")
+        
+        # Debug: Check if additional features are available
+        if args.use_bcg_data and args.use_additional_features:
+            if additional_features is not None:
+                print(f"Debug: Using additional features: {additional_features}")
+            else:
+                print("Debug: No additional features found in BCG sample")
+        
         # Make prediction with appropriate method
         if use_uq:
             results = predict_bcg_with_probabilities(
                 image, model, scaler, 
                 detection_threshold=detection_threshold,
                 use_multiscale=use_multiscale,
+                additional_features=additional_features,
                 **candidate_params
             )
             
@@ -959,7 +1020,13 @@ def main(args):
             else:
                 base_feature_dim = 30  # Default for single-scale
     
-    print(f"Detected feature dimension: {base_feature_dim}")
+    # Adjust feature dimension for BCG dataset additional features
+    if args.use_bcg_data and args.use_additional_features:
+        print(f"Base feature dimension: {base_feature_dim}")
+        print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
+        base_feature_dim += 2
+    
+    print(f"Final feature dimension: {base_feature_dim}")
     
     # Load trained model
     print("Loading trained model...")
