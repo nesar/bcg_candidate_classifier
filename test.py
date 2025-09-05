@@ -1146,6 +1146,9 @@ def main(args):
             failure_targets = [targets[i] for i in failure_indices]
             failure_predictions = [predictions[i] for i in failure_indices]
             failure_metadata_list = [sample_metadata[i] for i in failure_indices]
+            failure_candidates_list = [all_candidates_list[i] for i in failure_indices]
+            failure_scores_list = [all_scores_list[i] for i in failure_indices]
+            failure_probabilities_list = [all_probabilities_list[i] for i in failure_indices] if all_probabilities_list else None
         
             phase_name = "CandidateBasedTesting"  # Changed name to match your request
             if args.use_multiscale:
@@ -1160,7 +1163,12 @@ def main(args):
                 threshold=20, max_failures=args.show_failures,
                 save_dir=args.output_dir,
                 phase=phase_name,
-                metadata_list=failure_metadata_list
+                metadata_list=failure_metadata_list,
+                all_candidates_list=failure_candidates_list,
+                candidate_scores_list=failure_scores_list,
+                probabilities_list=failure_probabilities_list,
+                detection_threshold=detection_threshold,
+                use_uq=use_uq
             )
         else:
             print("No failure cases to show")

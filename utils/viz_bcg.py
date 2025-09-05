@@ -263,9 +263,10 @@ def find_failed(targets, predictions, threshold=50):
     return failed_indices
 
 
-def show_failures(images, targets, predictions, threshold=50, max_failures=5, save_dir=None, phase=None, metadata_list=None):
+def show_failures(images, targets, predictions, threshold=50, max_failures=5, save_dir=None, phase=None, metadata_list=None,
+                 all_candidates_list=None, candidate_scores_list=None, probabilities_list=None, detection_threshold=0.5, use_uq=False):
     """
-    Show worst prediction failures.
+    Show worst prediction failures with enhanced candidate visualization.
     
     Args:
         images: Array of images
@@ -275,6 +276,12 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         max_failures: Maximum number of failures to show
         save_dir: Optional directory to save plots
         phase: Optional phase indicator for title
+        metadata_list: Optional metadata for each sample
+        all_candidates_list: List of all candidate coordinates for each image
+        candidate_scores_list: List of candidate scores for each image (optional)
+        probabilities_list: List of probability arrays for each image (for UQ mode)
+        detection_threshold: Probability threshold for detections (for UQ mode)
+        use_uq: Whether to use UQ-specific visualization features
     """
     # Calculate distances and find worst cases
     distances = []
@@ -314,19 +321,82 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         display_image = np.clip(image.astype(np.uint8), 0, 255)
         plt.imshow(display_image)
         
-        # Plot predicted BCG (if valid coordinates)
-        if not np.any(np.isnan(prediction)):
-            plt.scatter(prediction[0], prediction[1], marker='o', s=800, facecolors='none',
-                       edgecolors='red', linewidths=3, label='Predicted BCG')
-        else:
-            # For complete failures, add text indicating no prediction
-            plt.text(0.05, 0.95, 'NO PREDICTION\n(No candidates found)', 
-                    transform=plt.gca().transAxes, fontsize=12, color='red',
-                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+        # Get candidate information for this sample
+        candidates = all_candidates_list[idx] if all_candidates_list and idx < len(all_candidates_list) else []
+        scores = candidate_scores_list[idx] if candidate_scores_list and idx < len(candidate_scores_list) else np.array([])
+        probabilities = probabilities_list[idx] if probabilities_list and idx < len(probabilities_list) else np.array([])
         
-        # Plot true BCG location as yellow circle
+        # Enhanced UQ visualization (same as successful cases)
+        if use_uq and len(probabilities) > 0 and len(candidates) > 0:
+            # Determine number of candidates to show based on max probability
+            max_prob = np.max(probabilities)
+            if max_prob >= 0.85:
+                n_candidates_to_show = 1
+            elif max_prob >= 0.6:
+                n_candidates_to_show = 2
+            else:
+                n_candidates_to_show = min(3, len(candidates))
+            
+            # Get top candidates by probability
+            top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
+            colors = ['red', 'orange', 'yellow']  # Different colors for multiple candidates
+            
+            # Plot all candidates as light gray squares first
+            candidates_array = np.array(candidates)
+            plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
+                      marker='s', s=250, facecolors='none', edgecolors='#E0E0E0', 
+                      linewidths=2, alpha=0.5)
+            
+            # Plot top candidates with different colors and probability labels
+            for rank, cand_idx in enumerate(top_indices):
+                if cand_idx >= len(candidates):
+                    continue
+                    
+                candidate = candidates[cand_idx]
+                prob = probabilities[cand_idx]
+                color = colors[rank] if rank < len(colors) else 'red'
+                
+                # Plot candidate circle
+                plt.scatter(candidate[0], candidate[1], marker='o', s=800, 
+                           facecolors='none', edgecolors=color, linewidths=2, alpha=0.9,
+                           label=f'Candidate {rank+1}' if rank < 3 else None)
+                
+                # Add probability label
+                plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
+                        fontsize=10, color=color, weight='bold', 
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
+                
+            # Update label for best candidate
+            if len(top_indices) > 0:
+                best_idx = top_indices[0]
+                best_prob = probabilities[best_idx]
+                plt.scatter([], [], marker='o', s=400, 
+                           facecolors='none', edgecolors="red", linewidths=2, alpha=0.9,
+                           label=f'Best BCG (p={best_prob:.2f})')
+        else:
+            # Traditional visualization or fallback
+            # Plot all candidates as gray squares (if available)
+            if len(candidates) > 0:
+                candidates_array = np.array(candidates)
+                plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
+                          marker='s', s=250, facecolors='none', edgecolors='#E0E0E0', 
+                          linewidths=2, alpha=0.5,
+                          label=f'Candidates ({len(candidates)})')
+            
+            # Plot predicted BCG (if valid coordinates)
+            if not np.any(np.isnan(prediction)):
+                plt.scatter(prediction[0], prediction[1], marker='o', s=800, 
+                           facecolors='none', edgecolors='red', linewidths=2, alpha=0.9,
+                           label='Predicted BCG')
+            else:
+                # For complete failures, add text indicating no prediction
+                plt.text(0.05, 0.95, 'NO PREDICTION\n(No candidates found)', 
+                        transform=plt.gca().transAxes, fontsize=12, color='red',
+                        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+        
+        # Always plot true BCG location as blue dashed circle (same as successful cases)
         plt.scatter(target[0], target[1], marker='o', s=650, 
-                   facecolors='none', edgecolors='#59ACF5', linewidths=2, ls='dashed',
+                   facecolors='none', edgecolors='#59ACF5', linewidths=2, alpha=0.9, ls='dashed',
                    label='True BCG')
         
         # Add title with failure information and cluster name
@@ -338,13 +408,21 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         if phase:
             title = f'{phase} Failure - Sample {idx+1} ({cluster_name})'
         
-        # Handle infinite distance display
+        # Create enhanced subtitle with candidate and probability information (same as successful cases)
+        subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
         if np.isinf(distance):
-            error_text = "Error: Complete Failure (No candidates)"
-        else:
-            error_text = f"Error: {distance:.1f} px"
+            subtitle = f'Complete Failure (No candidates) | Candidates: {len(candidates)}'
             
-        plt.title(f'{title}\n{error_text}', fontsize=12, color='red')
+        if use_uq and len(probabilities) > 0:
+            max_prob = np.max(probabilities)
+            n_detections = np.sum(probabilities >= detection_threshold)
+            subtitle += f' | Max Prob: {max_prob:.3f} | Detections: {n_detections} (≥{detection_threshold:.2f})'
+        elif len(scores) > 0:
+            max_score = np.max(scores)
+            avg_score = np.mean(scores)
+            subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
+            
+        plt.title(f'{title}\n{subtitle}', fontsize=12, color='red')
         plt.legend()
         plt.axis('off')
         
