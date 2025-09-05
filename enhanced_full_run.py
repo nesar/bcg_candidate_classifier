@@ -139,8 +139,11 @@ def main():
         use_additional_features_input = input("\nInclude redshift and delta_mstar_z as additional features? (Y/n): ").strip().lower()
         use_additional_features = use_additional_features_input not in ['n', 'no']
         
-        # RedMapper probabilities option
-        use_redmapper_probs_input = input("Include RedMapper BCG probabilities in training? (y/N): ").strip().lower()
+        # RedMapper probabilities option  
+        print("\nRedMapper BCG Probabilities:")
+        print("These can be used for training supervision (loss weighting, evaluation) but")
+        print("will NOT be used as input features during testing (to avoid cheating).")
+        use_redmapper_probs_input = input("Include RedMapper BCG probabilities for training supervision? (y/N): ").strip().lower()
         use_redmapper_probs = use_redmapper_probs_input in ['y', 'yes']
         
         # Filtering options
@@ -598,7 +601,7 @@ def main():
         if use_additional_features:
             print("   - Additional features: redshift, delta_mstar_z")
         if use_redmapper_probs:
-            print("   - RedMapper BCG probabilities for enhanced training")
+            print("   - RedMapper BCG probabilities for training supervision (not input features)")
         if use_desprior_candidates:
             print("   - DESprior catalog candidates")
             print("   - Advanced candidate filtering")

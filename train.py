@@ -781,13 +781,15 @@ def main(args):
             print(f"Delta M* z filter: {args.delta_mstar_z_range}")
         
         # Create train and test datasets using the new BCG data reader
+        # RedMapper probabilities are loaded in the dataset but NOT used as input features
+        # They can be accessed for training supervision, evaluation, or loss weighting
         train_dataset, test_dataset = create_bcg_datasets(
             dataset_type=args.bcg_arcmin_type,
             split_ratio=0.8,  # 80% train, 20% test
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
             include_additional_features=args.use_additional_features,
-            include_redmapper_probs=args.use_redmapper_probs
+            include_redmapper_probs=False  # Don't use as input features to match testing
         )
         
         # Split training set into train/val (70% train, 10% val, 20% test total)
@@ -981,7 +983,7 @@ if __name__ == "__main__":
     parser.add_argument('--use_additional_features', action='store_true',
                        help='Include redshift and delta_mstar_z as additional features')
     parser.add_argument('--use_redmapper_probs', action='store_true',
-                       help='Include RedMapper BCG probabilities as training targets/features')
+                       help='Load RedMapper BCG probabilities for training supervision (not as input features)')
     
     # NEW: DESprior candidate arguments
     parser.add_argument('--use_desprior_candidates', action='store_true',
