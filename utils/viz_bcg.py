@@ -316,7 +316,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
         
         # Plot predicted BCG (if valid coordinates)
         if not np.any(np.isnan(prediction)):
-            plt.scatter(prediction[0], prediction[1], marker='o', s=400, facecolors='none',
+            plt.scatter(prediction[0], prediction[1], marker='o', s=800, facecolors='none',
                        edgecolors='red', linewidths=3, label='Predicted BCG')
         else:
             # For complete failures, add text indicating no prediction
@@ -325,8 +325,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
                     bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
         
         # Plot true BCG location as yellow circle
-        plt.scatter(target[0], target[1], marker='o', s=200, 
-                   facecolors='none', edgecolors='yellow', linewidths=3,
+        plt.scatter(target[0], target[1], marker='o', s=600, 
+                   facecolors='none', edgecolors='purple', linewidths=3, linestype='dashed',
                    label='True BCG')
         
         # Add title with failure information and cluster name
