@@ -428,6 +428,12 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         # Combine visual features with candidate-specific features
                         combined_features = np.hstack([visual_features, candidate_specific_features])
                         
+                        # Add additional features if available (redshift, delta_mstar_z)
+                        if additional_features is not None:
+                            # Replicate additional features for each candidate
+                            additional_features_repeated = np.tile(additional_features, (len(combined_features), 1))
+                            combined_features = np.concatenate([combined_features, additional_features_repeated], axis=1)
+                        
                         if scaler is not None:
                             scaled_features = scaler.transform(combined_features)
                             features_tensor = torch.FloatTensor(scaled_features)
@@ -699,25 +705,21 @@ def main(args):
         except Exception as e:
             print(f"Warning: Could not determine DESprior feature dim: {e}")
             base_feature_dim = 32  # Fallback
+    else:
+        # For regular candidate detection
+        from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
+        candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
+        if len(candidates) > 0:
+            features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
+            base_feature_dim = features.shape[1] if len(features) > 0 else 30
         else:
-            from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
-            candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
-            if len(candidates) > 0:
-                features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
-                base_feature_dim = features.shape[1] if len(features) > 0 else 30
-            else:
-                base_feature_dim = 30  # Default for single-scale
+            base_feature_dim = 30  # Default for single-scale
     
     # Adjust feature dimension for BCG dataset additional features
-    # NOTE: When using DESprior candidates, additional BCG features may already be included
-    if args.use_bcg_data and args.use_additional_features and not args.use_desprior_candidates:
+    if args.use_bcg_data and args.use_additional_features:
         print(f"Base feature dimension: {base_feature_dim}")
         print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
         base_feature_dim += 2
-    elif args.use_bcg_data and args.use_additional_features and args.use_desprior_candidates:
-        print(f"Base feature dimension: {base_feature_dim}")
-        print("Note: Using DESprior candidates - additional BCG features may already be included")
-        # Don't add extra features as DESprior candidates already include them
     
     print(f"Final feature dimension: {base_feature_dim}")
     
