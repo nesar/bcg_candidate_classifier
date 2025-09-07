@@ -428,11 +428,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         # Combine visual features with candidate-specific features
                         combined_features = np.hstack([visual_features, candidate_specific_features])
                         
-                        # Add additional features if available (redshift, delta_mstar_z)
-                        if additional_features is not None:
-                            # Replicate additional features for each candidate
-                            additional_features_repeated = np.tile(additional_features, (len(combined_features), 1))
-                            combined_features = np.concatenate([combined_features, additional_features_repeated], axis=1)
+                        # NOTE: DESprior candidates use their own feature set and don't include additional BCG features
                         
                         if scaler is not None:
                             scaled_features = scaler.transform(combined_features)
@@ -716,10 +712,14 @@ def main(args):
             base_feature_dim = 30  # Default for single-scale
     
     # Adjust feature dimension for BCG dataset additional features
-    if args.use_bcg_data and args.use_additional_features:
+    # NOTE: DESprior candidates already have their optimal feature set, don't add more
+    if args.use_bcg_data and args.use_additional_features and not args.use_desprior_candidates:
         print(f"Base feature dimension: {base_feature_dim}")
         print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
         base_feature_dim += 2
+    elif args.use_bcg_data and args.use_additional_features and args.use_desprior_candidates:
+        print(f"Base feature dimension: {base_feature_dim}")
+        print("DESprior candidates already include optimal features - not adding additional features")
     
     print(f"Final feature dimension: {base_feature_dim}")
     
