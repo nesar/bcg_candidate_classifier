@@ -28,6 +28,7 @@ from data.data_read import prepare_dataframe, BCGDataset
 from data.candidate_dataset import BCGCandidateDataset, collate_candidate_samples
 from data.candidate_dataset import CandidateBasedTrainer
 from ml_models.candidate_classifier import BCGCandidateClassifier
+from ml_models.uq_classifier import BCGProbabilisticClassifier
 # NEW: BCG dataset support
 from data.data_read_bcgs import create_bcg_datasets, BCGDataset as NewBCGDataset
 from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loader, 
@@ -204,56 +205,8 @@ def extract_multiscale_candidate_features(image, candidate_coords_with_scale, pa
 
 
 # ============================================================================
-# PROBABILISTIC CLASSIFIER FOR UQ
+# Use BCGProbabilisticClassifier from ml_models.uq_classifier
 # ============================================================================
-
-class BCGProbabilisticClassifier(nn.Module):
-    """Probabilistic BCG classifier that outputs calibrated probabilities."""
-    
-    def __init__(self, feature_dim, hidden_dims=[128, 64, 32], dropout_rate=0.2):
-        super(BCGProbabilisticClassifier, self).__init__()
-        
-        self.feature_dim = feature_dim
-        self.hidden_dims = hidden_dims
-        self.dropout_rate = dropout_rate
-        
-        layers = []
-        prev_dim = feature_dim
-        
-        # Create hidden layers
-        for hidden_dim in hidden_dims:
-            layers.extend([
-                nn.Linear(prev_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(dropout_rate),
-            ])
-            prev_dim = hidden_dim
-        
-        # Output layer - logits for binary classification (BCG vs non-BCG)
-        layers.append(nn.Linear(prev_dim, 1))
-        
-        self.network = nn.Sequential(*layers)
-        
-        # Temperature parameter for calibration
-        self.temperature = nn.Parameter(torch.ones(1))
-    
-    def forward(self, features):
-        """Forward pass to get raw logits (no temperature scaling during training)."""
-        logits = self.network(features)
-        return logits
-    
-    def forward_with_temperature(self, features):
-        """Forward pass with temperature scaling for inference."""
-        logits = self.network(features)
-        # Apply temperature scaling for calibration
-        logits = logits / self.temperature
-        return logits
-    
-    def predict_probabilities(self, features):
-        """Predict calibrated probabilities for being BCG."""
-        logits = self.forward_with_temperature(features)
-        probabilities = torch.sigmoid(logits)
-        return probabilities
 
 
 # ============================================================================

@@ -204,78 +204,8 @@ def extract_multiscale_candidate_features(image, candidate_coords_with_scale, pa
 
 
 # ============================================================================
-# PROBABILISTIC CLASSIFIER (COPY FROM TRAIN.PY)
+# Use BCGProbabilisticClassifier from ml_models.uq_classifier
 # ============================================================================
-
-class BCGProbabilisticClassifier(nn.Module):
-    """Probabilistic BCG classifier that outputs calibrated probabilities."""
-    
-    def __init__(self, feature_dim, hidden_dims=[128, 64, 32], dropout_rate=0.2):
-        super(BCGProbabilisticClassifier, self).__init__()
-        
-        self.feature_dim = feature_dim
-        self.hidden_dims = hidden_dims
-        self.dropout_rate = dropout_rate
-        
-        layers = []
-        prev_dim = feature_dim
-        
-        # Create hidden layers
-        for hidden_dim in hidden_dims:
-            layers.extend([
-                nn.Linear(prev_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(dropout_rate),
-            ])
-            prev_dim = hidden_dim
-        
-        # Output layer - logits for binary classification (BCG vs non-BCG)
-        layers.append(nn.Linear(prev_dim, 1))
-        
-        self.network = nn.Sequential(*layers)
-        
-        # Temperature parameter for calibration
-        self.temperature = nn.Parameter(torch.ones(1))
-    
-    def forward(self, features):
-        """Forward pass to get raw logits (no temperature scaling during training)."""
-        logits = self.network(features)
-        return logits
-    
-    def forward_with_temperature(self, features):
-        """Forward pass with temperature scaling for inference."""
-        logits = self.network(features)
-        # Apply temperature scaling for calibration
-        logits = logits / self.temperature
-        return logits
-    
-    def predict_probabilities(self, features):
-        """Predict calibrated probabilities for being BCG."""
-        logits = self.forward_with_temperature(features)
-        probabilities = torch.sigmoid(logits)
-        return probabilities
-    
-    def predict_with_uncertainty(self, features, n_samples=10):
-        """Predict with epistemic uncertainty using Monte Carlo Dropout."""
-        self.train()  # Enable dropout for MC sampling
-        
-        predictions = []
-        with torch.no_grad():
-            for _ in range(n_samples):
-                logits = self.forward_with_temperature(features)
-                # Apply sigmoid to convert temperature-scaled logits to probabilities
-                # These represent confidence that each candidate is the BCG
-                probs = torch.sigmoid(logits)
-                predictions.append(probs)
-        
-        self.eval()  # Return to eval mode
-        
-        predictions = torch.stack(predictions)  # (n_samples, n_candidates, 1)
-        
-        mean_probs = predictions.mean(dim=0)
-        uncertainty = predictions.std(dim=0)  # Epistemic uncertainty
-        
-        return mean_probs.squeeze(-1), uncertainty.squeeze(-1)
 
 
 # ============================================================================
@@ -566,7 +496,8 @@ def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False):
     """Load trained model and feature scaler."""
     # Load appropriate model type
     if use_uq:
-        model = BCGProbabilisticClassifier(feature_dim)
+        # Use the same class definition as training
+        model = BCGProbabilisticClassifier(feature_dim, hidden_dims=[128, 64, 32], dropout_rate=0.2)
     else:
         model = BCGCandidateClassifier(feature_dim)
     
