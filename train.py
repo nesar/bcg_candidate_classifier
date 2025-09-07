@@ -356,79 +356,51 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
         self.use_uq = use_uq
     
     def evaluate_step(self, batch, criterion):
-        """Evaluation step for probabilistic model."""
+        """Evaluation step for probabilistic model - use same logic as non-UQ model."""
         self.model.eval()
         
-        features = batch['features'].to(self.device)
-        targets = batch['targets'].to(self.device)
-        sample_indices = batch['sample_indices'].to(self.device)
-        batch_size = batch['batch_size']
-        
-        # Apply feature scaling if available
-        if self.feature_scaler is not None:
-            features_np = features.cpu().numpy()
-            features_scaled = self.feature_scaler.transform(features_np)
-            features = torch.FloatTensor(features_scaled).to(self.device)
-        
-        # Forward pass: get logits for all candidates
-        candidate_logits = self.model(features).squeeze(-1)
-        
-        # For probabilistic models, we need to create binary targets
-        # Convert multi-class to binary (BCG vs non-BCG)
-        binary_targets = torch.zeros_like(candidate_logits)
-        
-        start_idx = 0
-        for sample_idx in range(batch_size):
-            # Count candidates in this sample
-            sample_mask = sample_indices == sample_idx
-            n_candidates = sample_mask.sum().item()
+        with torch.no_grad():
+            features = batch['features'].to(self.device)
+            targets = batch['targets'].to(self.device)
+            sample_indices = batch['sample_indices'].to(self.device)
+            batch_size = batch['batch_size']
             
-            if n_candidates == 0:
-                continue
+            # Apply feature scaling if available
+            if self.feature_scaler is not None:
+                features_np = features.cpu().numpy()
+                features_scaled = self.feature_scaler.transform(features_np)
+                features = torch.FloatTensor(features_scaled).to(self.device)
             
-            # Get the target index for this sample
-            sample_targets = targets[sample_mask]
-            if len(sample_targets) > 0:
-                target_idx = sample_targets[0].item()  # BCG index within this sample
-                # Set binary target: 1 for BCG, 0 for non-BCG
-                if target_idx < n_candidates:
-                    binary_targets[start_idx + target_idx] = 1.0
+            # Forward pass
+            candidate_scores = self.model(features).squeeze(-1)
             
-            start_idx += n_candidates
-        
-        # Compute binary cross-entropy loss
-        total_loss = criterion(candidate_logits, binary_targets)
-        
-        # Compute accuracy (fraction of samples where highest prob is BCG)
-        correct_predictions = 0
-        start_idx = 0
-        
-        for sample_idx in range(batch_size):
-            sample_mask = sample_indices == sample_idx
-            n_candidates = sample_mask.sum().item()
+            # Use same evaluation logic as non-UQ model
+            total_loss = 0
+            correct_predictions = 0
             
-            if n_candidates == 0:
-                continue
-            
-            sample_logits = candidate_logits[start_idx:start_idx + n_candidates]
-            sample_binary_targets = binary_targets[start_idx:start_idx + n_candidates]
-            
-            # Find predicted and true BCG
-            predicted_idx = torch.argmax(torch.sigmoid(sample_logits)).item()
-            true_idx = torch.argmax(sample_binary_targets).item() if torch.any(sample_binary_targets > 0) else -1
-            
-            if predicted_idx == true_idx and true_idx >= 0:
-                correct_predictions += 1
+            for sample_idx in range(batch_size):
+                sample_mask = sample_indices == sample_idx
+                sample_scores = candidate_scores[sample_mask]
+                sample_targets = targets[sample_mask]
                 
-            start_idx += n_candidates
-        
-        # Return loss and accuracy
-        accuracy = correct_predictions / batch_size if batch_size > 0 else 0
-        
-        return total_loss.item(), accuracy
+                if len(sample_scores) == 0:
+                    continue
+                
+                target_idx = torch.argmax(sample_targets).item()
+                sample_loss = criterion(sample_scores.unsqueeze(0), torch.LongTensor([target_idx]).to(self.device))
+                total_loss += sample_loss
+                
+                predicted_idx = torch.argmax(sample_scores).item()
+                if predicted_idx == target_idx:
+                    correct_predictions += 1
+            
+            avg_loss = total_loss / batch_size if batch_size > 0 else 0
+            accuracy = correct_predictions / batch_size if batch_size > 0 else 0
+            
+            return avg_loss.item(), accuracy
     
     def train_step(self, batch, optimizer, criterion):
-        """Training step for probabilistic model."""
+        """Training step for probabilistic model - use same objective as non-UQ model."""
         self.model.train()
         
         features = batch['features'].to(self.device)
@@ -442,67 +414,44 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
             features_scaled = self.feature_scaler.transform(features_np)
             features = torch.FloatTensor(features_scaled).to(self.device)
         
-        # Forward pass: get logits for all candidates
-        candidate_logits = self.model(features).squeeze(-1)
+        # Forward pass: get logits/scores for all candidates
+        candidate_scores = self.model(features).squeeze(-1)  # Shape: (total_candidates,)
         
-        # For probabilistic models, we need to create binary targets
-        # Convert multi-class to binary (BCG vs non-BCG)
-        binary_targets = torch.zeros_like(candidate_logits)
-        
-        start_idx = 0
-        for sample_idx in range(batch_size):
-            # Count candidates in this sample
-            sample_mask = sample_indices == sample_idx
-            n_candidates = sample_mask.sum().item()
-            
-            if n_candidates == 0:
-                continue
-            
-            # Get the target index for this sample
-            sample_targets = targets[sample_mask]
-            if len(sample_targets) > 0:
-                target_idx = sample_targets[0].item()  # BCG index within this sample
-                # Set binary target: 1 for BCG, 0 for non-BCG
-                if target_idx < n_candidates:
-                    binary_targets[start_idx + target_idx] = 1.0
-            
-            start_idx += n_candidates
-        
-        # Compute binary cross-entropy loss
-        total_loss = criterion(candidate_logits, binary_targets)
-        
-        # Compute accuracy (fraction of samples where highest prob is BCG)
+        # Use same training logic as non-UQ model for consistent learning objective
+        total_loss = 0
         correct_predictions = 0
-        start_idx = 0
         
         for sample_idx in range(batch_size):
+            # Get candidates for this sample
             sample_mask = sample_indices == sample_idx
-            n_candidates = sample_mask.sum().item()
+            sample_scores = candidate_scores[sample_mask]
+            sample_targets = targets[sample_mask]
             
-            if n_candidates == 0:
+            if len(sample_scores) == 0:
                 continue
             
-            sample_logits = candidate_logits[start_idx:start_idx + n_candidates]
-            sample_binary_targets = binary_targets[start_idx:start_idx + n_candidates]
+            # Find target candidate (the one with label 1)
+            target_idx = torch.argmax(sample_targets).item()
             
-            # Find predicted and true BCG
-            predicted_idx = torch.argmax(torch.sigmoid(sample_logits)).item()
-            true_idx = torch.argmax(sample_binary_targets).item() if torch.any(sample_binary_targets > 0) else -1
+            # Compute cross-entropy loss (same as non-UQ model)
+            sample_loss = criterion(sample_scores.unsqueeze(0), torch.LongTensor([target_idx]).to(self.device))
+            total_loss += sample_loss
             
-            if predicted_idx == true_idx and true_idx >= 0:
+            # Check if prediction is correct (highest score matches target)
+            predicted_idx = torch.argmax(sample_scores).item()
+            if predicted_idx == target_idx:
                 correct_predictions += 1
-                
-            start_idx += n_candidates
         
-        # Return loss and accuracy
+        # Average loss over batch
+        avg_loss = total_loss / batch_size if batch_size > 0 else 0
         accuracy = correct_predictions / batch_size if batch_size > 0 else 0
         
         # Backward pass
         optimizer.zero_grad()
-        total_loss.backward()
+        avg_loss.backward()
         optimizer.step()
         
-        return total_loss.item(), accuracy
+        return avg_loss.item(), accuracy
 
 
 # ============================================================================
@@ -590,7 +539,8 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None)
             hidden_dims=[128, 64, 32],
             dropout_rate=0.2
         )
-        criterion = nn.BCEWithLogitsLoss()
+        # Use same loss as non-UQ model for consistent training objective
+        criterion = nn.CrossEntropyLoss()
     else:
         print("Creating standard classifier...")
         model = BCGCandidateClassifier(

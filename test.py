@@ -258,7 +258,8 @@ class BCGProbabilisticClassifier(nn.Module):
         with torch.no_grad():
             for _ in range(n_samples):
                 logits = self.forward(features)
-                # Each candidate gets independent probability (0-1), don't normalize
+                # Apply sigmoid to convert logits to probabilities
+                # These represent confidence that each candidate is the BCG
                 probs = torch.sigmoid(logits)
                 predictions.append(probs)
         
@@ -362,24 +363,20 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
     model.eval()
     with torch.no_grad():
         if hasattr(model, 'predict_with_uncertainty') and hasattr(model, 'temperature'):
-            # This is a probabilistic model with UQ
+            # This is a probabilistic model with UQ - trained with ranking objective like non-UQ
             probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
             probabilities = probabilities.numpy()
             uncertainties = uncertainties.numpy()
-            # Keep probabilities as independent confidence scores (0-1 each)
             print(f"Debug UQ: Raw probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
         elif hasattr(model, 'temperature'):
-            # This is a probabilistic model without MC dropout
+            # This is a probabilistic model without MC dropout - trained with ranking objective
             logits = model(features_tensor).squeeze(-1)
-            # Each candidate gets independent probability (0-1), don't normalize across candidates
             probabilities = torch.sigmoid(logits).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
             print(f"Debug Prob: Raw probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
         else:
-            # This is a traditional classifier, convert scores to probabilities
+            # This is a traditional classifier - use raw scores for ranking, convert to probs for display
             scores = model(features_tensor).squeeze(-1)
-            # For traditional classifiers, use sigmoid to get independent probabilities
-            # Don't use softmax as it forces sum to 1 across candidates
             probabilities = torch.sigmoid(scores).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
             print(f"Debug Traditional: Raw scores range [{np.min(scores.numpy()):.4f}, {np.max(scores.numpy()):.4f}]")
