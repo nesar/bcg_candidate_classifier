@@ -1167,8 +1167,8 @@ def main(args):
                 all_candidates_list=failure_candidates_list,
                 candidate_scores_list=failure_scores_list,
                 probabilities_list=failure_probabilities_list,
-                detection_threshold=detection_threshold,
-                use_uq=use_uq
+                detection_threshold=args.detection_threshold,
+                use_uq=args.use_uq
             )
         else:
             print("No failure cases to show")
