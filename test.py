@@ -258,11 +258,9 @@ class BCGProbabilisticClassifier(nn.Module):
         with torch.no_grad():
             for _ in range(n_samples):
                 logits = self.forward(features)
-                raw_probs = torch.sigmoid(logits)
-                # Normalize probabilities to sum to 1 across all candidates
-                prob_sum = raw_probs.sum()
-                normalized_probs = raw_probs / prob_sum if prob_sum > 0 else raw_probs
-                predictions.append(normalized_probs)
+                # Each candidate gets independent probability (0-1), don't normalize
+                probs = torch.sigmoid(logits)
+                predictions.append(probs)
         
         self.eval()  # Return to eval mode
         
@@ -279,7 +277,7 @@ class BCGProbabilisticClassifier(nn.Module):
 # ============================================================================
 
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
-                                 detection_threshold=0.5, use_multiscale=False, 
+                                 detection_threshold=0.1, use_multiscale=False, 
                                  return_all_candidates=False, additional_features=None, **candidate_kwargs):
     """Predict BCG candidates with calibrated probabilities and uncertainty.
     
@@ -368,21 +366,24 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
             probabilities = probabilities.numpy()
             uncertainties = uncertainties.numpy()
-            # Additional normalization to ensure probabilities sum to 1 (in case of numerical errors)
-            probabilities = probabilities / np.sum(probabilities) if np.sum(probabilities) > 0 else probabilities
+            # Keep probabilities as independent confidence scores (0-1 each)
+            print(f"Debug UQ: Raw probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
         elif hasattr(model, 'temperature'):
             # This is a probabilistic model without MC dropout
             logits = model(features_tensor).squeeze(-1)
-            raw_probabilities = torch.sigmoid(logits).numpy()
-            # Normalize probabilities to sum to 1 across all candidates
-            probabilities = raw_probabilities / np.sum(raw_probabilities) if np.sum(raw_probabilities) > 0 else raw_probabilities
+            # Each candidate gets independent probability (0-1), don't normalize across candidates
+            probabilities = torch.sigmoid(logits).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
+            print(f"Debug Prob: Raw probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
         else:
             # This is a traditional classifier, convert scores to probabilities
             scores = model(features_tensor).squeeze(-1)
-            # Convert scores to probabilities using softmax
-            probabilities = torch.softmax(scores, dim=0).numpy()
+            # For traditional classifiers, use sigmoid to get independent probabilities
+            # Don't use softmax as it forces sum to 1 across candidates
+            probabilities = torch.sigmoid(scores).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
+            print(f"Debug Traditional: Raw scores range [{np.min(scores.numpy()):.4f}, {np.max(scores.numpy()):.4f}]")
+            print(f"Debug Traditional: Sigmoid probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
     
     # Find detections above threshold
     detection_mask = probabilities >= detection_threshold
@@ -564,7 +565,7 @@ def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False):
 
 def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params, 
                           original_dataframe=None, dataset_type='SPT3G_1500d',
-                          use_multiscale=False, use_uq=False, detection_threshold=0.5,
+                          use_multiscale=False, use_uq=False, detection_threshold=0.1,
                           use_desprior_candidates=False):
     """Evaluate enhanced model with multiscale and UQ capabilities."""
     print(f"Evaluating {'probabilistic' if use_uq else 'deterministic'} model on {len(test_dataset)} test images...")
@@ -1330,7 +1331,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--use_uq', action='store_true',
                        help='Enable uncertainty quantification with probabilistic outputs')
-    parser.add_argument('--detection_threshold', type=float, default=0.5,
+    parser.add_argument('--detection_threshold', type=float, default=0.1,
                        help='Probability threshold for BCG detection (0.0-1.0)')
     
     # BCG dataset arguments

@@ -107,6 +107,7 @@ class BCGProbabilisticClassifier(nn.Module):
         with torch.no_grad():
             for _ in range(n_samples):
                 logits = self.forward(features)
+                # Each candidate gets independent probability (0-1), don't normalize
                 probs = torch.sigmoid(logits)
                 predictions.append(probs)
         
@@ -190,7 +191,7 @@ class BCGEnsembleClassifier:
 
 
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
-                                 detection_threshold=0.5, use_multiscale=False, 
+                                 detection_threshold=0.1, use_multiscale=False, 
                                  return_all_candidates=False, **candidate_kwargs):
     """
     Predict BCG candidates with calibrated probabilities and uncertainty.
