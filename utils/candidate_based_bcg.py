@@ -13,7 +13,7 @@ from scipy.ndimage import maximum_filter
 from sklearn.preprocessing import StandardScaler
 
 
-def find_bcg_candidates(image, min_distance=15, threshold_rel=0.15, exclude_border=30, max_candidates=20):
+def find_bcg_candidates(image, min_distance=8, threshold_rel=0.1, exclude_border=30, max_candidates=50):
     """
     Find candidate BCG locations as local maxima in the image.
     

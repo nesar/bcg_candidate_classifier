@@ -1236,22 +1236,22 @@ if __name__ == "__main__":
                        help='Type of dataset')
     
     # Candidate finding arguments (should match training)
-    parser.add_argument('--min_distance', type=int, default=15,
-                       help='Minimum distance between candidates')
-    parser.add_argument('--threshold_rel', type=float, default=0.12,
-                       help='Relative threshold for candidate detection')
+    parser.add_argument('--min_distance', type=int, default=8,
+                       help='Minimum distance between candidates (reduced for higher precision)')
+    parser.add_argument('--threshold_rel', type=float, default=0.1,
+                       help='Relative threshold for candidate detection (lowered for more candidates)')
     parser.add_argument('--exclude_border', type=int, default=30,
                        help='Exclude candidates near borders')
-    parser.add_argument('--max_candidates', type=int, default=25,
-                       help='Maximum candidates per image')
+    parser.add_argument('--max_candidates', type=int, default=50,
+                       help='Maximum candidates per image (increased for better coverage)')
     
     # Enhanced feature arguments
     parser.add_argument('--use_multiscale', action='store_true',
                        help='Enable multi-scale candidate detection')
     parser.add_argument('--scales', type=str, default='0.5,1.0,1.5',
                        help='Comma-separated scale factors for multiscale detection')
-    parser.add_argument('--max_candidates_per_scale', type=int, default=10,
-                       help='Maximum candidates per scale in multiscale mode')
+    parser.add_argument('--max_candidates_per_scale', type=int, default=20,
+                       help='Maximum candidates per scale in multiscale mode (increased)')
     
     parser.add_argument('--use_uq', action='store_true',
                        help='Enable uncertainty quantification with probabilistic outputs')

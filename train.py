@@ -522,8 +522,8 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None)
             hidden_dims=[128, 64, 32],
             dropout_rate=0.2
         )
-        # Use ranking loss that encourages well-calibrated probabilities
-        criterion = nn.MarginRankingLoss(margin=1.0)
+        # Use ranking loss with smaller margin for better probability calibration
+        criterion = nn.MarginRankingLoss(margin=0.5)
     else:
         print("Creating standard classifier...")
         model = BCGCandidateClassifier(
@@ -880,22 +880,22 @@ if __name__ == "__main__":
                        help='Use GPU if available')
     
     # Traditional candidate finding arguments
-    parser.add_argument('--min_distance', type=int, default=15,
-                       help='Minimum distance between candidates')
-    parser.add_argument('--threshold_rel', type=float, default=0.12,
-                       help='Relative threshold for candidate detection')
+    parser.add_argument('--min_distance', type=int, default=8,
+                       help='Minimum distance between candidates (reduced for higher precision)')
+    parser.add_argument('--threshold_rel', type=float, default=0.1,
+                       help='Relative threshold for candidate detection (lowered for more candidates)')
     parser.add_argument('--exclude_border', type=int, default=30,
                        help='Exclude candidates near borders')
-    parser.add_argument('--max_candidates', type=int, default=25,
-                       help='Maximum candidates per image (or per scale if multiscale)')
+    parser.add_argument('--max_candidates', type=int, default=50,
+                       help='Maximum candidates per image (increased for better coverage)')
     
     # NEW: Multi-scale arguments
     parser.add_argument('--use_multiscale', action='store_true',
                        help='Enable multi-scale candidate detection')
     parser.add_argument('--scales', type=str, default='0.5,1.0,1.5',
                        help='Comma-separated scale factors for multiscale detection')
-    parser.add_argument('--max_candidates_per_scale', type=int, default=10,
-                       help='Maximum candidates per scale in multiscale mode')
+    parser.add_argument('--max_candidates_per_scale', type=int, default=20,
+                       help='Maximum candidates per scale in multiscale mode (increased)')
     
     # NEW: Uncertainty quantification arguments
     parser.add_argument('--use_uq', action='store_true',

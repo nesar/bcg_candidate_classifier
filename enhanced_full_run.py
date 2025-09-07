@@ -227,10 +227,10 @@ def main():
             else:
                 scales = [0.5, 1.0, 1.5]
             
-            max_per_scale = int(input("Max candidates per scale (default 10): ") or "10")
+            max_per_scale = int(input("Max candidates per scale (default 20): ") or "20")
         else:
             scales = [0.5, 1.0, 1.5]
-            max_per_scale = 10
+            max_per_scale = 20
         
         print(f"Using scales: {scales}, max per scale: {max_per_scale}")
     else:
@@ -276,25 +276,25 @@ def main():
         
         if modify_params in ['y', 'yes']:
             print("\nCandidate detection parameters:")
-            min_distance = int(input("Minimum distance between candidates (default 20): ") or "20")
-            threshold_rel = float(input("Relative brightness threshold (default 0.12): ") or "0.12")
+            min_distance = int(input("Minimum distance between candidates (default 8): ") or "8")
+            threshold_rel = float(input("Relative brightness threshold (default 0.1): ") or "0.1")
             exclude_border = int(input("Exclude border pixels (default 0): ") or "0")
             if not use_multiscale:
-                max_candidates = int(input("Maximum candidates per image (default 30): ") or "30")
+                max_candidates = int(input("Maximum candidates per image (default 50): ") or "50")
             else:
                 max_candidates = max_per_scale  # Use multiscale parameter
         else:
-            min_distance = 20
-            threshold_rel = 0.12
+            min_distance = 8
+            threshold_rel = 0.1
             exclude_border = 0
-            max_candidates = max_per_scale if use_multiscale else 30
-            print(f"Using defaults: min_distance={min_distance}, threshold_rel={threshold_rel}")
+            max_candidates = max_per_scale if use_multiscale else 50
+            print(f"Using improved defaults: min_distance={min_distance}, threshold_rel={threshold_rel}")
     else:
         # Use default values for DESprior (these parameters won't be used in DESprior mode)
-        min_distance = 20
-        threshold_rel = 0.12
+        min_distance = 8
+        threshold_rel = 0.1
         exclude_border = 0
-        max_candidates = max_per_scale if use_multiscale else 30
+        max_candidates = max_per_scale if use_multiscale else 50
         print("\n" + "="*60)
         print("CANDIDATE DETECTION PARAMETERS")
         print("="*60)
