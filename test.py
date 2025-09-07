@@ -238,15 +238,20 @@ class BCGProbabilisticClassifier(nn.Module):
         self.temperature = nn.Parameter(torch.ones(1))
     
     def forward(self, features):
-        """Forward pass to get logits."""
+        """Forward pass to get raw logits (no temperature scaling during training)."""
         logits = self.network(features)
-        # Apply temperature scaling
+        return logits
+    
+    def forward_with_temperature(self, features):
+        """Forward pass with temperature scaling for inference."""
+        logits = self.network(features)
+        # Apply temperature scaling for calibration
         logits = logits / self.temperature
         return logits
     
     def predict_probabilities(self, features):
         """Predict calibrated probabilities for being BCG."""
-        logits = self.forward(features)
+        logits = self.forward_with_temperature(features)
         probabilities = torch.sigmoid(logits)
         return probabilities
     
@@ -257,8 +262,8 @@ class BCGProbabilisticClassifier(nn.Module):
         predictions = []
         with torch.no_grad():
             for _ in range(n_samples):
-                logits = self.forward(features)
-                # Apply sigmoid to convert logits to probabilities
+                logits = self.forward_with_temperature(features)
+                # Apply sigmoid to convert temperature-scaled logits to probabilities
                 # These represent confidence that each candidate is the BCG
                 probs = torch.sigmoid(logits)
                 predictions.append(probs)
@@ -364,23 +369,37 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
     with torch.no_grad():
         if hasattr(model, 'predict_with_uncertainty') and hasattr(model, 'temperature'):
             # This is a probabilistic model with UQ - trained with ranking objective like non-UQ
-            probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
-            probabilities = probabilities.numpy()
-            uncertainties = uncertainties.numpy()
-            print(f"Debug UQ: Raw probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
+            # First get raw logits to understand the scale
+            raw_logits = model(features_tensor).squeeze(-1)
+            print(f"Debug UQ: Raw logits range [{torch.min(raw_logits):.4f}, {torch.max(raw_logits):.4f}], mean={torch.mean(raw_logits):.4f}")
+            print(f"Debug UQ: Temperature parameter: {model.temperature.item():.4f}")
+            
+            # If the model was trained with temperature scaling applied during training,
+            # we need to use raw logits for proper ranking
+            if model.temperature.item() > 5.0:  # If temperature is very high, likely trained incorrectly
+                print("Debug UQ: Using raw logits due to high temperature (model trained with temp scaling)")
+                probabilities = torch.sigmoid(raw_logits).numpy()
+                uncertainties = np.zeros_like(probabilities)
+            else:
+                probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
+                probabilities = probabilities.numpy()
+                uncertainties = uncertainties.numpy()
+            print(f"Debug UQ: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
         elif hasattr(model, 'temperature'):
             # This is a probabilistic model without MC dropout - trained with ranking objective
             logits = model(features_tensor).squeeze(-1)
+            print(f"Debug Prob: Raw logits range [{torch.min(logits):.4f}, {torch.max(logits):.4f}], mean={torch.mean(logits):.4f}")
+            print(f"Debug Prob: Temperature parameter: {model.temperature.item():.4f}")
             probabilities = torch.sigmoid(logits).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
-            print(f"Debug Prob: Raw probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
+            print(f"Debug Prob: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
         else:
             # This is a traditional classifier - use raw scores for ranking, convert to probs for display
             scores = model(features_tensor).squeeze(-1)
+            print(f"Debug Traditional: Raw scores range [{torch.min(scores):.4f}, {torch.max(scores):.4f}], mean={torch.mean(scores):.4f}")
             probabilities = torch.sigmoid(scores).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
-            print(f"Debug Traditional: Raw scores range [{np.min(scores.numpy()):.4f}, {np.max(scores.numpy()):.4f}]")
-            print(f"Debug Traditional: Sigmoid probabilities range [{np.min(probabilities):.4f}, {np.max(probabilities):.4f}], mean={np.mean(probabilities):.4f}")
+            print(f"Debug Traditional: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
     
     # Find detections above threshold
     detection_mask = probabilities >= detection_threshold

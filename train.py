@@ -238,15 +238,20 @@ class BCGProbabilisticClassifier(nn.Module):
         self.temperature = nn.Parameter(torch.ones(1))
     
     def forward(self, features):
-        """Forward pass to get logits."""
+        """Forward pass to get raw logits (no temperature scaling during training)."""
         logits = self.network(features)
-        # Apply temperature scaling
+        return logits
+    
+    def forward_with_temperature(self, features):
+        """Forward pass with temperature scaling for inference."""
+        logits = self.network(features)
+        # Apply temperature scaling for calibration
         logits = logits / self.temperature
         return logits
     
     def predict_probabilities(self, features):
         """Predict calibrated probabilities for being BCG."""
-        logits = self.forward(features)
+        logits = self.forward_with_temperature(features)
         probabilities = torch.sigmoid(logits)
         return probabilities
 

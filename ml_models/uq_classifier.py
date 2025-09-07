@@ -60,13 +60,26 @@ class BCGProbabilisticClassifier(nn.Module):
     
     def forward(self, features):
         """
-        Forward pass to get logits.
+        Forward pass to get raw logits (no temperature scaling during training).
         
         Args:
             features (torch.Tensor): Features for candidates (batch_size, feature_dim)
             
         Returns:
-            torch.Tensor: Logits for each candidate (batch_size, 1)
+            torch.Tensor: Raw logits for each candidate (batch_size, 1)
+        """
+        logits = self.network(features)
+        return logits
+    
+    def forward_with_temperature(self, features):
+        """
+        Forward pass with temperature scaling for inference.
+        
+        Args:
+            features (torch.Tensor): Features for candidates (batch_size, feature_dim)
+            
+        Returns:
+            torch.Tensor: Temperature-scaled logits for each candidate (batch_size, 1)
         """
         logits = self.network(features)
         
@@ -86,7 +99,7 @@ class BCGProbabilisticClassifier(nn.Module):
         Returns:
             torch.Tensor: Probabilities for each candidate being BCG
         """
-        logits = self.forward(features)
+        logits = self.forward_with_temperature(features)
         probabilities = torch.sigmoid(logits)
         return probabilities
     
@@ -106,7 +119,7 @@ class BCGProbabilisticClassifier(nn.Module):
         predictions = []
         with torch.no_grad():
             for _ in range(n_samples):
-                logits = self.forward(features)
+                logits = self.forward_with_temperature(features)
                 # Each candidate gets independent probability (0-1), don't normalize
                 probs = torch.sigmoid(logits)
                 predictions.append(probs)
