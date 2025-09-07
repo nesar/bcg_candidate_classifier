@@ -379,6 +379,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                           use_desprior_candidates=False):
     """Evaluate enhanced model with UQ capabilities."""
     print(f"Evaluating {'probabilistic' if use_uq else 'deterministic'} model on {len(test_dataset)} test images...")
+    print("Using rank-based evaluation (top-k candidate success tracking)...")
     
     predictions = []
     targets = []
@@ -1065,6 +1066,9 @@ def main(args):
         
         # Add coordinate and error columns
         cols.extend(['pred_x', 'pred_y', 'true_x', 'true_y', 'distance_error'])
+        
+        # Add rank-based evaluation column
+        cols.extend(['bcg_rank'])
         
         # Add UQ columns
         if args.use_uq:
