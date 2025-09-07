@@ -250,13 +250,9 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         
         # Append additional features if provided (e.g., from BCG dataset)
         if additional_features is not None and len(features) > 0:
-            print(f"Debug: Original multiscale features shape: {features.shape}")
-            print(f"Debug: Additional features: {additional_features}")
             # Replicate additional features for each candidate
             additional_features_repeated = np.tile(additional_features, (len(features), 1))
-            print(f"Debug: Additional features repeated shape: {additional_features_repeated.shape}")
             features = np.concatenate([features, additional_features_repeated], axis=1)
-            print(f"Debug: Final multiscale features shape after concatenation: {features.shape}")
         
     else:
         from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
@@ -276,88 +272,35 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         
         # Append additional features if provided (e.g., from BCG dataset)
         if additional_features is not None and len(features) > 0:
-            print(f"Debug: Original single-scale features shape: {features.shape}")
-            print(f"Debug: Additional features: {additional_features}")
             # Replicate additional features for each candidate
             additional_features_repeated = np.tile(additional_features, (len(features), 1))
-            print(f"Debug: Additional features repeated shape: {additional_features_repeated.shape}")
             features = np.concatenate([features, additional_features_repeated], axis=1)
-            print(f"Debug: Final single-scale features shape after concatenation: {features.shape}")
     
     # Scale features
     if feature_scaler is not None:
-        print(f"Debug: Features shape before scaling: {features.shape}")
         scaled_features = feature_scaler.transform(features)
         features_tensor = torch.FloatTensor(scaled_features)
-        print(f"Debug: Features scaled successfully")
     else:
         features_tensor = torch.FloatTensor(features)
-        print(f"Debug: No scaling applied, features shape: {features.shape}")
     
     # Get probabilities and uncertainties
     model.eval()
     with torch.no_grad():
         if hasattr(model, 'predict_with_uncertainty') and hasattr(model, 'temperature'):
-            # This is a probabilistic model with UQ - trained with ranking objective like non-UQ
-            # First get raw logits to understand the scale
-            raw_logits = model(features_tensor).squeeze(-1)
-            print(f"Debug UQ: Raw logits range [{torch.min(raw_logits):.4f}, {torch.max(raw_logits):.4f}], mean={torch.mean(raw_logits):.4f}")
-            print(f"Debug UQ: Temperature parameter: {model.temperature.item():.4f}")
-            
-            # Check different inference approaches
-            print("DEBUG UQ: Testing different inference methods...")
-            
-            # Method 1: Raw logits (bypass temperature)
-            raw_probs = torch.sigmoid(raw_logits).numpy()
-            print(f"Debug UQ: Method 1 (raw sigmoid): range [{np.min(raw_probs):.10f}, {np.max(raw_probs):.10f}], mean={np.mean(raw_probs):.10f}")
-            
-            # Method 2: Direct forward with temperature
-            temp_logits = model.forward_with_temperature(features_tensor).squeeze(-1)
-            temp_probs = torch.sigmoid(temp_logits).numpy()
-            print(f"Debug UQ: Method 2 (temp sigmoid): range [{np.min(temp_probs):.10f}, {np.max(temp_probs):.10f}], mean={np.mean(temp_probs):.10f}")
-            
-            # Method 3: MC dropout 
+            # This is a probabilistic model with UQ trained with ranking loss
             probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
             probabilities = probabilities.numpy()
             uncertainties = uncertainties.numpy()
-            print(f"Debug UQ: Method 3 (MC dropout): range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
-            
-            # Automatic fallback to best method
-            max_mc = np.max(probabilities)
-            max_raw = np.max(raw_probs)
-            max_temp = np.max(temp_probs)
-            
-            print(f"DEBUG UQ: Comparing max probabilities - MC: {max_mc:.10f}, Raw: {max_raw:.10f}, Temp: {max_temp:.10f}")
-            
-            # Use the method with the most reasonable probability range
-            if max_raw > 0.001 and max_raw > max_mc and max_raw > max_temp:
-                print("DEBUG UQ: Using raw sigmoid method (bypassing temperature)")
-                probabilities = raw_probs
-                uncertainties = np.zeros_like(probabilities)
-            elif max_temp > 0.001 and max_temp > max_mc and max_temp > max_raw:
-                print("DEBUG UQ: Using temperature-scaled method") 
-                probabilities = temp_probs
-                uncertainties = np.zeros_like(probabilities)
-            else:
-                print("DEBUG UQ: Using MC dropout method (default)")
-                # probabilities and uncertainties already set from MC dropout
-            
-            print(f"Debug UQ: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
         elif hasattr(model, 'temperature'):
-            # This is a probabilistic model without MC dropout - trained with ranking objective
-            logits = model(features_tensor).squeeze(-1)
-            print(f"Debug Prob: Raw logits range [{torch.min(logits):.4f}, {torch.max(logits):.4f}], mean={torch.mean(logits):.4f}")
-            print(f"Debug Prob: Temperature parameter: {model.temperature.item():.4f}")
+            # This is a probabilistic model without MC dropout - trained with ranking loss
+            logits = model.forward_with_temperature(features_tensor).squeeze(-1)
             probabilities = torch.sigmoid(logits).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
-            print(f"Debug Prob: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
         else:
             # This is a traditional classifier - use raw scores for ranking, convert to probs for display
             scores = model(features_tensor).squeeze(-1)
-            print(f"Debug Traditional: Raw scores range [{torch.min(scores):.4f}, {torch.max(scores):.4f}], mean={torch.mean(scores):.4f}")
             probabilities = torch.sigmoid(scores).numpy()
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
-            print(f"Debug Traditional: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
     
     # Find detections above threshold
     detection_mask = probabilities >= detection_threshold
@@ -522,50 +465,17 @@ def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, random_seed=42):
 
 def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False):
     """Load trained model and feature scaler."""
-    print(f"DEBUG: Loading model from {model_path}")
-    print(f"DEBUG: Feature dimension: {feature_dim}")
-    print(f"DEBUG: Use UQ: {use_uq}")
-    
     # Load appropriate model type
     if use_uq:
-        # Use the same class definition as training
         model = BCGProbabilisticClassifier(feature_dim, hidden_dims=[128, 64, 32], dropout_rate=0.2)
-        print("DEBUG: Created UQ model instance")
     else:
         model = BCGCandidateClassifier(feature_dim)
-        print("DEBUG: Created standard model instance")
     
-    # Load state dict and print some debugging info
-    state_dict = torch.load(model_path, map_location='cpu')
-    print(f"DEBUG: Loaded state dict with keys: {list(state_dict.keys())}")
-    
-    # Check if temperature parameter exists and its value
-    if 'temperature' in state_dict:
-        temp_value = state_dict['temperature'].item()
-        print(f"DEBUG: Loaded temperature parameter: {temp_value}")
-    else:
-        print("DEBUG: No temperature parameter in state dict")
-    
-    model.load_state_dict(state_dict)
+    model.load_state_dict(torch.load(model_path, map_location='cpu'))
     model.eval()
-    
-    # Print model info after loading
-    if use_uq and hasattr(model, 'temperature'):
-        print(f"DEBUG: Model temperature after loading: {model.temperature.item()}")
-        
-        # Test the model with a small synthetic input to see output scale
-        with torch.no_grad():
-            test_input = torch.randn(3, feature_dim)  # 3 candidates, feature_dim features
-            test_raw_logits = model(test_input).squeeze(-1)
-            test_temp_logits = model.forward_with_temperature(test_input).squeeze(-1)
-            print(f"DEBUG: Test raw logits on synthetic data: {test_raw_logits.numpy()}")
-            print(f"DEBUG: Test temp logits on synthetic data: {test_temp_logits.numpy()}")
-            print(f"DEBUG: Test raw sigmoid: {torch.sigmoid(test_raw_logits).numpy()}")
-            print(f"DEBUG: Test temp sigmoid: {torch.sigmoid(test_temp_logits).numpy()}")
     
     # Load scaler
     feature_scaler = joblib.load(scaler_path)
-    print(f"DEBUG: Loaded feature scaler")
     
     return model, feature_scaler
 
@@ -644,14 +554,8 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         delta_mstar_z = delta_mstar_z.numpy()
                     
                     additional_features = np.array([cluster_z, delta_mstar_z])
-                    print(f"Debug: Extracted additional features from sample: {additional_features}")
         
-        # Debug: Check if additional features are available
-        if args.use_bcg_data and args.use_additional_features:
-            if additional_features is not None:
-                print(f"Debug: Using additional features: {additional_features}")
-            else:
-                print("Debug: No additional features found in BCG sample")
+        # Check if additional features are available for BCG data
         
         # Make prediction with appropriate method
         if use_uq:

@@ -314,7 +314,7 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
         self.use_uq = use_uq
     
     def evaluate_step(self, batch, criterion):
-        """Evaluation step for probabilistic model - use same logic as non-UQ model."""
+        """Evaluation step for probabilistic model with ranking loss."""
         self.model.eval()
         
         with torch.no_grad():
@@ -330,35 +330,47 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
                 features = torch.FloatTensor(features_scaled).to(self.device)
             
             # Forward pass
-            candidate_scores = self.model(features).squeeze(-1)
+            candidate_logits = self.model(features).squeeze(-1)
             
-            # Use same evaluation logic as non-UQ model
+            # Use ranking loss for validation (same as training)
             total_loss = 0
             correct_predictions = 0
+            loss_count = 0
             
             for sample_idx in range(batch_size):
                 sample_mask = sample_indices == sample_idx
-                sample_scores = candidate_scores[sample_mask]
+                sample_logits = candidate_logits[sample_mask]
                 sample_targets = targets[sample_mask]
                 
-                if len(sample_scores) == 0:
+                if len(sample_logits) < 2:
                     continue
                 
                 target_idx = torch.argmax(sample_targets).item()
-                sample_loss = criterion(sample_scores.unsqueeze(0), torch.LongTensor([target_idx]).to(self.device))
-                total_loss += sample_loss
+                target_logit = sample_logits[target_idx]
                 
-                predicted_idx = torch.argmax(sample_scores).item()
+                # Compute validation loss using same ranking approach
+                other_indices = [i for i in range(len(sample_logits)) if i != target_idx]
+                if len(other_indices) > 0:
+                    # Use first few negatives for validation loss
+                    n_negatives = min(len(other_indices), 3)
+                    for neg_idx in other_indices[:n_negatives]:
+                        neg_logit = sample_logits[neg_idx]
+                        ranking_target = torch.ones(1).to(self.device)
+                        loss = criterion(target_logit.unsqueeze(0), neg_logit.unsqueeze(0), ranking_target)
+                        total_loss += loss
+                        loss_count += 1
+                
+                predicted_idx = torch.argmax(sample_logits).item()
                 if predicted_idx == target_idx:
                     correct_predictions += 1
             
-            avg_loss = total_loss / batch_size if batch_size > 0 else 0
+            avg_loss = total_loss / loss_count if loss_count > 0 else 0
             accuracy = correct_predictions / batch_size if batch_size > 0 else 0
             
             return avg_loss.item(), accuracy
     
     def train_step(self, batch, optimizer, criterion):
-        """Training step for probabilistic model - use same objective as non-UQ model."""
+        """Training step for probabilistic model with ranking loss for better probability calibration."""
         self.model.train()
         
         features = batch['features'].to(self.device)
@@ -372,31 +384,44 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
             features_scaled = self.feature_scaler.transform(features_np)
             features = torch.FloatTensor(features_scaled).to(self.device)
         
-        # Forward pass: get logits/scores for all candidates
-        candidate_scores = self.model(features).squeeze(-1)  # Shape: (total_candidates,)
+        # Forward pass: get raw logits for all candidates
+        candidate_logits = self.model(features).squeeze(-1)  # Shape: (total_candidates,)
         
-        # Use same training logic as non-UQ model for consistent learning objective
+        # Use ranking loss for better probability calibration
         total_loss = 0
         correct_predictions = 0
         
         for sample_idx in range(batch_size):
             # Get candidates for this sample
             sample_mask = sample_indices == sample_idx
-            sample_scores = candidate_scores[sample_mask]
+            sample_logits = candidate_logits[sample_mask]
             sample_targets = targets[sample_mask]
             
-            if len(sample_scores) == 0:
+            if len(sample_logits) < 2:  # Need at least 2 candidates for ranking
                 continue
             
             # Find target candidate (the one with label 1)
             target_idx = torch.argmax(sample_targets).item()
+            target_logit = sample_logits[target_idx]
             
-            # Compute cross-entropy loss (same as non-UQ model)
-            sample_loss = criterion(sample_scores.unsqueeze(0), torch.LongTensor([target_idx]).to(self.device))
-            total_loss += sample_loss
+            # Create ranking pairs: target should be higher than all others
+            other_indices = [i for i in range(len(sample_logits)) if i != target_idx]
             
-            # Check if prediction is correct (highest score matches target)
-            predicted_idx = torch.argmax(sample_scores).item()
+            if len(other_indices) > 0:
+                # Randomly sample a few negative examples to avoid too many pairs
+                n_negatives = min(len(other_indices), 5)  # Limit to 5 negatives per sample
+                negative_indices = torch.randperm(len(other_indices))[:n_negatives]
+                selected_negatives = [other_indices[i] for i in negative_indices]
+                
+                for neg_idx in selected_negatives:
+                    neg_logit = sample_logits[neg_idx]
+                    # MarginRankingLoss: input1 should be ranked higher than input2
+                    ranking_target = torch.ones(1).to(self.device)  # target_logit > neg_logit
+                    loss = criterion(target_logit.unsqueeze(0), neg_logit.unsqueeze(0), ranking_target)
+                    total_loss += loss
+            
+            # Check if prediction is correct (highest logit matches target)
+            predicted_idx = torch.argmax(sample_logits).item()
             if predicted_idx == target_idx:
                 correct_predictions += 1
         
@@ -497,8 +522,8 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None)
             hidden_dims=[128, 64, 32],
             dropout_rate=0.2
         )
-        # Use same loss as non-UQ model for consistent training objective
-        criterion = nn.CrossEntropyLoss()
+        # Use ranking loss that encourages well-calibrated probabilities
+        criterion = nn.MarginRankingLoss(margin=1.0)
     else:
         print("Creating standard classifier...")
         model = BCGCandidateClassifier(
