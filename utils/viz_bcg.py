@@ -83,18 +83,25 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         
         # Enhanced UQ visualization
         if use_uq and len(probabilities) > 0 and len(candidates) > 0:
-            # Determine number of candidates to show based on max probability
-            max_prob = np.max(probabilities)
-            if max_prob >= 0.85:
-                n_candidates_to_show = 1
-            elif max_prob >= 0.6:
-                n_candidates_to_show = 2
+            # For rank-based visualization, show enough candidates to see the relevant ranks
+            # Determine number of candidates based on filename/phase to ensure rank visibility
+            if phase and 'rank3' in phase:
+                n_candidates_to_show = max(3, min(5, len(candidates)))  # Show at least 3 for rank3
+            elif phase and ('rank2' in phase or 'rank1' in phase):
+                n_candidates_to_show = max(2, min(3, len(candidates)))  # Show at least 2 for rank2/rank1
             else:
-                n_candidates_to_show = min(3, len(candidates))
+                # Default logic for non-rank-specific phases
+                max_prob = np.max(probabilities)
+                if max_prob >= 0.85:
+                    n_candidates_to_show = min(2, len(candidates))  # Always show at least 2
+                elif max_prob >= 0.6:
+                    n_candidates_to_show = min(3, len(candidates))
+                else:
+                    n_candidates_to_show = min(5, len(candidates))  # Show more when uncertain
             
             # Get top candidates by probability
             top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
-            colors = ['red', 'orange', 'yellow']  # Different colors for multiple candidates
+            colors = ['red', 'orange', 'yellow', 'lime', 'cyan']  # More colors for up to 5 ranks
             
             # Plot all candidates as light gray squares first
             candidates_array = np.array(candidates)
@@ -339,7 +346,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
             
             # Get top candidates by probability
             top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
-            colors = ['red', 'orange', 'yellow']  # Different colors for multiple candidates
+            colors = ['red', 'orange', 'yellow', 'lime', 'cyan']  # More colors for up to 5 ranks
             
             # Plot all candidates as light gray squares first
             candidates_array = np.array(candidates)

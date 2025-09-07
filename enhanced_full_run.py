@@ -493,7 +493,6 @@ def main():
     print(f"  Evaluation results: {test_output_dir}/")
     if use_uq:
         print(f"  Rank-based samples: {test_output_dir}/*_prediction_sample_best_rank*.png")
-        print(f"  True failures: {test_output_dir}/*_failure_sample_*.png (rank >5 or not detected)")
     else:
         print(f"  Sample predictions: {test_output_dir}/*_prediction_sample_*.png")
         print(f"  Failure cases: {test_output_dir}/*_failure_sample_*.png")
