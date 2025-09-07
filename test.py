@@ -304,16 +304,44 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             print(f"Debug UQ: Raw logits range [{torch.min(raw_logits):.4f}, {torch.max(raw_logits):.4f}], mean={torch.mean(raw_logits):.4f}")
             print(f"Debug UQ: Temperature parameter: {model.temperature.item():.4f}")
             
-            # If the model was trained with temperature scaling applied during training,
-            # we need to use raw logits for proper ranking
-            if model.temperature.item() > 5.0:  # If temperature is very high, likely trained incorrectly
-                print("Debug UQ: Using raw logits due to high temperature (model trained with temp scaling)")
-                probabilities = torch.sigmoid(raw_logits).numpy()
+            # Check different inference approaches
+            print("DEBUG UQ: Testing different inference methods...")
+            
+            # Method 1: Raw logits (bypass temperature)
+            raw_probs = torch.sigmoid(raw_logits).numpy()
+            print(f"Debug UQ: Method 1 (raw sigmoid): range [{np.min(raw_probs):.10f}, {np.max(raw_probs):.10f}], mean={np.mean(raw_probs):.10f}")
+            
+            # Method 2: Direct forward with temperature
+            temp_logits = model.forward_with_temperature(features_tensor).squeeze(-1)
+            temp_probs = torch.sigmoid(temp_logits).numpy()
+            print(f"Debug UQ: Method 2 (temp sigmoid): range [{np.min(temp_probs):.10f}, {np.max(temp_probs):.10f}], mean={np.mean(temp_probs):.10f}")
+            
+            # Method 3: MC dropout 
+            probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
+            probabilities = probabilities.numpy()
+            uncertainties = uncertainties.numpy()
+            print(f"Debug UQ: Method 3 (MC dropout): range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
+            
+            # Automatic fallback to best method
+            max_mc = np.max(probabilities)
+            max_raw = np.max(raw_probs)
+            max_temp = np.max(temp_probs)
+            
+            print(f"DEBUG UQ: Comparing max probabilities - MC: {max_mc:.10f}, Raw: {max_raw:.10f}, Temp: {max_temp:.10f}")
+            
+            # Use the method with the most reasonable probability range
+            if max_raw > 0.001 and max_raw > max_mc and max_raw > max_temp:
+                print("DEBUG UQ: Using raw sigmoid method (bypassing temperature)")
+                probabilities = raw_probs
+                uncertainties = np.zeros_like(probabilities)
+            elif max_temp > 0.001 and max_temp > max_mc and max_temp > max_raw:
+                print("DEBUG UQ: Using temperature-scaled method") 
+                probabilities = temp_probs
                 uncertainties = np.zeros_like(probabilities)
             else:
-                probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
-                probabilities = probabilities.numpy()
-                uncertainties = uncertainties.numpy()
+                print("DEBUG UQ: Using MC dropout method (default)")
+                # probabilities and uncertainties already set from MC dropout
+            
             print(f"Debug UQ: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}], mean={np.mean(probabilities):.10f}")
         elif hasattr(model, 'temperature'):
             # This is a probabilistic model without MC dropout - trained with ranking objective
@@ -494,18 +522,50 @@ def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, random_seed=42):
 
 def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False):
     """Load trained model and feature scaler."""
+    print(f"DEBUG: Loading model from {model_path}")
+    print(f"DEBUG: Feature dimension: {feature_dim}")
+    print(f"DEBUG: Use UQ: {use_uq}")
+    
     # Load appropriate model type
     if use_uq:
         # Use the same class definition as training
         model = BCGProbabilisticClassifier(feature_dim, hidden_dims=[128, 64, 32], dropout_rate=0.2)
+        print("DEBUG: Created UQ model instance")
     else:
         model = BCGCandidateClassifier(feature_dim)
+        print("DEBUG: Created standard model instance")
     
-    model.load_state_dict(torch.load(model_path, map_location='cpu'))
+    # Load state dict and print some debugging info
+    state_dict = torch.load(model_path, map_location='cpu')
+    print(f"DEBUG: Loaded state dict with keys: {list(state_dict.keys())}")
+    
+    # Check if temperature parameter exists and its value
+    if 'temperature' in state_dict:
+        temp_value = state_dict['temperature'].item()
+        print(f"DEBUG: Loaded temperature parameter: {temp_value}")
+    else:
+        print("DEBUG: No temperature parameter in state dict")
+    
+    model.load_state_dict(state_dict)
     model.eval()
+    
+    # Print model info after loading
+    if use_uq and hasattr(model, 'temperature'):
+        print(f"DEBUG: Model temperature after loading: {model.temperature.item()}")
+        
+        # Test the model with a small synthetic input to see output scale
+        with torch.no_grad():
+            test_input = torch.randn(3, feature_dim)  # 3 candidates, feature_dim features
+            test_raw_logits = model(test_input).squeeze(-1)
+            test_temp_logits = model.forward_with_temperature(test_input).squeeze(-1)
+            print(f"DEBUG: Test raw logits on synthetic data: {test_raw_logits.numpy()}")
+            print(f"DEBUG: Test temp logits on synthetic data: {test_temp_logits.numpy()}")
+            print(f"DEBUG: Test raw sigmoid: {torch.sigmoid(test_raw_logits).numpy()}")
+            print(f"DEBUG: Test temp sigmoid: {torch.sigmoid(test_temp_logits).numpy()}")
     
     # Load scaler
     feature_scaler = joblib.load(scaler_path)
+    print(f"DEBUG: Loaded feature scaler")
     
     return model, feature_scaler
 
