@@ -204,43 +204,9 @@ def main():
         if candidate_delta_mstar_range:
             print(f"  Candidate delta_mstar filter: {candidate_delta_mstar_range}")
     
-    # ENHANCEMENT 1: Multi-scale inference option
+    # ENHANCEMENT 1: Uncertainty Quantification option
     print("\n" + "="*60)
-    print("ENHANCEMENT 1: MULTI-SCALE CANDIDATE DETECTION")
-    print("="*60)
-    print("Multi-scale detection finds candidates at different sizes to handle")
-    print("large bright objects that span multiple traditional candidate regions.")
-    print("This addresses the issue where a single large object appears as multiple candidates.")
-    
-    use_multiscale = input("\nEnable multi-scale inference? (Y/n): ").strip().lower()
-    use_multiscale = use_multiscale not in ['n', 'no']
-    
-    # Multi-scale parameters
-    if use_multiscale:
-        print("\nMulti-scale parameters:")
-        modify_multiscale = input("Modify multi-scale parameters? (y/N): ").strip().lower()
-        
-        if modify_multiscale in ['y', 'yes']:
-            scales_input = input("Scale factors [0.5,1.0,1.5] (comma-separated): ").strip()
-            if scales_input:
-                scales = [float(s.strip()) for s in scales_input.split(',')]
-            else:
-                scales = [0.5, 1.0, 1.5]
-            
-            max_per_scale = int(input("Max candidates per scale (default 20): ") or "20")
-        else:
-            scales = [0.5, 1.0, 1.5]
-            max_per_scale = 20
-        
-        print(f"Using scales: {scales}, max per scale: {max_per_scale}")
-    else:
-        scales = [1.0]  # Single scale (traditional approach)
-        max_per_scale = 25
-        print("Using traditional single-scale detection")
-    
-    # ENHANCEMENT 2: Uncertainty Quantification option
-    print("\n" + "="*60)
-    print("ENHANCEMENT 2: UNCERTAINTY QUANTIFICATION")
+    print("ENHANCEMENT 1: UNCERTAINTY QUANTIFICATION")
     print("="*60)
     print("Uncertainty quantification provides calibrated probabilities for each")
     print("candidate being a BCG. Over a threshold = 'detection'.")
@@ -279,22 +245,19 @@ def main():
             min_distance = int(input("Minimum distance between candidates (default 8): ") or "8")
             threshold_rel = float(input("Relative brightness threshold (default 0.1): ") or "0.1")
             exclude_border = int(input("Exclude border pixels (default 0): ") or "0")
-            if not use_multiscale:
-                max_candidates = int(input("Maximum candidates per image (default 50): ") or "50")
-            else:
-                max_candidates = max_per_scale  # Use multiscale parameter
+            max_candidates = int(input("Maximum candidates per image (default 50): ") or "50")
         else:
             min_distance = 8
             threshold_rel = 0.1
             exclude_border = 0
-            max_candidates = max_per_scale if use_multiscale else 50
+            max_candidates = 50
             print(f"Using improved defaults: min_distance={min_distance}, threshold_rel={threshold_rel}")
     else:
         # Use default values for DESprior (these parameters won't be used in DESprior mode)
         min_distance = 8
         threshold_rel = 0.1
         exclude_border = 0
-        max_candidates = max_per_scale if use_multiscale else 50
+        max_candidates = 50
         print("\n" + "="*60)
         print("CANDIDATE DETECTION PARAMETERS")
         print("="*60)
@@ -321,10 +284,8 @@ def main():
     print("IMPLEMENTATION CHOICE")
     print("="*60)
     
-    if use_multiscale or use_uq or use_bcg_data:
+    if use_uq or use_bcg_data:
         reasons = []
-        if use_multiscale:
-            reasons.append("Multi-scale inference")
         if use_uq:
             reasons.append("Uncertainty quantification") 
         if use_bcg_data:
@@ -349,8 +310,6 @@ def main():
     # Output directory setup
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     experiment_name = "candidate_classifier"
-    if use_multiscale:
-        experiment_name += "_multiscale"
     if use_uq:
         experiment_name += "_uq"
     
@@ -374,9 +333,6 @@ def main():
     
     # Add enhanced feature flags if using enhanced scripts
     if use_enhanced:
-        if use_multiscale:
-            scales_str = ",".join(map(str, scales))
-            train_command += f" --use_multiscale --scales {scales_str} --max_candidates_per_scale {max_per_scale}"
         
         if use_uq:
             train_command += f" --use_uq --detection_threshold {detection_threshold}"
@@ -414,8 +370,6 @@ def main():
     print("="*80)
     
     feature_summary = []
-    if use_multiscale:
-        feature_summary.append("Multi-scale candidate detection")
     if use_uq:
         feature_summary.append("Uncertainty quantification")
     
@@ -478,9 +432,6 @@ def main():
     
     # Add enhanced feature flags to test command if using enhanced scripts
     if use_enhanced:
-        if use_multiscale:
-            scales_str = ",".join(map(str, scales))
-            test_command += f" --use_multiscale --scales {scales_str} --max_candidates_per_scale {max_per_scale}"
         
         if use_uq:
             test_command += f" --use_uq --detection_threshold {detection_threshold}"
@@ -556,8 +507,6 @@ def main():
     print(f"Training: {epochs} epochs, batch_size={batch_size}, lr={lr}")
     print(f"Candidate detection: min_distance={min_distance}, threshold_rel={threshold_rel}")
     
-    if use_multiscale:
-        print(f"Multi-scale: scales={scales}, max_per_scale={max_per_scale}")
     
     if use_uq:
         print(f"Uncertainty quantification: threshold={detection_threshold}")
@@ -579,24 +528,16 @@ def main():
             print(f"Candidate detection: automatic")
     
     print(f"\nEnhancements implemented:")
-    if use_multiscale:
-        print("1. ✓ Multi-scale candidate detection:")
-        print("   - Flexible candidate square sizes")
-        print("   - Handles large objects spanning multiple regions")
-        print("   - Adaptive patch sizes for feature extraction")
-    else:
-        print("1. ✗ Multi-scale detection (using traditional single-scale)")
-    
     if use_uq:
-        print("2. ✓ Uncertainty quantification:")
+        print("1. ✓ Uncertainty quantification:")
         print("   - Probabilistic outputs (0-1 scale)")
         print("   - Detection threshold for confident predictions") 
         print("   - Uncertainty estimates for risk assessment")
     else:
-        print("2. ✗ Uncertainty quantification (using deterministic scores)")
+        print("1. ✗ Uncertainty quantification (using deterministic scores)")
     
     if use_bcg_data:
-        print("3. ✓ BCG Dataset Integration:")
+        print("2. ✓ BCG Dataset Integration:")
         print(f"   - New astronomical data ({bcg_arcmin_type} scale)")
         if use_additional_features:
             print("   - Additional features: redshift, delta_mstar_z")
@@ -614,8 +555,6 @@ def main():
     
     print(f"\nTo re-run evaluation with different parameters:")
     test_cmd_simple = f"python {test_script} --model_path '{model_path}' --scaler_path '{scaler_path}'"
-    if use_enhanced and use_multiscale:
-        test_cmd_simple += " --use_multiscale"
     if use_enhanced and use_uq:
         test_cmd_simple += " --use_uq"
     if use_bcg_data:
