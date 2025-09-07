@@ -908,87 +908,36 @@ def main(args):
         'max_candidates': args.max_candidates
     }
     
-    # Use existing sample image for feature dimension determination
+    # Determine feature dimension from sample data
     print("Determining feature dimension from sample data...")
     
-    if args.use_multiscale:
-        if args.use_desprior_candidates:
-            # Multiscale + DESprior: Need to extract actual features to get correct dimension
-            # Extract actual multiscale + DESprior features to get dimension
-            try:
-                if args.dataset_type == 'bcg_2p2arcmin':
-                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
-                else:
-                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
-                
-                candidates_df = pd.read_csv(candidates_csv)
-                first_file = candidates_df['filename'].iloc[0]
-                file_candidates = candidates_df[candidates_df['filename'] == first_file]
-                
-                if len(file_candidates) > 0:
-                    candidates = file_candidates[['x', 'y']].values
-                    candidate_features = file_candidates[['delta_mstar', 'starflag']].values
-                    
-                    # Extract multiscale visual features
-                    from ml_models.multiscale_candidates import extract_multiscale_candidate_features
-                    scales = [float(s.strip()) for s in args.scales.split(',')]
-                    visual_features, _ = extract_multiscale_candidate_features(
-                        sample_image, [(c[0], c[1], 1.0) for c in candidates], [64]*len(candidates)
-                    )
-                    combined_features = np.hstack([visual_features, candidate_features])
-                    base_feature_dim = combined_features.shape[1]
-                else:
-                    base_feature_dim = 35  # Fallback
-            except Exception as e:
-                print(f"Warning: Could not determine multiscale DESprior feature dim: {e}")
-                base_feature_dim = 35  # Fallback
-        else:
-            multiscale_params = {
-                'scales': args.scales,
-                'base_min_distance': args.min_distance,
-                'threshold_rel': args.threshold_rel,
-                'exclude_border': args.exclude_border,
-                'max_candidates_per_scale': args.max_candidates_per_scale
-            }
-            candidates_with_scale, _, patch_sizes = find_multiscale_bcg_candidates(
-                sample_image, **multiscale_params
-            )
-            if len(candidates_with_scale) > 0:
-                features, _ = extract_multiscale_candidate_features(
-                    sample_image, candidates_with_scale, patch_sizes, include_context=True
-                )
-                base_feature_dim = features.shape[1] if len(features) > 0 else 33
+    if args.use_desprior_candidates:
+        # For DESprior candidates: extract actual features to get correct dimension
+        try:
+            if args.dataset_type == 'bcg_2p2arcmin':
+                candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
             else:
-                base_feature_dim = 33  # Default for multiscale
-    else:
-        if args.use_desprior_candidates:
-            # For DESprior candidates: extract actual features to get correct dimension
-            # Extract actual DESprior features to get correct dimension
-            try:
-                if args.dataset_type == 'bcg_2p2arcmin':
-                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
-                else:
-                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
+                candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
+            
+            candidates_df = pd.read_csv(candidates_csv)
+            first_file = candidates_df['filename'].iloc[0]
+            file_candidates = candidates_df[candidates_df['filename'] == first_file]
+            
+            if len(file_candidates) > 0:
+                candidates = file_candidates[['x', 'y']].values
+                candidate_features = file_candidates[['delta_mstar', 'starflag']].values
                 
-                candidates_df = pd.read_csv(candidates_csv)
-                first_file = candidates_df['filename'].iloc[0]
-                file_candidates = candidates_df[candidates_df['filename'] == first_file]
-                
-                if len(file_candidates) > 0:
-                    candidates = file_candidates[['x', 'y']].values
-                    candidate_features = file_candidates[['delta_mstar', 'starflag']].values
-                    
-                    # Extract visual features
-                    from utils.candidate_based_bcg import extract_candidate_features
-                    visual_features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
-                    combined_features = np.hstack([visual_features, candidate_features])
-                    base_feature_dim = combined_features.shape[1]
-                    print(f"Determined DESprior feature dimension: {base_feature_dim}")
-                else:
-                    base_feature_dim = 32  # Fallback
-            except Exception as e:
-                print(f"Warning: Could not determine DESprior feature dim: {e}")
+                # Extract visual features
+                from utils.candidate_based_bcg import extract_candidate_features
+                visual_features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
+                combined_features = np.hstack([visual_features, candidate_features])
+                base_feature_dim = combined_features.shape[1]
+                print(f"Determined DESprior feature dimension: {base_feature_dim}")
+            else:
                 base_feature_dim = 32  # Fallback
+        except Exception as e:
+            print(f"Warning: Could not determine DESprior feature dim: {e}")
+            base_feature_dim = 32  # Fallback
         else:
             from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
             candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
@@ -1298,13 +1247,6 @@ if __name__ == "__main__":
     parser.add_argument('--max_candidates', type=int, default=50,
                        help='Maximum candidates per image (increased for better coverage)')
     
-    # Enhanced feature arguments
-    parser.add_argument('--use_multiscale', action='store_true',
-                       help='Enable multi-scale candidate detection')
-    parser.add_argument('--scales', type=str, default='0.5,1.0,1.5',
-                       help='Comma-separated scale factors for multiscale detection')
-    parser.add_argument('--max_candidates_per_scale', type=int, default=20,
-                       help='Maximum candidates per scale in multiscale mode (increased)')
     
     parser.add_argument('--use_uq', action='store_true',
                        help='Enable uncertainty quantification with probabilistic outputs')
@@ -1342,11 +1284,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # Parse scales if multiscale is enabled
-    if args.use_multiscale:
-        args.scales = [float(s.strip()) for s in args.scales.split(',')]
-    else:
-        args.scales = [1.0]
     
     # Validate detection threshold
     if args.use_uq:

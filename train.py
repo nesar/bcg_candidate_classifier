@@ -41,167 +41,6 @@ from utils.candidate_based_bcg import extract_patch_features, extract_context_fe
 # MULTI-SCALE CANDIDATE DETECTION
 # ============================================================================
 
-def find_multiscale_bcg_candidates(image, scales=[0.5, 1.0, 1.5], 
-                                  base_min_distance=15, threshold_rel=0.12, 
-                                  exclude_border=30, max_candidates_per_scale=10):
-    """Find candidates at multiple scales to capture objects of different sizes."""
-    # Convert to grayscale if RGB
-    if len(image.shape) == 3:
-        grayscale = 0.299 * image[:, :, 0] + 0.587 * image[:, :, 1] + 0.114 * image[:, :, 2]
-    else:
-        grayscale = image.copy()
-    
-    all_candidates = []
-    all_intensities = []
-    all_scales = []
-    
-    for scale in scales:
-        # Adjust parameters based on scale
-        min_distance = max(int(base_min_distance * scale), 5)
-        filter_size = max(int(3 * scale), 3)
-        
-        # Find local maxima with scale-adjusted filter
-        local_max_mask = (grayscale == maximum_filter(grayscale, size=filter_size))
-        
-        # Apply threshold
-        threshold_abs = threshold_rel * grayscale.max()
-        local_max_mask &= (grayscale > threshold_abs)
-        
-        # Exclude border
-        if exclude_border > 0:
-            local_max_mask[:exclude_border, :] = False
-            local_max_mask[-exclude_border:, :] = False
-            local_max_mask[:, :exclude_border] = False
-            local_max_mask[:, -exclude_border:] = False
-        
-        # Extract coordinates and intensities
-        y_coords, x_coords = np.where(local_max_mask)
-        if len(y_coords) == 0:
-            continue
-        
-        candidates = np.column_stack((x_coords, y_coords))
-        intensities = grayscale[y_coords, x_coords]
-        
-        # Sort by intensity (brightest first)
-        sort_indices = np.argsort(intensities)[::-1]
-        candidates = candidates[sort_indices]
-        intensities = intensities[sort_indices]
-        
-        # Apply non-maximum suppression
-        selected_candidates = []
-        selected_intensities = []
-        
-        for candidate, intensity in zip(candidates, intensities):
-            # Check distance to previously selected candidates
-            too_close = False
-            
-            # Check against candidates from this scale
-            for selected_candidate in selected_candidates:
-                distance = np.sqrt(np.sum((candidate - selected_candidate)**2))
-                if distance < min_distance:
-                    too_close = True
-                    break
-            
-            # Check against candidates from other scales
-            if not too_close:
-                for prev_candidate in all_candidates:
-                    distance = np.sqrt(np.sum((candidate - prev_candidate[:2])**2))
-                    min_scale_distance = min(min_distance, base_min_distance * prev_candidate[2])
-                    if distance < min_scale_distance:
-                        too_close = True
-                        break
-            
-            if not too_close:
-                selected_candidates.append(candidate)
-                selected_intensities.append(intensity)
-                
-                if len(selected_candidates) >= max_candidates_per_scale:
-                    break
-        
-        # Add scale information and store
-        for candidate, intensity in zip(selected_candidates, selected_intensities):
-            all_candidates.append(np.append(candidate, scale))
-            all_intensities.append(intensity)
-            all_scales.append(scale)
-    
-    if not all_candidates:
-        return np.array([]), np.array([]), np.array([])
-    
-    # Convert to arrays
-    candidates_with_scale = np.array(all_candidates)
-    intensities_array = np.array(all_intensities)
-    scales_array = np.array(all_scales)
-    
-    # Compute adaptive patch sizes based on scale
-    base_patch_size = 64
-    patch_sizes = (base_patch_size * scales_array).astype(int)
-    patch_sizes = np.clip(patch_sizes, 32, 128)
-    
-    return candidates_with_scale, intensities_array, patch_sizes
-
-
-def extract_multiscale_candidate_features(image, candidate_coords_with_scale, patch_sizes, include_context=True):
-    """Extract features for multi-scale candidates with adaptive patch sizes."""
-    if len(candidate_coords_with_scale) == 0:
-        return np.array([]), np.array([])
-    
-    # Ensure image is 3D
-    if len(image.shape) == 2:
-        image = np.stack([image, image, image], axis=2)
-    
-    H, W = image.shape[:2]
-    features_list = []
-    patches_list = []
-    
-    for i, (candidate_info, patch_size) in enumerate(zip(candidate_coords_with_scale, patch_sizes)):
-        x, y, scale = candidate_info[0], candidate_info[1], candidate_info[2]
-        x, y = int(x), int(y)
-        
-        half_patch = patch_size // 2
-        
-        # Extract patch around candidate
-        x_min = max(0, x - half_patch)
-        x_max = min(W, x + half_patch)
-        y_min = max(0, y - half_patch)
-        y_max = min(H, y + half_patch)
-        
-        patch = image[y_min:y_max, x_min:x_max]
-        
-        # Resize to consistent size for feature extraction
-        base_patch_size = 64
-        if patch.shape[0] != base_patch_size or patch.shape[1] != base_patch_size:
-            if patch.shape[0] > 0 and patch.shape[1] > 0:
-                scale_y = base_patch_size / patch.shape[0]
-                scale_x = base_patch_size / patch.shape[1]
-                patch = zoom(patch, (scale_y, scale_x, 1), order=1)
-                patch = patch.astype(image.dtype)
-            else:
-                patch = np.zeros((base_patch_size, base_patch_size, image.shape[2]), dtype=image.dtype)
-        
-        patches_list.append(patch)
-        
-        # Extract features from patch
-        patch_features = extract_patch_features(patch, x, y, image.shape[:2])
-        
-        # Add scale-specific features
-        scale_features = np.array([
-            scale,                    # Scale factor
-            patch_size,              # Actual patch size used
-            scale / np.mean([s[2] for s in candidate_coords_with_scale])  # Relative scale
-        ])
-        
-        if include_context:
-            context_features = extract_context_features(image, x, y, patch_size)
-            patch_features = np.concatenate([patch_features, context_features, scale_features])
-        else:
-            patch_features = np.concatenate([patch_features, scale_features])
-        
-        features_list.append(patch_features)
-    
-    features = np.array(features_list) if features_list else np.array([])
-    patches = np.array(patches_list) if patches_list else np.array([])
-    
-    return features, patches
 
 
 # ============================================================================
@@ -213,97 +52,6 @@ def extract_multiscale_candidate_features(image, candidate_coords_with_scale, pa
 # ENHANCED DATASET AND TRAINER
 # ============================================================================
 
-class EnhancedCandidateDataset(BCGCandidateDataset):
-    """Enhanced dataset that supports multi-scale candidate detection."""
-    
-    def __init__(self, images, bcg_coords, candidate_params=None, min_candidates=3, 
-                 use_multiscale=False, scales=[0.5, 1.0, 1.5]):
-        self.use_multiscale = use_multiscale
-        self.scales = scales
-        super().__init__(images, bcg_coords, candidate_params, min_candidates)
-    
-    def _prepare_samples(self):
-        """Process all images to generate candidate-based training samples."""
-        scale_type = 'multi-scale' if self.use_multiscale else 'single-scale'
-        print(f"Preparing {scale_type} candidate samples from {len(self.images)} images...")
-        
-        valid_samples = 0
-        skipped_samples = 0
-        total_candidates = 0
-        
-        for img_idx, (image, true_bcg) in enumerate(zip(self.images, self.bcg_coords)):
-            # Convert image to numpy if needed
-            if hasattr(image, 'numpy'):
-                image = image.numpy()
-            elif torch.is_tensor(image):
-                image = image.numpy()
-            
-            # Find candidates with appropriate method
-            if self.use_multiscale:
-                # Map candidate_params to multiscale function parameters
-                multiscale_params = {
-                    'scales': self.scales,
-                    'base_min_distance': self.candidate_params.get('min_distance', 15),
-                    'threshold_rel': self.candidate_params.get('threshold_rel', 0.12),
-                    'exclude_border': self.candidate_params.get('exclude_border', 30),
-                    'max_candidates_per_scale': self.candidate_params.get('max_candidates_per_scale', 10)
-                }
-                candidates_with_scale, intensities, patch_sizes = find_multiscale_bcg_candidates(
-                    image, **multiscale_params
-                )
-                if len(candidates_with_scale) < self.min_candidates:
-                    skipped_samples += 1
-                    continue
-                
-                candidates = candidates_with_scale[:, :2]  # Extract x, y coordinates
-                features, patches = extract_multiscale_candidate_features(
-                    image, candidates_with_scale, patch_sizes, include_context=True
-                )
-            else:
-                from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
-                candidates, intensities = find_bcg_candidates(image, **self.candidate_params)
-                
-                if len(candidates) < self.min_candidates:
-                    skipped_samples += 1
-                    continue
-                
-                features, patches = extract_candidate_features(
-                    image, candidates, patch_size=64, include_context=True
-                )
-            
-            if len(features) == 0:
-                skipped_samples += 1
-                continue
-            
-            # Find which candidate is closest to true BCG
-            distances = np.sqrt(np.sum((candidates - true_bcg)**2, axis=1))
-            target_label = np.argmin(distances)
-            
-            # Store sample
-            sample = {
-                'features': features.astype(np.float32),
-                'target': target_label,
-                'candidates': candidates,
-                'true_bcg': true_bcg,
-                'image_idx': img_idx,
-                'min_distance': distances[target_label]
-            }
-            
-            self.samples.append(sample)
-            valid_samples += 1
-            total_candidates += len(candidates)
-        
-        print(f"Created {valid_samples} candidate-based samples")
-        print(f"Skipped {skipped_samples} images (insufficient candidates)")
-        if valid_samples > 0:
-            print(f"Average candidates per image: {total_candidates/valid_samples:.1f}")
-            
-            # Report distance statistics
-            min_distances = [s['min_distance'] for s in self.samples]
-            print(f"True BCG distance to nearest candidate:")
-            print(f"  Mean: {np.mean(min_distances):.1f} pixels")
-            print(f"  Median: {np.median(min_distances):.1f} pixels") 
-            print(f"  Max: {np.max(min_distances):.1f} pixels")
 
 
 class ProbabilisticTrainer(CandidateBasedTrainer):
@@ -696,8 +444,6 @@ def main(args):
     print(f"Output directory: {args.output_dir}")
     
     # Enhanced features
-    if args.use_multiscale:
-        print(f"Multi-scale: scales={args.scales}, max_per_scale={args.max_candidates_per_scale}")
     if args.use_uq:
         print(f"Uncertainty quantification: threshold={args.detection_threshold}")
     print()
@@ -812,26 +558,19 @@ def main(args):
             'max_candidates': args.max_candidates
         }
         
-        # Add multiscale parameters if enabled
-        if args.use_multiscale:
-            candidate_params['max_candidates_per_scale'] = args.max_candidates_per_scale
         
-        train_candidate_dataset = EnhancedCandidateDataset(
+        train_candidate_dataset = BCGCandidateDataset(
             train_images,
             train_coords,
             candidate_params,
-            min_candidates=3,
-            use_multiscale=args.use_multiscale,
-            scales=args.scales if args.use_multiscale else [1.0]
+            min_candidates=3
         )
         
-        val_candidate_dataset = EnhancedCandidateDataset(
+        val_candidate_dataset = BCGCandidateDataset(
             val_images, 
             val_coords,
             candidate_params,
-            min_candidates=3,
-            use_multiscale=args.use_multiscale,
-            scales=args.scales if args.use_multiscale else [1.0]
+            min_candidates=3
         )
         
         # Use original collate function
@@ -889,13 +628,6 @@ if __name__ == "__main__":
     parser.add_argument('--max_candidates', type=int, default=50,
                        help='Maximum candidates per image (increased for better coverage)')
     
-    # NEW: Multi-scale arguments
-    parser.add_argument('--use_multiscale', action='store_true',
-                       help='Enable multi-scale candidate detection')
-    parser.add_argument('--scales', type=str, default='0.5,1.0,1.5',
-                       help='Comma-separated scale factors for multiscale detection')
-    parser.add_argument('--max_candidates_per_scale', type=int, default=20,
-                       help='Maximum candidates per scale in multiscale mode (increased)')
     
     # NEW: Uncertainty quantification arguments
     parser.add_argument('--use_uq', action='store_true',
@@ -934,11 +666,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # Parse scales if multiscale is enabled
-    if args.use_multiscale:
-        args.scales = [float(s.strip()) for s in args.scales.split(',')]
-    else:
-        args.scales = [1.0]
     
     # Validate detection threshold
     if args.use_uq:
