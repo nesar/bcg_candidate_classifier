@@ -906,61 +906,152 @@ def main(args):
     
     # Show sample predictions with enhanced visualization
     if args.show_samples > 0 and len(predictions) > 0:
-        print(f"\nShowing {min(args.show_samples, len(predictions))} sample predictions...")
-        
-        # Sort by distance for best examples
-        sorted_indices = np.argsort(distances)[:args.show_samples]
-        
-        # Prepare data for visualization
-        sample_images = [test_images[i] for i in sorted_indices]
-        sample_targets = [targets[i] for i in sorted_indices]
-        sample_predictions = [predictions[i] for i in sorted_indices]
-        sample_candidates = [all_candidates_list[i] for i in sorted_indices]
-        sample_scores = [all_scores_list[i] for i in sorted_indices]
-        sample_metadata_list = [sample_metadata[i] for i in sorted_indices]
-        
-        # Get probabilities if available
         if args.use_uq:
-            sample_probabilities = [all_probabilities_list[i] for i in sorted_indices]
+            # For UQ models, show rank-based sample categories
+            print(f"\nGenerating rank-based sample visualizations...")
+            
+            # Organize samples by rank
+            rank_categories = {
+                'rank1': [],
+                'rank2': [], 
+                'rank3': [],
+                'rest': []
+            }
+            
+            for i in range(len(predictions)):
+                rank = bcg_ranks[i]
+                if rank == 1:
+                    rank_categories['rank1'].append(i)
+                elif rank == 2:
+                    rank_categories['rank2'].append(i)
+                elif rank == 3:
+                    rank_categories['rank3'].append(i)
+                else:
+                    rank_categories['rest'].append(i)  # Includes rank > 3 and None
+            
+            # Generate visualizations for each rank category
+            samples_per_category = max(1, args.show_samples // 4)  # Distribute samples across categories
+            
+            for category, indices in rank_categories.items():
+                if len(indices) == 0:
+                    continue
+                    
+                # Select samples for this category (prefer better scores within the category)
+                if len(indices) > samples_per_category:
+                    # Sort by best probability/score within this rank category
+                    category_scores = []
+                    for idx in indices:
+                        if len(all_probabilities_list[idx]) > 0:
+                            category_scores.append(np.max(all_probabilities_list[idx]))
+                        elif len(all_scores_list[idx]) > 0:
+                            category_scores.append(np.max(all_scores_list[idx]))
+                        else:
+                            category_scores.append(0)
+                    
+                    # Select top samples within this category
+                    best_in_category = np.argsort(category_scores)[-samples_per_category:]
+                    selected_indices = [indices[i] for i in best_in_category]
+                else:
+                    selected_indices = indices
+                
+                if len(selected_indices) == 0:
+                    continue
+                
+                # Prepare data for this category
+                sample_images = [test_images[i] for i in selected_indices]
+                sample_targets = [targets[i] for i in selected_indices]
+                sample_predictions = [predictions[i] for i in selected_indices]
+                sample_candidates = [all_candidates_list[i] for i in selected_indices]
+                sample_scores = [all_scores_list[i] for i in selected_indices]
+                sample_metadata_list = [sample_metadata[i] for i in selected_indices]
+                sample_probabilities = [all_probabilities_list[i] for i in selected_indices]
+                
+                # Create category-specific phase name
+                phase_name = f"ProbabilisticTesting_prediction_sample_best_{category}"
+                
+                print(f"  Generating {len(selected_indices)} samples for {category} (ranks {1 if category=='rank1' else 2 if category=='rank2' else 3 if category=='rank3' else '>3 or None'})")
+                
+                show_enhanced_predictions(
+                    sample_images, sample_targets, sample_predictions,
+                    sample_candidates, sample_scores, sample_probabilities,
+                    indices=range(len(sample_images)),
+                    save_dir=args.output_dir,
+                    phase=phase_name,
+                    use_uq=args.use_uq,
+                    metadata_list=sample_metadata_list,
+                    detection_threshold=args.detection_threshold
+                )
+        
         else:
+            # For non-UQ models, use traditional distance-based sorting
+            print(f"\nShowing {min(args.show_samples, len(predictions))} sample predictions...")
+            
+            # Sort by distance for best examples
+            sorted_indices = np.argsort(distances)[:args.show_samples]
+            
+            # Prepare data for visualization
+            sample_images = [test_images[i] for i in sorted_indices]
+            sample_targets = [targets[i] for i in sorted_indices]
+            sample_predictions = [predictions[i] for i in sorted_indices]
+            sample_candidates = [all_candidates_list[i] for i in sorted_indices]
+            sample_scores = [all_scores_list[i] for i in sorted_indices]
+            sample_metadata_list = [sample_metadata[i] for i in sorted_indices]
             sample_probabilities = None
-        
-        phase_name = "EnhancedTesting"
-        if args.use_uq:
-            phase_name = "ProbabilisticTesting"
-        
-        show_enhanced_predictions(
-            sample_images, sample_targets, sample_predictions,
-            sample_candidates, sample_scores, sample_probabilities,
-            indices=range(len(sample_images)),
-            save_dir=args.output_dir,
-            phase=phase_name,
-            use_uq=args.use_uq,
-            metadata_list=sample_metadata_list,
-            detection_threshold=args.detection_threshold
-        )
+            
+            phase_name = "EnhancedTesting"
+            
+            show_enhanced_predictions(
+                sample_images, sample_targets, sample_predictions,
+                sample_candidates, sample_scores, sample_probabilities,
+                indices=range(len(sample_images)),
+                save_dir=args.output_dir,
+                phase=phase_name,
+                use_uq=args.use_uq,
+                metadata_list=sample_metadata_list,
+                detection_threshold=args.detection_threshold
+            )
     
     # Show failure cases
     if args.show_failures and len(distances) > 0:
-        print(f"\nShowing worst prediction failures...")
-        
-        # Handle both finite and infinite distances for failures
-        finite_distances = np.array(distances)
-        finite_mask = np.isfinite(finite_distances)
-        infinite_mask = ~finite_mask
-        
-        failure_indices = []
-        
-        # First, add cases with infinite distances (complete failures)
-        infinite_indices = np.where(infinite_mask)[0]
-        failure_indices.extend(infinite_indices[:args.show_failures])
-        
-        # Then add worst finite distances if we need more samples
-        if len(failure_indices) < args.show_failures and np.any(finite_mask):
-            finite_indices = np.where(finite_mask)[0]
-            finite_distances_only = finite_distances[finite_mask]
-            worst_finite = np.argsort(finite_distances_only)[-max(0, args.show_failures - len(failure_indices)):]
-            failure_indices.extend(finite_indices[worst_finite])
+        if args.use_uq:
+            # For UQ models, show only true failures (not detected or very low rank)
+            print(f"\nShowing true prediction failures (not detected or rank >5)...")
+            
+            failure_indices = []
+            for i in range(len(predictions)):
+                rank = bcg_ranks[i]
+                # Only consider true failures: not detected (rank=None) or very low rank
+                if rank is None or rank > 5:
+                    failure_indices.append(i)
+            
+            # Limit to requested number, prioritize worst cases
+            if len(failure_indices) > args.show_failures:
+                # Among true failures, select worst by distance
+                failure_distances = [distances[i] for i in failure_indices]
+                worst_failure_indices = np.argsort(failure_distances)[-args.show_failures:]
+                failure_indices = [failure_indices[i] for i in worst_failure_indices]
+                
+        else:
+            # For non-UQ models, use traditional distance-based failure detection
+            print(f"\nShowing worst prediction failures...")
+            
+            # Handle both finite and infinite distances for failures
+            finite_distances = np.array(distances)
+            finite_mask = np.isfinite(finite_distances)
+            infinite_mask = ~finite_mask
+            
+            failure_indices = []
+            
+            # First, add cases with infinite distances (complete failures)
+            infinite_indices = np.where(infinite_mask)[0]
+            failure_indices.extend(infinite_indices[:args.show_failures])
+            
+            # Then add worst finite distances if we need more samples
+            if len(failure_indices) < args.show_failures and np.any(finite_mask):
+                finite_indices = np.where(finite_mask)[0]
+                finite_distances_only = finite_distances[finite_mask]
+                worst_finite = np.argsort(finite_distances_only)[-max(0, args.show_failures - len(failure_indices)):]
+                failure_indices.extend(finite_indices[worst_finite])
         
         # Limit to requested number
         failure_indices = failure_indices[:args.show_failures]

@@ -491,8 +491,12 @@ def main():
     print(f"  Best model: {model_path}")
     print(f"  Feature scaler: {scaler_path}")
     print(f"  Evaluation results: {test_output_dir}/")
-    print(f"  Sample predictions: {test_output_dir}/*_prediction_sample_*.png")
-    print(f"  Failure cases: {test_output_dir}/*_failure_sample_*.png")
+    if use_uq:
+        print(f"  Rank-based samples: {test_output_dir}/*_prediction_sample_best_rank*.png")
+        print(f"  True failures: {test_output_dir}/*_failure_sample_*.png (rank >5 or not detected)")
+    else:
+        print(f"  Sample predictions: {test_output_dir}/*_prediction_sample_*.png")
+        print(f"  Failure cases: {test_output_dir}/*_failure_sample_*.png")
     print(f"  Detailed results: {test_output_dir}/evaluation_results.csv")
     print(f"  Diagnostic plots: {output_dir}/diagnostic_plots.png")
     print(f"  Diagnostic plots (PDF): {output_dir}/diagnostic_plots.pdf")
