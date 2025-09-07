@@ -135,23 +135,28 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
             probabilities = probabilities.numpy()
             uncertainties = uncertainties.numpy()
+            
+            # Ensure arrays are at least 1D
+            probabilities = np.atleast_1d(probabilities)
+            uncertainties = np.atleast_1d(uncertainties)
+            
             print(f"DEBUG: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}]")
             
             # If still getting zeros, try different approach
             if np.max(probabilities) < 1e-6:
                 print("DEBUG: Probabilities still near zero, trying raw sigmoid")
-                probabilities = torch.sigmoid(raw_logits).numpy()
+                probabilities = np.atleast_1d(torch.sigmoid(raw_logits).numpy())
                 uncertainties = np.zeros_like(probabilities)
                 print(f"DEBUG: Raw sigmoid range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}]")
         elif hasattr(model, 'temperature'):
             # This is a probabilistic model without MC dropout - trained with ranking loss
             logits = model.forward_with_temperature(features_tensor).squeeze(-1)
-            probabilities = torch.sigmoid(logits).numpy()
+            probabilities = np.atleast_1d(torch.sigmoid(logits).numpy())
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
         else:
             # This is a traditional classifier - use raw scores for ranking, convert to probs for display
             scores = model(features_tensor).squeeze(-1)
-            probabilities = torch.sigmoid(scores).numpy()
+            probabilities = np.atleast_1d(torch.sigmoid(scores).numpy())
             uncertainties = np.zeros_like(probabilities)  # No uncertainty available
     
     # Find detections above threshold
