@@ -76,16 +76,53 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
     correct_detections = df['distance_error'] <= distance_threshold
     accuracy = np.mean(correct_detections) * 100
     
-    # Plot 1: Detection Accuracy (Correct vs Incorrect)
+    # Plot 1: Rank-based Detection Success Analysis
     ax1 = axes[0, 0]
-    counts = [np.sum(correct_detections), np.sum(~correct_detections)]
-    labels = [f'Correct\n(≤{distance_threshold} px)\n{counts[0]} ({counts[0]/len(df)*100:.1f}%)',
-              f'Incorrect\n(>{distance_threshold} px)\n{counts[1]} ({counts[1]/len(df)*100:.1f}%)']
-    colors = ['#2ecc71', '#e74c3c']
     
-    wedges, texts, autotexts = ax1.pie(counts, labels=labels, colors=colors, autopct='',
-                                       startangle=90, textprops={'fontsize': 10})
-    ax1.set_title(f'Detection Accuracy\nOverall: {accuracy:.1f}%', fontweight='bold')
+    # Use rank-based analysis if available
+    if 'bcg_rank' in df.columns and not df['bcg_rank'].isna().all():
+        # Rank-based success analysis
+        ranks = df['bcg_rank'].dropna()
+        
+        # Count successes by rank
+        rank_1_count = len(ranks[ranks == 1])
+        rank_2_count = len(ranks[ranks == 2]) 
+        rank_3_count = len(ranks[ranks == 3])
+        rank_other_count = len(ranks[ranks > 3])
+        no_success_count = len(df) - len(ranks)  # Cases where true BCG not found in any rank
+        
+        counts = [rank_1_count, rank_2_count, rank_3_count, rank_other_count, no_success_count]
+        labels = [
+            f'Best Prediction\n(Rank 1)\n{rank_1_count} ({rank_1_count/len(df)*100:.1f}%)',
+            f'2nd Best Prediction\n(Rank 2)\n{rank_2_count} ({rank_2_count/len(df)*100:.1f}%)',
+            f'3rd Best Prediction\n(Rank 3)\n{rank_3_count} ({rank_3_count/len(df)*100:.1f}%)',
+            f'Lower Rank\n(Rank >3)\n{rank_other_count} ({rank_other_count/len(df)*100:.1f}%)',
+            f'Not Detected\n{no_success_count} ({no_success_count/len(df)*100:.1f}%)'
+        ]
+        colors = ['#2ecc71', '#f39c12', '#e67e22', '#9b59b6', '#e74c3c']
+        
+        # Filter out zero counts for cleaner display
+        non_zero_indices = [i for i, count in enumerate(counts) if count > 0]
+        counts = [counts[i] for i in non_zero_indices]
+        labels = [labels[i] for i in non_zero_indices]
+        colors = [colors[i] for i in non_zero_indices]
+        
+        wedges, texts, autotexts = ax1.pie(counts, labels=labels, colors=colors, autopct='',
+                                           startangle=90, textprops={'fontsize': 9})
+        
+        # Calculate top-3 success rate
+        top3_success = (rank_1_count + rank_2_count + rank_3_count) / len(df) * 100
+        ax1.set_title(f'Rank-based Success Analysis\nTop-3 Success: {top3_success:.1f}%', fontweight='bold')
+    else:
+        # Fall back to traditional distance-based analysis
+        counts = [np.sum(correct_detections), np.sum(~correct_detections)]
+        labels = [f'Correct\n(≤{distance_threshold} px)\n{counts[0]} ({counts[0]/len(df)*100:.1f}%)',
+                  f'Incorrect\n(>{distance_threshold} px)\n{counts[1]} ({counts[1]/len(df)*100:.1f}%)']
+        colors = ['#2ecc71', '#e74c3c']
+        
+        wedges, texts, autotexts = ax1.pie(counts, labels=labels, colors=colors, autopct='',
+                                           startangle=90, textprops={'fontsize': 10})
+        ax1.set_title(f'Detection Accuracy\nOverall: {accuracy:.1f}%', fontweight='bold')
     
     # Plot 2: Distance Error Distribution
     ax2 = axes[0, 1]

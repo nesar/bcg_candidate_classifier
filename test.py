@@ -45,6 +45,42 @@ from ml_models.uq_classifier import BCGProbabilisticClassifier
 # ENHANCED PREDICTION FUNCTIONS
 # ============================================================================
 
+def calculate_bcg_rank(true_bcg, all_candidates, scores, distance_threshold=10.0):
+    """Calculate the rank of the true BCG among all candidates.
+    
+    Args:
+        true_bcg: True BCG coordinates (x, y)
+        all_candidates: Array of candidate coordinates
+        scores: Scores/probabilities for each candidate
+        distance_threshold: Distance threshold to consider a candidate as matching the true BCG
+    
+    Returns:
+        rank: 1-indexed rank of true BCG (1 = best, 2 = second best, etc.)
+              Returns None if true BCG not found within threshold
+    """
+    if len(all_candidates) == 0 or len(scores) == 0:
+        return None
+    
+    # Calculate distances from each candidate to true BCG
+    distances_to_true = np.sqrt(np.sum((all_candidates - np.array(true_bcg))**2, axis=1))
+    
+    # Find candidates within distance threshold of true BCG
+    matching_candidates = distances_to_true <= distance_threshold
+    
+    if not np.any(matching_candidates):
+        return None  # True BCG not found among candidates
+    
+    # Get the best matching candidate (closest to true BCG)
+    best_match_idx = np.argmin(distances_to_true)
+    
+    # Sort candidates by score (descending order)
+    sorted_indices = np.argsort(scores)[::-1]
+    
+    # Find rank of the best matching candidate
+    rank = np.where(sorted_indices == best_match_idx)[0][0] + 1  # 1-indexed
+    
+    return rank
+
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
                                  detection_threshold=0.1, return_all_candidates=False, additional_features=None, 
                                  use_desprior_candidates=False, filename=None, dataset_type=None, **candidate_kwargs):
@@ -359,6 +395,9 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
     all_uncertainties_list = []
     detection_counts = []
     
+    # Rank-based evaluation tracking
+    bcg_ranks = []
+    
     for i in range(len(test_dataset)):
         sample = test_dataset[i]
         image = sample['image']
@@ -541,6 +580,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
             all_candidates_list.append(np.array([]).reshape(0, 2))
             all_scores_list.append(np.array([]))
             sample_metadata.append(metadata)
+            bcg_ranks.append(None)  # No rank when no candidates found
             continue
         
         # Compute distance error
@@ -555,15 +595,34 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         all_scores_list.append(scores)
         sample_metadata.append(metadata)
         
-        # Check for potential failure cases
-        if distance > 100:  # Large error threshold
+        # Calculate rank of true BCG among all candidates
+        bcg_rank = calculate_bcg_rank(true_bcg, all_candidates, scores, distance_threshold=10.0)
+        bcg_ranks.append(bcg_rank)
+        
+        # Check for potential failure cases - only consider it a failure if:
+        # 1. Distance is large AND true BCG is not in top-3 candidates
+        # 2. Or if true BCG is not found among candidates at all
+        is_failure = False
+        failure_reason = None
+        
+        if bcg_rank is None:  # True BCG not found among candidates
+            is_failure = True
+            failure_reason = 'bcg_not_detected'
+        elif distance > 100 and bcg_rank > 3:  # Large distance error AND not in top-3
+            is_failure = True
+            failure_reason = 'large_error_low_rank'
+        elif distance > 100:  # Large distance error but in top-3 (could be acceptable)
+            failure_reason = 'large_error_good_rank'  # Log but don't treat as failure
+        
+        if is_failure:
             failed_predictions.append({
                 'index': i,
                 'filename': filename,
-                'reason': 'large_error',
+                'reason': failure_reason,
                 'predicted': predicted_bcg,
                 'true_bcg': true_bcg,
                 'distance': distance,
+                'rank': bcg_rank,
                 'candidates': all_candidates,
                 'scores': scores
             })
@@ -576,6 +635,28 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         success_rate = np.mean(distances <= threshold) if len(distances) > 0 else 0
         success_rates[f'success_rate_{threshold}px'] = success_rate
     
+    # Calculate rank-based success metrics
+    valid_ranks = [rank for rank in bcg_ranks if rank is not None]
+    rank_metrics = {}
+    
+    if len(valid_ranks) > 0:
+        # Count successes by rank (top-k accuracy)
+        rank_metrics['rank_1_success'] = len([r for r in valid_ranks if r == 1]) / len(predictions) if len(predictions) > 0 else 0
+        rank_metrics['rank_2_success'] = len([r for r in valid_ranks if r <= 2]) / len(predictions) if len(predictions) > 0 else 0
+        rank_metrics['rank_3_success'] = len([r for r in valid_ranks if r <= 3]) / len(predictions) if len(predictions) > 0 else 0
+        rank_metrics['rank_5_success'] = len([r for r in valid_ranks if r <= 5]) / len(predictions) if len(predictions) > 0 else 0
+        rank_metrics['mean_rank'] = np.mean(valid_ranks)
+        rank_metrics['median_rank'] = np.median(valid_ranks)
+    else:
+        rank_metrics = {
+            'rank_1_success': 0.0,
+            'rank_2_success': 0.0,
+            'rank_3_success': 0.0,
+            'rank_5_success': 0.0,
+            'mean_rank': float('inf'),
+            'median_rank': float('inf')
+        }
+    
     metrics = {
         'n_predictions': len(predictions),
         'n_failed': len(failed_predictions),
@@ -585,7 +666,8 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         'min_distance': np.min(distances) if len(distances) > 0 else float('inf'),
         'max_distance': np.max(distances) if len(distances) > 0 else 0,
         'mean_candidates': np.mean(candidate_counts) if len(candidate_counts) > 0 else 0,
-        **success_rates
+        **success_rates,
+        **rank_metrics
     }
     
     # Add UQ-specific metrics
@@ -599,7 +681,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
     
     return (predictions, targets, distances, failed_predictions, metrics,
             all_candidates_list, all_scores_list, test_images, sample_metadata,
-            all_probabilities_list, all_uncertainties_list)
+            all_probabilities_list, all_uncertainties_list, bcg_ranks)
 
 
 def print_enhanced_evaluation_report(metrics, failed_predictions, use_uq=False):
@@ -628,12 +710,24 @@ def print_enhanced_evaluation_report(metrics, failed_predictions, use_uq=False):
         print(f"  Max error: {metrics['max_distance']:.2f} pixels")
         print()
         
-        print("Success Rates:")
+        print("Distance-based Success Rates:")
         for key, value in metrics.items():
             if 'success_rate' in key:
                 threshold = key.split('_')[-1]
                 print(f"  Within {threshold}: {value*100:.1f}%")
         print()
+        
+        # Add rank-based success rates
+        if 'rank_1_success' in metrics:
+            print("Rank-based Success Rates:")
+            print(f"  Best candidate (Rank 1): {metrics['rank_1_success']*100:.1f}%")
+            print(f"  Top-2 candidates (Rank ≤2): {metrics['rank_2_success']*100:.1f}%") 
+            print(f"  Top-3 candidates (Rank ≤3): {metrics['rank_3_success']*100:.1f}%")
+            print(f"  Top-5 candidates (Rank ≤5): {metrics['rank_5_success']*100:.1f}%")
+            if metrics['mean_rank'] != float('inf'):
+                print(f"  Mean rank: {metrics['mean_rank']:.2f}")
+                print(f"  Median rank: {metrics['median_rank']:.1f}")
+            print()
     
     if failed_predictions:
         print("Failed Prediction Analysis:")
@@ -795,7 +889,7 @@ def main(args):
     
     (predictions, targets, distances, failures, metrics, 
      all_candidates_list, all_scores_list, test_images, sample_metadata,
-     all_probabilities_list, all_uncertainties_list) = results
+     all_probabilities_list, all_uncertainties_list, bcg_ranks) = results
     
     # Print results
     print_enhanced_evaluation_report(metrics, failures, use_uq=args.use_uq)
@@ -909,7 +1003,8 @@ def main(args):
             'true_x': [target[0] for target in targets],
             'true_y': [target[1] for target in targets],
             'distance_error': distances,
-            'n_candidates': [len(cand) for cand in all_candidates_list]
+            'n_candidates': [len(cand) for cand in all_candidates_list],
+            'bcg_rank': bcg_ranks
         }
         
         # Add UQ-specific columns
