@@ -46,16 +46,64 @@ from ml_models.uq_classifier import BCGProbabilisticClassifier
 # ============================================================================
 
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
-                                 detection_threshold=0.1, return_all_candidates=False, additional_features=None, **candidate_kwargs):
+                                 detection_threshold=0.1, return_all_candidates=False, additional_features=None, 
+                                 use_desprior_candidates=False, filename=None, dataset_type=None, **candidate_kwargs):
     """Predict BCG candidates with calibrated probabilities and uncertainty.
     
     Args:
         additional_features: Additional features to append to visual features (e.g., redshift, delta_mstar_z)
+        use_desprior_candidates: Whether to use DESprior candidates instead of automatic detection
+        filename: Image filename (required if use_desprior_candidates=True)
+        dataset_type: Dataset type (required if use_desprior_candidates=True)
     """
     
-    # Find candidates using standard method
-    from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
-    all_candidates, intensities = find_bcg_candidates(image, **candidate_kwargs)
+    # Find candidates using appropriate method
+    if use_desprior_candidates:
+        # Use DESprior candidates from BCG dataset
+        import pandas as pd
+        
+        if dataset_type == 'bcg_2p2arcmin':
+            candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
+        else:  # bcg_3p8arcmin
+            candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
+        
+        try:
+            candidates_df = pd.read_csv(candidates_csv)
+            file_candidates = candidates_df[candidates_df['filename'] == filename]
+            
+            if len(file_candidates) == 0:
+                all_candidates = np.array([])
+            else:
+                # Extract coordinates and candidate features
+                all_candidates = file_candidates[['x', 'y']].values
+                candidate_specific_features = file_candidates[['delta_mstar', 'starflag']].values
+                
+                # Extract visual features and combine with candidate features
+                from utils.candidate_based_bcg import extract_candidate_features
+                visual_features, _ = extract_candidate_features(image, all_candidates, include_context=True)
+                
+                # Combine visual features with candidate-specific features
+                features = np.hstack([visual_features, candidate_specific_features])
+                
+                # NOTE: DESprior candidates use their own feature set and don't include additional BCG features
+                
+        except Exception as e:
+            print(f"Warning: Failed to load DESprior candidates for {filename}: {e}")
+            all_candidates = np.array([])
+            
+    else:
+        # Use automatic candidate detection
+        from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
+        all_candidates, intensities = find_bcg_candidates(image, **candidate_kwargs)
+        
+        if len(all_candidates) > 0:
+            features, _ = extract_candidate_features(image, all_candidates)
+            
+            # Append additional features if provided (e.g., from BCG dataset)
+            if additional_features is not None and len(features) > 0:
+                # Replicate additional features for each candidate
+                additional_features_repeated = np.tile(additional_features, (len(features), 1))
+                features = np.concatenate([features, additional_features_repeated], axis=1)
     
     if len(all_candidates) == 0:
         return {
@@ -66,14 +114,6 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             'detections': np.array([]),
             'detection_probabilities': np.array([])
         }
-    
-    features, _ = extract_candidate_features(image, all_candidates)
-    
-    # Append additional features if provided (e.g., from BCG dataset)
-    if additional_features is not None and len(features) > 0:
-        # Replicate additional features for each candidate
-        additional_features_repeated = np.tile(additional_features, (len(features), 1))
-        features = np.concatenate([features, additional_features_repeated], axis=1)
     
     # Scale features
     if feature_scaler is not None:
@@ -373,6 +413,9 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 image, model, scaler, 
                 detection_threshold=detection_threshold,
                 additional_features=additional_features,
+                use_desprior_candidates=use_desprior_candidates,
+                filename=filename,
+                dataset_type=dataset_type,
                 **candidate_params
             )
             
