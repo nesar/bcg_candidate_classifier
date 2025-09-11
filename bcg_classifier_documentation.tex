@@ -94,7 +94,8 @@ Figure~\ref{fig:architecture} presents the complete machine learning pipeline, i
 % INPUTS
 \begin{scope}[xshift=0cm, yshift=0cm]
   \node[data,    text width=2.45cm] (Opt) at (0, 1.50) {\textbf{Optical Images}\\BCG 2.2$'$ or 3.8$'$};
-  \node[optdata, text width=2.45cm] (Z)   [below=\vsep of Opt] {\textbf{Redshift $z$}\\(global; optional)};
+  \node[optdata, text width=2.45cm] (SN)   [below=\vsep of Opt] {\textbf{S/N Maps $z$}\\(optional)};
+  \node[optdata, text width=2.45cm] (Z)   [below=\vsep of SN] {\textbf{Redshift $z$}\\(global; optional)};
   \node[optdata, text width=2.45cm] (Delta)   [below=\vsep of Z] {\textbf{$\Delta m^*_z$}\\(stellar mass; optional)};
 \end{scope}
 
