@@ -9,7 +9,10 @@ build/
 *.egg-info/
 *.egg
 *.csv
-
+*.aux
+*.pdf
+*.out
+*.synctex.gz
 # Virtual environments
 venv/
 env/
