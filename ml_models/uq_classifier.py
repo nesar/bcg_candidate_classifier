@@ -204,7 +204,7 @@ class BCGEnsembleClassifier:
 
 
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
-                                 detection_threshold=0.1, use_multiscale=False, 
+                                 detection_threshold=0.1, 
                                  return_all_candidates=False, **candidate_kwargs):
     """
     Predict BCG candidates with calibrated probabilities and uncertainty.
@@ -219,8 +219,6 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         Feature scaler
     detection_threshold : float
         Probability threshold for considering a detection
-    use_multiscale : bool
-        Whether to use multiscale candidate detection
     return_all_candidates : bool
         Whether to return all candidates or just detections
     **candidate_kwargs : dict
@@ -238,17 +236,10 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         - detection_probabilities: Probabilities for detected candidates
     """
     # Import here to avoid circular imports
-    if use_multiscale:
-        from utils.multiscale_candidates import predict_bcg_from_multiscale_candidates
-        best_bcg, all_candidates, raw_scores = predict_bcg_from_multiscale_candidates(
-            image, model=None, feature_scaler=None, 
-            use_multiscale=True, **candidate_kwargs
-        )
-    else:
-        from utils.candidate_based_bcg import predict_bcg_from_candidates
-        best_bcg, all_candidates, raw_scores = predict_bcg_from_candidates(
-            image, model=None, feature_scaler=None, **candidate_kwargs
-        )
+    from utils.candidate_based_bcg import predict_bcg_from_candidates
+    best_bcg, all_candidates, raw_scores = predict_bcg_from_candidates(
+        image, model=None, feature_scaler=None, **candidate_kwargs
+    )
     
     if len(all_candidates) == 0:
         return {
@@ -261,14 +252,8 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         }
     
     # Extract features for probability prediction
-    if use_multiscale:
-        from utils.multiscale_candidates import find_multiscale_bcg_candidates, extract_multiscale_candidate_features
-        scales = candidate_kwargs.get('scales', [0.5, 1.0, 1.5])
-        candidates_with_scale, _, patch_sizes = find_multiscale_bcg_candidates(image, scales=scales, **candidate_kwargs)
-        features, _ = extract_multiscale_candidate_features(image, candidates_with_scale, patch_sizes)
-    else:
-        from utils.candidate_based_bcg import extract_candidate_features
-        features, _ = extract_candidate_features(image, all_candidates)
+    from utils.candidate_based_bcg import extract_candidate_features
+    features, _ = extract_candidate_features(image, all_candidates)
     
     # Scale features
     if feature_scaler is not None:

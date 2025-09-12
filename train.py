@@ -2,9 +2,7 @@
 """
 Enhanced BCG Classifier Training Script
 
-This script extends the original training with:
-1. Multi-scale candidate detection for flexible object sizes
-2. Uncertainty quantification with probabilistic outputs
+This script extends the original training with uncertainty quantification for probabilistic outputs
 """
 
 import os
@@ -38,7 +36,6 @@ from utils.candidate_based_bcg import extract_patch_features, extract_context_fe
 
 
 # ============================================================================
-# MULTI-SCALE CANDIDATE DETECTION
 # ============================================================================
 
 
@@ -225,7 +222,7 @@ def extract_images_and_coords(dataset):
 
 
 def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None):
-    """Train the enhanced BCG classifier with multi-scale and UQ options."""
+    """Train the enhanced BCG classifier with UQ options."""
     print("Setting up enhanced candidate-based training...")
     
     # Use provided collate function or default

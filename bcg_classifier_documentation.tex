@@ -332,13 +332,6 @@ This parameter quantifies departure from circular symmetry, with BCGs typically 
 
 Beyond local morphological analysis, our framework incorporates contextual features that capture environmental information crucial for BCG identification within cluster contexts.
 
-\textbf{Multi-Scale Radial Analysis}: We implement a multi-scale approach analyzing intensity distributions at three distinct radii ($r = 32, 64, 128$ pixels) centered on each candidate. For each radius, we extract:
-\begin{align}
-\mu_r &= \frac{1}{N_r} \sum_{d(p,c) \leq r} I(p) \\
-\sigma_r &= \sqrt{\frac{1}{N_r-1} \sum_{d(p,c) \leq r} [I(p) - \mu_r]^2} \\
-N_r &= \text{number of pixels within radius } r
-\end{align}
-where $d(p,c)$ is the Euclidean distance from pixel $p$ to candidate center $c$. This multi-scale analysis captures both local and extended structure, enabling discrimination between compact sources and extended galaxy profiles.
 
 \textbf{Directional Intensity Sampling}: We implement directional sampling along four cardinal directions (North, East, South, West) extending outward from each candidate location. For each direction, intensity values are sampled at regular intervals up to half the patch size, providing:
 \begin{equation}
