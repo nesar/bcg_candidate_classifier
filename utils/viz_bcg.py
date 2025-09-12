@@ -152,8 +152,8 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                        label='Predicted BCG')
         
         # Always plot true BCG location as yellow circle (transparent with edges only)
-        plt.scatter(target[0], target[1], marker='o', s=650, 
-                   facecolors='none', edgecolors="#59ACF5", linewidths=2, alpha=0.9, ls='dashed',
+        plt.scatter(target[0], target[1], marker='o', s=850, 
+                   facecolors='none', edgecolors="#70F559", linewidths=3, alpha=1.0, ls='dashed',
                    label='True BCG')
         
         # Add title with information
@@ -402,8 +402,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
                         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
         
         # Always plot true BCG location as blue dashed circle (same as successful cases)
-        plt.scatter(target[0], target[1], marker='o', s=650, 
-                   facecolors='none', edgecolors='#59ACF5', linewidths=2, alpha=0.9, ls='dashed',
+        plt.scatter(target[0], target[1], marker='o', s=850, 
+                   facecolors='none', edgecolors="#70F559", linewidths=3, alpha=1.0, ls='dashed',
                    label='True BCG')
         
         # Add title with failure information and cluster name
