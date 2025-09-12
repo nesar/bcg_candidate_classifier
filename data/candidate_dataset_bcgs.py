@@ -23,7 +23,7 @@ class BCGCandidateDataset(Dataset):
     5. Return (candidate_features, target_label, additional_features)
     """
     
-    def __init__(self, images, bcg_coords, additional_features=None, candidate_params=None, min_candidates=3):
+    def __init__(self, images, bcg_coords, additional_features=None, candidate_params=None, min_candidates=3, patch_size=64):
         """
         Parameters:
         -----------
@@ -37,11 +37,14 @@ class BCGCandidateDataset(Dataset):
             Parameters for candidate finding
         min_candidates : int
             Minimum number of candidates required (skip images with fewer)
+        patch_size : int
+            Size of square patches extracted around candidates (default: 64)
         """
         self.images = images
         self.bcg_coords = bcg_coords
         self.additional_features = additional_features
         self.min_candidates = min_candidates
+        self.patch_size = patch_size
         
         # Default candidate finding parameters
         if candidate_params is None:
@@ -85,7 +88,7 @@ class BCGCandidateDataset(Dataset):
             features, patches = extract_candidate_features(
                 image, 
                 candidates,
-                patch_size=64,
+                patch_size=self.patch_size,
                 include_context=True
             )
             
@@ -160,7 +163,7 @@ class DESpriorBCGCandidateDataset(Dataset):
     """
     
     def __init__(self, images, bcg_coords, candidates_coords, candidate_features=None, 
-                 additional_features=None, filter_inside_image=True):
+                 additional_features=None, filter_inside_image=True, patch_size=64):
         """
         Parameters:
         -----------
@@ -176,6 +179,8 @@ class DESpriorBCGCandidateDataset(Dataset):
             Additional features like [redshift, delta_mstar_z] of shape (N, n_features)
         filter_inside_image : bool
             Whether to filter out candidates outside image bounds
+        patch_size : int
+            Size of square patches extracted around candidates (default: 64)
         """
         self.images = images
         self.bcg_coords = bcg_coords
@@ -183,6 +188,7 @@ class DESpriorBCGCandidateDataset(Dataset):
         self.candidate_features = candidate_features
         self.additional_features = additional_features
         self.filter_inside_image = filter_inside_image
+        self.patch_size = patch_size
         
         # Process all images to create candidate-based samples
         self.samples = []
@@ -230,7 +236,7 @@ class DESpriorBCGCandidateDataset(Dataset):
             features, patches = extract_candidate_features(
                 image, 
                 candidates_filtered,
-                patch_size=64,
+                patch_size=self.patch_size,
                 include_context=True
             )
             

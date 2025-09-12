@@ -116,7 +116,7 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
                 
                 # Extract visual features and combine with candidate features
                 from utils.candidate_based_bcg import extract_candidate_features
-                visual_features, _ = extract_candidate_features(image, all_candidates, include_context=True)
+                visual_features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size, include_context=True)
                 
                 # Combine visual features with candidate-specific features
                 features = np.hstack([visual_features, candidate_specific_features])
@@ -133,7 +133,7 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         all_candidates, intensities = find_bcg_candidates(image, **candidate_kwargs)
         
         if len(all_candidates) > 0:
-            features, _ = extract_candidate_features(image, all_candidates)
+            features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size)
             
             # Append additional features if provided (e.g., from BCG dataset)
             if additional_features is not None and len(features) > 0:
@@ -511,7 +511,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         
                         # Extract visual features and combine with candidate features
                         from utils.candidate_based_bcg import extract_candidate_features
-                        visual_features, _ = extract_candidate_features(image, all_candidates, include_context=True)
+                        visual_features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size, include_context=True)
                         
                         # Combine visual features with candidate-specific features
                         combined_features = np.hstack([visual_features, candidate_specific_features])
@@ -544,7 +544,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     predicted_bcg = None
                     scores = np.array([])
                 else:
-                    features, _ = extract_candidate_features(image, all_candidates)
+                    features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size)
                     
                     if scaler is not None:
                         scaled_features = scaler.transform(features)
@@ -835,7 +835,7 @@ def main(args):
                 
                 # Extract visual features
                 from utils.candidate_based_bcg import extract_candidate_features
-                visual_features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
+                visual_features, _ = extract_candidate_features(sample_image, candidates, patch_size=args.patch_size, include_context=True)
                 combined_features = np.hstack([visual_features, candidate_features])
                 base_feature_dim = combined_features.shape[1]
                 print(f"Determined DESprior feature dimension: {base_feature_dim}")
@@ -849,7 +849,7 @@ def main(args):
         from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
         candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
         if len(candidates) > 0:
-            features, _ = extract_candidate_features(sample_image, candidates, include_context=True)
+            features, _ = extract_candidate_features(sample_image, candidates, patch_size=args.patch_size, include_context=True)
             base_feature_dim = features.shape[1] if len(features) > 0 else 30
         else:
             base_feature_dim = 30  # Default for single-scale
@@ -1217,6 +1217,8 @@ if __name__ == "__main__":
                        help='Exclude candidates near borders')
     parser.add_argument('--max_candidates', type=int, default=50,
                        help='Maximum candidates per image (increased for better coverage)')
+    parser.add_argument('--patch_size', type=int, default=64,
+                       help='Size of square patches extracted around candidates (e.g., 64, 128, 256)')
     
     
     parser.add_argument('--use_uq', action='store_true',

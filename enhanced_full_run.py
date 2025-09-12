@@ -262,6 +262,26 @@ def main():
         lr = 0.0005
         print(f"Using defaults: epochs={epochs}, batch_size={batch_size}, lr={lr}")
     
+    # Feature extraction parameters
+    print("\n" + "="*60)
+    print("FEATURE EXTRACTION PARAMETERS")
+    print("="*60)
+    print("Patch size determines the spatial resolution for feature extraction.")
+    print("Larger patches capture more context but increase computational cost.")
+    modify_features = input("Modify feature extraction parameters? (y/N): ").strip().lower()
+    
+    if modify_features in ['y', 'yes']:
+        print("\nAvailable patch sizes:")
+        print("  64x64 pixels (default) - Good balance of context and efficiency")
+        print("  128x128 pixels - More spatial context, higher computation")
+        print("  256x256 pixels - Maximum context, highest computation")
+        patch_size = int(input("Patch size (64, 128, 256, default 64): ") or "64")
+        if patch_size not in [64, 128, 256]:
+            print(f"Warning: Unusual patch size {patch_size}. Using anyway.")
+    else:
+        patch_size = 64
+        print(f"Using default patch size: {patch_size}x{patch_size} pixels")
+    
     # Choose which implementation to use
     print("\n" + "="*60)
     print("IMPLEMENTATION CHOICE")
@@ -299,6 +319,7 @@ def main():
         --threshold_rel {threshold_rel} \\
         --exclude_border {exclude_border} \\
         --max_candidates {max_candidates} \\
+        --patch_size {patch_size} \\
         --output_dir "{output_dir}" \\
         --plot"""
     
@@ -395,6 +416,7 @@ def main():
         --threshold_rel {threshold_rel} \\
         --exclude_border {exclude_border} \\
         --max_candidates {max_candidates} \\
+        --patch_size {patch_size} \\
         --show_samples 5 \\
         --show_failures 20 \\
         --output_dir "{test_output_dir}" \\
@@ -478,6 +500,7 @@ def main():
     print(f"Scripts used: {train_script}, {test_script}")
     print(f"Training: {epochs} epochs, batch_size={batch_size}, lr={lr}")
     print(f"Candidate detection: min_distance={min_distance}, threshold_rel={threshold_rel}")
+    print(f"Feature extraction: patch_size={patch_size}x{patch_size} pixels")
     
     
     if use_uq:

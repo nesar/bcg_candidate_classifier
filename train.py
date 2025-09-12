@@ -560,14 +560,16 @@ def main(args):
             train_images,
             train_coords,
             candidate_params,
-            min_candidates=3
+            min_candidates=3,
+            patch_size=args.patch_size
         )
         
         val_candidate_dataset = BCGCandidateDataset(
             val_images, 
             val_coords,
             candidate_params,
-            min_candidates=3
+            min_candidates=3,
+            patch_size=args.patch_size
         )
         
         # Use original collate function
@@ -624,6 +626,8 @@ if __name__ == "__main__":
                        help='Exclude candidates near borders')
     parser.add_argument('--max_candidates', type=int, default=50,
                        help='Maximum candidates per image (increased for better coverage)')
+    parser.add_argument('--patch_size', type=int, default=64,
+                       help='Size of square patches extracted around candidates (e.g., 64, 128, 256)')
     
     
     # NEW: Uncertainty quantification arguments
