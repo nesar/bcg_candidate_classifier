@@ -1340,4 +1340,6 @@ if __name__ == "__main__":
         
         if args.candidate_delta_mstar_range:
             delta_min, delta_max = map(float, args.candidate_delta_mstar_range.split(','))
-            args.candidate_delta_mst
+            args.candidate_delta_mstar_range = (delta_min, delta_max)
+    
+    main(args)
