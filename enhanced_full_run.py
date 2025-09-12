@@ -216,14 +216,14 @@ def main():
     use_uq = use_uq not in ['n', 'no']
     
     # UQ parameters
-    detection_threshold = 0.5
+    detection_threshold = 0.4
     if use_uq:
         print("\nUncertainty quantification parameters:")
         print(f"Detection threshold: {detection_threshold} (candidates above this probability are considered 'detections')")
         modify_uq = input("Modify detection threshold? (y/N): ").strip().lower()
         
         if modify_uq in ['y', 'yes']:
-            detection_threshold = float(input("Detection threshold (0.0-1.0, default 0.1): ") or "0.1")
+            detection_threshold = float(input("Detection threshold (0.0-1.0, default 0.4): ") or "0.4")
             detection_threshold = max(0.0, min(1.0, detection_threshold))
             print(f"Using detection threshold: {detection_threshold}")
         
@@ -272,11 +272,11 @@ def main():
     if modify_training in ['y', 'yes']:
         epochs = int(input("Number of epochs (default 32): ") or "32")
         batch_size = int(input("Batch size (default 16): ") or "16")
-        lr = float(input("Learning rate (default 0.0005): ") or "0.0005")
+        lr = float(input("Learning rate (default 0.0001): ") or "0.0001")
     else:
         epochs = 32
         batch_size = 16
-        lr = 0.0005
+        lr = 0.0001
         print(f"Using defaults: epochs={epochs}, batch_size={batch_size}, lr={lr}")
     
     # Feature extraction parameters
