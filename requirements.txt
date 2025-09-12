@@ -8,3 +8,8 @@ pillow>=9.0.0
 tqdm>=4.62.0
 scipy>=1.7.0
 joblib>=1.0.0
+
+# Feature importance analysis dependencies
+seaborn>=0.11.0
+shap>=0.41.0  # Optional but recommended for comprehensive analysis
+pyyaml>=6.0  # For configuration files

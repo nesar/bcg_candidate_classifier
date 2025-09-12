@@ -231,6 +231,55 @@ def main():
     else:
         print("Using traditional deterministic classification")
     
+    # ENHANCEMENT 3: Feature Importance Analysis option
+    print("\n" + "="*60)
+    print("ENHANCEMENT 3: FEATURE IMPORTANCE ANALYSIS")
+    print("="*60)
+    print("Feature importance analysis provides insights into which features are")
+    print("most important for BCG classification. This includes:")
+    print("- SHAP (SHapley Additive exPlanations) for rigorous feature attribution")
+    print("- Permutation importance for performance-based importance")
+    print("- Individual sample explanations for understanding specific predictions")
+    print("- Comprehensive visualizations and reports")
+    
+    run_analysis = input("\nRun feature importance analysis after training/testing? (Y/n): ").strip().lower()
+    run_analysis = run_analysis not in ['n', 'no']
+    
+    # Analysis parameters
+    analysis_methods = ['permutation', 'shap', 'gradient']
+    analysis_samples = 1000
+    
+    if run_analysis:
+        print("\nFeature importance analysis configuration:")
+        print(f"Default methods: {', '.join(analysis_methods)}")
+        print(f"Default analysis samples: {analysis_samples}")
+        
+        modify_analysis = input("Modify analysis parameters? (y/N): ").strip().lower()
+        
+        if modify_analysis in ['y', 'yes']:
+            print("\nAvailable analysis methods:")
+            print("1. permutation - Performance degradation when features shuffled (fast, reliable)")
+            print("2. shap - SHapley Additive exPlanations (comprehensive, slower)")
+            print("3. gradient - Gradient-based importance (fast, neural network specific)")
+            
+            methods_input = input("Select methods (comma-separated, e.g., 'permutation,shap'): ").strip()
+            if methods_input:
+                analysis_methods = [m.strip() for m in methods_input.split(',')]
+            
+            analysis_samples_input = input(f"Number of samples for analysis (default {analysis_samples}): ").strip()
+            if analysis_samples_input:
+                analysis_samples = int(analysis_samples_input)
+        
+        print(f"Analysis will use methods: {', '.join(analysis_methods)}")
+        print(f"Analysis will process: {analysis_samples} samples")
+        
+        # Check if SHAP is requested
+        if 'shap' in analysis_methods:
+            print("\nNote: SHAP analysis requires the 'shap' package.")
+            print("Install with: pip install shap")
+    else:
+        print("Skipping feature importance analysis")
+    
     # Traditional candidate detection parameters (only for automatic candidate detection)
     if not use_desprior_candidates:
         print("\n" + "="*60)
@@ -480,9 +529,75 @@ def main():
         print("Testing failed.")
         return
     
-    # Step 3: Generate Diagnostic Plots
-    print("\n" + "="*80)
-    print("STEP 3: GENERATING DIAGNOSTIC PLOTS")
+    # Step 3: Feature Importance Analysis (if requested)
+    analysis_output_dir = None
+    if run_analysis:
+        print("\n" + "="*80)
+        print("STEP 3: FEATURE IMPORTANCE ANALYSIS")
+        print("="*80)
+        
+        analysis_output_dir = os.path.join(output_dir, "feature_importance_analysis")
+        
+        # Prepare test data path for analysis
+        test_data_path = os.path.join(test_output_dir, "test_features.npz")
+        if not os.path.exists(test_data_path):
+            print("Warning: Test features file not found. Checking for evaluation data...")
+            # Try to use evaluation CSV data
+            evaluation_csv = os.path.join(test_output_dir, "evaluation_results.csv")
+            if os.path.exists(evaluation_csv):
+                print("Using evaluation results for analysis...")
+                test_data_path = evaluation_csv
+            else:
+                print("No suitable data found for analysis. Skipping feature importance analysis.")
+                run_analysis = False
+        
+        if run_analysis:
+            # Build analysis command
+            analysis_command = f"""python -c "
+import sys
+sys.path.append('.')
+from analysis.run_analysis import BCGAnalysisRunner
+import os
+
+config = {{
+    'model_path': '{model_path}',
+    'data_path': '{test_data_path}',
+    'model_type': '{'probabilistic' if use_uq else 'deterministic'}',
+    'probabilistic_model': {use_uq},
+    'output_dir': '{analysis_output_dir}',
+    'analysis_methods': {analysis_methods},
+    'analysis_samples': {analysis_samples},
+    'features': {{
+        'use_color': {use_color_features},
+        'use_auxiliary': {use_additional_features},
+        'color_pca_components': 8
+    }}
+}}
+
+print('Starting BCG feature importance analysis...')
+runner = BCGAnalysisRunner(**config)
+try:
+    results = runner.run_complete_analysis()
+    print(f'Analysis completed successfully!')
+    print(f'Results saved to: {{results[\"output_directory\"]}}')
+except Exception as e:
+    print(f'Analysis failed: {{e}}')
+    import traceback
+    traceback.print_exc()
+"
+"""
+            
+            if not run_command(analysis_command, "Running comprehensive feature importance analysis"):
+                print("Feature importance analysis failed, but continuing with workflow...")
+                analysis_output_dir = None
+            else:
+                print(f"Feature importance analysis completed successfully!")
+                print(f"Analysis results saved to: {analysis_output_dir}")
+    
+    # Step 4: Generate Diagnostic Plots
+    step_number = 4 if run_analysis else 3
+    print(f"\n" + "="*80)
+    print(f"STEP {step_number}: GENERATING DIAGNOSTIC PLOTS")
     print("="*80)
     
     # Generate diagnostic plots from evaluation results
@@ -498,8 +613,9 @@ def main():
         print(f"Warning: Evaluation results file not found: {evaluation_csv}")
         print("Skipping diagnostic plots generation.")
     
-    # Step 4: Summary
-    print("\n" + "="*80)
+    # Final Step: Summary
+    final_step_number = 5 if run_analysis else 4
+    print(f"\n" + "="*80)
     print("ENHANCED WORKFLOW COMPLETED SUCCESSFULLY!")
     print("="*80)
     
@@ -521,6 +637,21 @@ def main():
     if use_uq:
         print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
         print(f"  Uncertainty plots: {test_output_dir}/probability_analysis.png")
+    
+    # Feature importance analysis results
+    if run_analysis and analysis_output_dir:
+        print(f"\n  === Feature Importance Analysis Results ===")
+        print(f"  Analysis directory: {analysis_output_dir}/")
+        print(f"  Feature rankings (CSV): {analysis_output_dir}/csv_reports/")
+        print(f"  Comprehensive plots: {analysis_output_dir}/plots/")
+        print(f"  Individual explanations: {analysis_output_dir}/individual_plots/")
+        print(f"  Analysis summary: {analysis_output_dir}/analysis_summary.txt")
+        print(f"  Raw results: {analysis_output_dir}/raw_results/")
+        if 'shap' in analysis_methods:
+            print(f"  SHAP summary plots: {analysis_output_dir}/plots/shap_summary_*.png")
+            print(f"  SHAP individual explanations: {analysis_output_dir}/individual_plots/shap_individual_*.png")
+    elif run_analysis:
+        print(f"\n  ⚠️  Feature importance analysis was requested but failed to complete")
     
     print(f"\nApproach: Enhanced candidate-based BCG classification")
     print(f"Dataset: {DATASET_TYPE}")
@@ -572,6 +703,26 @@ def main():
         print(f"{enhancement_num}. ✗ Uncertainty quantification (using deterministic scores)")
         enhancement_num += 1
     
+    if run_analysis and analysis_output_dir:
+        print(f"{enhancement_num}. ✓ Feature Importance Analysis:")
+        print("   - Global feature importance ranking (all methods)")
+        print("   - Individual sample explanations")
+        print("   - Feature group analysis (morphological, color, contextual, auxiliary)")
+        print("   - Comprehensive visualization reports")
+        if 'shap' in analysis_methods:
+            print("   - SHAP waterfall plots for individual predictions")
+        if 'permutation' in analysis_methods:
+            print("   - Permutation-based feature importance")
+        if 'gradient' in analysis_methods:
+            print("   - Gradient-based neural network feature importance")
+        enhancement_num += 1
+    elif run_analysis:
+        print(f"{enhancement_num}. ⚠️ Feature Importance Analysis: requested but failed")
+        enhancement_num += 1
+    else:
+        print(f"{enhancement_num}. ✗ Feature importance analysis (skipped)")
+        enhancement_num += 1
+    
     print(f"{enhancement_num}. ✓ BCG Dataset Integration:")
     print(f"   - New astronomical data ({bcg_arcmin_type} scale)")
     if use_additional_features:
@@ -600,10 +751,21 @@ def main():
     print("All enhancements have been implemented with BCG dataset support:")
     if use_color_features:
         print("- Color feature extraction for red-sequence identification")
-    print("- Uncertainty quantification features")
+    if use_uq:
+        print("- Uncertainty quantification with probabilistic outputs")
+    if run_analysis:
+        print("- Feature importance analysis with SHAP and permutation methods")
     print("- BCG dataset integration with additional features")
     print("- DESprior candidate system with filtering capabilities")
     print("All existing functionality maintained with backward compatibility.")
+    
+    if run_analysis and analysis_output_dir:
+        print(f"\n🎯 FEATURE IMPORTANCE INSIGHTS:")
+        print(f"   📊 Check feature rankings: {analysis_output_dir}/csv_reports/")
+        print(f"   📈 View importance plots: {analysis_output_dir}/plots/")
+        print(f"   🔍 Individual explanations: {analysis_output_dir}/individual_plots/")
+        print(f"   📋 Read summary report: {analysis_output_dir}/analysis_summary.txt")
+        print(f"\n   Use these results to understand which features matter most for BCG detection!")
 
 
 if __name__ == "__main__":
