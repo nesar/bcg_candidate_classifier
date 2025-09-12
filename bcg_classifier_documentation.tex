@@ -120,7 +120,7 @@ Figure~\ref{fig:architecture} presents the complete machine learning pipeline, i
   \node[optfeat, text width=3.55cm] (Color) [below=\vsep of Patch] {\textbf{Color Features}\\RGB color ratios\\Red-sequence indicators\\PCA dimensionality reduction};
   \node[feat,    text width=3.55cm] (Context) [below=\vsep of Color]  {\textbf{Context Features}\\Position, candidate density\\Brightness rank, background};
   \node[optfeat,    text width=3.55cm] (Aux) [below=\vsep of Context] {\textbf{Auxiliary Features}\\Redshift $z$, $\Delta m^*_z$\\(when available)};
-\end{scope>
+\end{scope}
 
 % -------------------- SECOND ROW: Fusion & Classification (fully below row-1) --------------------
 \begin{scope}[xshift=40mm, yshift=-70mm]  % set well below row-1 to avoid overlap
@@ -381,7 +381,8 @@ We extract fundamental color measurements that approximate standard photometric 
 \begin{align}
 \text{R/G ratio} &= \frac{\langle I_R \rangle}{\langle I_G \rangle + \epsilon} \quad \text{(approximates } r-g \text{ color)} \\
 \text{R/B ratio} &= \frac{\langle I_R \rangle}{\langle I_B \rangle + \epsilon} \quad \text{(approximates } r-i \text{ color)} \\
-\text{Color magnitude} &= \frac{\langle\sqrt{(I_R-I_G)^2 + (I_G-I_B)^2 + (I_R-I_B)^2}\rangle}{\langle I_R + I_G + I_B \rangle + \epsilon}
+\text{Color magnitude} &= \frac{\langle\sqrt{(I_R-I_G)^2 + (I_G-I_B)^2 + (I_R-I_B)^2}\rangle}{\langle I_R + I_G + I_B \rangle + \epsilon} \nonumber \\
+&\quad \text{(departure from achromatic colors)}
 \end{align}
 where $\langle \cdot \rangle$ denotes spatial averaging over the candidate patch and $\epsilon = 10^{-8}$ prevents division by zero.
 
@@ -414,7 +415,8 @@ High correlations between color channel gradients indicate coherent morphologica
 \begin{align}
 K_{\text{edge}} &= \begin{pmatrix} -1 & -1 & -1 \\ -1 & 8 & -1 \\ -1 & -1 & -1 \end{pmatrix}, \quad 
 K_{\text{smooth}} = \frac{1}{16}\begin{pmatrix} 1 & 2 & 1 \\ 2 & 4 & 2 \\ 1 & 2 & 1 \end{pmatrix} \\
-F_{c,k} &= \text{mean}(|I_c * K_k|), \quad c \in \{R,G,B\}, \quad k \in \{\text{edge}, \text{smooth}, \text{Laplacian}\}
+F_{c,k} &= \text{mean}(|I_c * K_k|) \nonumber \\
+&\quad c \in \{R,G,B\}, \; k \in \{\text{edge}, \text{smooth}, \text{Laplacian}\}
 \end{align}
 These convolution responses capture channel-specific morphological characteristics that complement global color statistics.
 
@@ -477,8 +479,9 @@ The candidate-based formulation, combined with multi-modal feature integration (
 
 The integration of established astronomical data products (DES photometric catalogs, RedMapper cluster finders) with modern machine learning techniques bridges traditional observational astronomy with contemporary data analysis methodologies, providing a pathway for systematic BCG identification in large-scale surveys while maintaining scientific interpretability and validation against existing astronomical knowledge.
 
-\acknowledgments
+\begin{acknowledgments}
 This documentation describes the technical implementation of the BCG candidate classification system developed for astronomical applications, integrating machine learning methods with observational astronomy constraints.
+\end{acknowledgments}
 
 \begin{thebibliography}{99}
 
@@ -486,7 +489,7 @@ This documentation describes the technical implementation of the BCG candidate c
 Abraham, R.~G., van den Bergh, S., Glazebrook, K., Ellis, R.~S., Santiago, B.~X., Surma, P., \& Griffiths, R.~E.\ 1996, \apjs, 107, 1
 
 \bibitem[Bertin \& Arnouts(1996)]{Bertin1996}
-Bertin, E., \& Arnouts, S.\ 1996, \aaps, 117, 393
+Bertin, E., \& Arnouts, S.\ 1996, A\&AS, 117, 393
 
 \bibitem[Conselice(2003)]{Conselice2003}
 Conselice, C.~J.\ 2003, \apjs, 147, 1
@@ -495,7 +498,7 @@ Conselice, C.~J.\ 2003, \apjs, 147, 1
 Conselice, C.~J.\ 2014, \araa, 52, 291
 
 \bibitem[COSMIC et al.(2024)]{COSMIC2024}
-Chen, L., Wang, X., Zhang, Y., et al.\ 2024, \arxiv, 2410.20083
+Chen, L., Wang, X., Zhang, Y., et al.\ 2024, arXiv:2410.20083
 
 \bibitem[Dieleman et al.(2015)]{Dieleman2015}
 Dieleman, S., Willett, K.~W., \& Dambre, J.\ 2015, \mnras, 450, 1441
@@ -504,10 +507,10 @@ Dieleman, S., Willett, K.~W., \& Dambre, J.\ 2015, \mnras, 450, 1441
 Hambleton, K.~M., Gibson, B.~K., Brook, C.~B., et al.\ 2011, \mnras, 418, 801
 
 \bibitem[Janulewicz et al.(2025)]{Janulewicz2025BCG}
-Janulewicz, P., Webb, T.~M.~A., \& Perreault-Levasseur, L.\ 2025, \arxiv, 2502.00104
+Janulewicz, P., Webb, T.~M.~A., \& Perreault-Levasseur, L.\ 2025, arXiv:2502.00104
 
 \bibitem[Laves et al.(2019)]{Laves2019WellCalibratedMU}
-Laves, M.-H., Ihler, S., Kortmann, K.-P., \& Ortmaier, T.\ 2019, 4th Workshop on Bayesian Deep Learning (NeurIPS 2019), \arxiv, 1909.13550
+Laves, M.-H., Ihler, S., Kortmann, K.-P., \& Ortmaier, T.\ 2019, 4th Workshop on Bayesian Deep Learning (NeurIPS 2019), arXiv:1909.13550
 
 \bibitem[Rykoff et al.(2014)]{Rykoff2014redMaPPer}
 Rykoff, E.~S., Rozo, E., Busha, M.~T., et al.\ 2014, \apj, 785, 104
@@ -519,7 +522,7 @@ Rykoff, E.~S., Rozo, E., Hollowood, D., et al.\ 2016, \apjs, 224, 1
 Gladders, M.~D., \& Yee, H.~K.~C.\ 2000, \aj, 120, 2148
 
 \bibitem[Kodama \& Arimoto(1997)]{Kodama1997}
-Kodama, T., \& Arimoto, N.\ 1997, \aap, 320, 41
+Kodama, T., \& Arimoto, N.\ 1997, A\&A, 320, 41
 
 \bibitem[Bell et al.(2004)]{Bell2004}
 Bell, E.~F., Wolf, C., Meisenheimer, K., et al.\ 2004, \apj, 608, 752
