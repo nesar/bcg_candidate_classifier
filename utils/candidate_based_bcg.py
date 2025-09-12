@@ -210,17 +210,30 @@ def extract_patch_features(patch, center_x, center_y, image_shape):
         np.median(gray_patch),         # Median intensity
     ])
     
-    # 2. Central vs peripheral intensity
+    # 2. Central vs peripheral intensity (scale central region with patch size)
     center = gray_patch.shape[0] // 2
-    central_region = gray_patch[center-8:center+8, center-8:center+8]
+    # Use 25% of patch size for central region (same proportion as 16/64 for default case)
+    central_radius = max(4, gray_patch.shape[0] // 8)  # At least 4 pixels, usually 1/8 of patch
+    central_region = gray_patch[center-central_radius:center+central_radius, 
+                               center-central_radius:center+central_radius]
     peripheral_mask = np.ones_like(gray_patch, dtype=bool)
-    peripheral_mask[center-8:center+8, center-8:center+8] = False
+    peripheral_mask[center-central_radius:center+central_radius, 
+                   center-central_radius:center+central_radius] = False
     peripheral_region = gray_patch[peripheral_mask]
     
+    central_mean = np.mean(central_region)
+    peripheral_mean = np.mean(peripheral_region)
+    
+    # Robust ratio calculation - use log ratio if both are positive, otherwise simple ratio
+    if central_mean > 1e-3 and peripheral_mean > 1e-3:
+        ratio = np.log(central_mean + 1e-3) - np.log(peripheral_mean + 1e-3)  # Log ratio
+    else:
+        ratio = central_mean / (peripheral_mean + 1e-3)  # Simple ratio with regularization
+    
     features.extend([
-        np.mean(central_region),       # Central intensity
-        np.mean(peripheral_region),    # Peripheral intensity
-        np.mean(central_region) / (np.mean(peripheral_region) + 1e-8),  # Central/peripheral ratio
+        central_mean,                  # Central intensity
+        peripheral_mean,               # Peripheral intensity  
+        ratio,                         # Central/peripheral ratio (log or simple)
     ])
     
     # 3. Gradient features (edge detection)
@@ -265,8 +278,8 @@ def extract_patch_features(patch, center_x, center_y, image_shape):
         eccentricity = np.sqrt((mu20 - mu02)**2 + 4*mu11**2) / (mu20 + mu02 + 1e-8)
         
         features.extend([
-            cx - gray_patch.shape[1]/2,    # Centroid offset x
-            cy - gray_patch.shape[0]/2,    # Centroid offset y
+            (cx - gray_patch.shape[1]/2) / gray_patch.shape[1],    # Normalized centroid offset x
+            (cy - gray_patch.shape[0]/2) / gray_patch.shape[0],    # Normalized centroid offset y
             eccentricity,                  # Shape eccentricity
         ])
     else:
