@@ -187,9 +187,26 @@ def main():
     if candidate_delta_mstar_range:
         print(f"  Candidate delta_mstar filter: {candidate_delta_mstar_range}")
     
-    # ENHANCEMENT 1: Uncertainty Quantification option
+    # ENHANCEMENT 1: Color Features option  
     print("\n" + "="*60)
-    print("ENHANCEMENT 1: UNCERTAINTY QUANTIFICATION")
+    print("ENHANCEMENT 1: COLOR FEATURES")
+    print("="*60)
+    print("Color features help distinguish red-sequence BCG candidates from")
+    print("bright white objects (stars, QSOs) that often cause false positives.")
+    print("This preserves RGB color information lost during grayscale conversion.")
+    
+    use_color_features = input("\nEnable color features for red-sequence detection? (Y/n): ").strip().lower()
+    use_color_features = use_color_features not in ['n', 'no']
+    
+    if use_color_features:
+        print("Color features will be extracted from RGB patches to identify red objects.")
+        print("This includes color ratios, spatial color variation, and PCA-reduced color info.")
+    else:
+        print("Using traditional grayscale-based features only.")
+    
+    # ENHANCEMENT 2: Uncertainty Quantification option
+    print("\n" + "="*60)
+    print("ENHANCEMENT 2: UNCERTAINTY QUANTIFICATION")
     print("="*60)
     print("Uncertainty quantification provides calibrated probabilities for each")
     print("candidate being a BCG. Over a threshold = 'detection'.")
@@ -288,6 +305,8 @@ def main():
     print("="*60)
     
     reasons = []
+    if use_color_features:
+        reasons.append("Color features")
     if use_uq:
         reasons.append("Uncertainty quantification")
     reasons.append("BCG dataset support")
@@ -301,6 +320,8 @@ def main():
     # Output directory setup
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     experiment_name = "candidate_classifier"
+    if use_color_features:
+        experiment_name += "_color"
     if use_uq:
         experiment_name += "_uq"
     
@@ -325,6 +346,8 @@ def main():
     
     # Add enhanced feature flags if using enhanced scripts
     if use_enhanced:
+        if use_color_features:
+            train_command += " --use_color_features"
         
         if use_uq:
             train_command += f" --use_uq --detection_threshold {detection_threshold}"
@@ -361,6 +384,8 @@ def main():
     print("="*80)
     
     feature_summary = []
+    if use_color_features:
+        feature_summary.append("Color features (red-sequence detection)")
     if use_uq:
         feature_summary.append("Uncertainty quantification")
     
@@ -424,6 +449,8 @@ def main():
     
     # Add enhanced feature flags to test command if using enhanced scripts
     if use_enhanced:
+        if use_color_features:
+            test_command += " --use_color_features"
         
         if use_uq:
             test_command += f" --use_uq --detection_threshold {detection_threshold}"
@@ -503,6 +530,8 @@ def main():
     print(f"Feature extraction: patch_size={patch_size}x{patch_size} pixels")
     
     
+    if use_color_features:
+        print(f"Color features: RGB-based red-sequence detection enabled")
     if use_uq:
         print(f"Uncertainty quantification: threshold={detection_threshold}")
     
@@ -522,15 +551,28 @@ def main():
         print(f"Candidate detection: automatic")
     
     print(f"\nEnhancements implemented:")
+    if use_color_features:
+        print("1. ✓ Color Features:")
+        print("   - RGB color ratios for red-sequence identification")
+        print("   - Spatial color variation analysis")
+        print("   - PCA-reduced color information")
+        print("   - Distinguishes red BCGs from bright white objects")
+        enhancement_num = 2
+    else:
+        print("1. ✗ Color features (using grayscale features only)")
+        enhancement_num = 2
+    
     if use_uq:
-        print("1. ✓ Uncertainty quantification:")
+        print(f"{enhancement_num}. ✓ Uncertainty quantification:")
         print("   - Probabilistic outputs (0-1 scale)")
         print("   - Detection threshold for confident predictions") 
         print("   - Uncertainty estimates for risk assessment")
+        enhancement_num += 1
     else:
-        print("1. ✗ Uncertainty quantification (using deterministic scores)")
+        print(f"{enhancement_num}. ✗ Uncertainty quantification (using deterministic scores)")
+        enhancement_num += 1
     
-    print("2. ✓ BCG Dataset Integration:")
+    print(f"{enhancement_num}. ✓ BCG Dataset Integration:")
     print(f"   - New astronomical data ({bcg_arcmin_type} scale)")
     if use_additional_features:
         print("   - Additional features: redshift, delta_mstar_z")
@@ -546,13 +588,18 @@ def main():
     
     print(f"\nTo re-run evaluation with different parameters:")
     test_cmd_simple = f"python {test_script} --model_path '{model_path}' --scaler_path '{scaler_path}'"
-    if use_enhanced and use_uq:
-        test_cmd_simple += " --use_uq"
+    if use_enhanced:
+        if use_color_features:
+            test_cmd_simple += " --use_color_features"
+        if use_uq:
+            test_cmd_simple += " --use_uq"
     test_cmd_simple += f" --use_bcg_data --bcg_arcmin_type {bcg_arcmin_type}"
     print(f"{test_cmd_simple} [other args]")
     
     print("\nWorkflow demonstration completed successfully!")
     print("All enhancements have been implemented with BCG dataset support:")
+    if use_color_features:
+        print("- Color feature extraction for red-sequence identification")
     print("- Uncertainty quantification features")
     print("- BCG dataset integration with additional features")
     print("- DESprior candidate system with filtering capabilities")

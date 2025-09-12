@@ -33,6 +33,7 @@ from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loade
                                         create_desprior_candidate_dataset_from_files,
                                         collate_bcg_candidate_samples)
 from utils.candidate_based_bcg import extract_patch_features, extract_context_features
+from utils.color_features import ColorFeatureExtractor
 
 
 # ============================================================================
@@ -221,7 +222,7 @@ def extract_images_and_coords(dataset):
     return images, coords
 
 
-def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None):
+def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None, color_extractor=None):
     """Train the enhanced BCG classifier with UQ options."""
     print("Setting up enhanced candidate-based training...")
     
@@ -258,6 +259,78 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None)
     all_train_features = np.vstack(all_train_features)
     feature_scaler = StandardScaler()
     feature_scaler.fit(all_train_features)
+    
+    # Fit PCA for color features if using color features
+    if args.use_color_features and color_extractor is not None:
+        print("Fitting PCA for color features...")
+        # Extract color features separately for PCA fitting
+        color_features_for_fitting = []
+        
+        # Temporarily create a color extractor without PCA reduction to get raw features
+        temp_extractor = ColorFeatureExtractor(use_pca_reduction=False)
+        
+        for batch in train_loader:
+            raw_batch = batch['raw_batch']  # Access original data
+            for sample in raw_batch:
+                # Get the image from the sample (may vary by dataset type)
+                if hasattr(train_dataset, 'samples'):
+                    # BCG dataset format - get image_idx to access original image
+                    image_idx = sample['image_idx']
+                    if hasattr(train_dataset.dataset if hasattr(train_dataset, 'dataset') else train_dataset, 'images'):
+                        image = (train_dataset.dataset if hasattr(train_dataset, 'dataset') else train_dataset).images[image_idx]
+                    else:
+                        continue  # Skip if can't access original image
+                else:
+                    continue  # Skip if dataset format not supported
+                
+                # Convert to numpy and ensure RGB format
+                if hasattr(image, 'numpy'):
+                    image = image.numpy()
+                elif torch.is_tensor(image):
+                    image = image.numpy()
+                
+                if len(image.shape) == 2:
+                    # Convert grayscale to RGB
+                    image = np.stack([image, image, image], axis=2)
+                elif len(image.shape) != 3 or image.shape[2] != 3:
+                    continue  # Skip if not proper RGB
+                
+                # Extract color features for all candidates in this sample
+                candidates = sample['candidates']
+                for x, y in candidates:
+                    x, y = int(x), int(y)
+                    patch_size = args.patch_size
+                    half_patch = patch_size // 2
+                    H, W = image.shape[:2]
+                    
+                    # Extract RGB patch
+                    x_min = max(0, x - half_patch)
+                    x_max = min(W, x + half_patch)
+                    y_min = max(0, y - half_patch)
+                    y_max = min(H, y + half_patch)
+                    
+                    rgb_patch = image[y_min:y_max, x_min:x_max]
+                    
+                    # Pad if necessary
+                    if rgb_patch.shape[0] < patch_size or rgb_patch.shape[1] < patch_size:
+                        padded_patch = np.zeros((patch_size, patch_size, 3), dtype=image.dtype)
+                        pad_y = (patch_size - rgb_patch.shape[0]) // 2
+                        pad_x = (patch_size - rgb_patch.shape[1]) // 2
+                        padded_patch[pad_y:pad_y+rgb_patch.shape[0], pad_x:pad_x+rgb_patch.shape[1]] = rgb_patch
+                        rgb_patch = padded_patch
+                    
+                    # Extract color features
+                    try:
+                        color_feats = temp_extractor.extract_color_features(rgb_patch)
+                        color_features_for_fitting.append(color_feats)
+                    except:
+                        continue  # Skip if feature extraction fails
+        
+        if len(color_features_for_fitting) > 0:
+            color_extractor.fit_pca_reduction(color_features_for_fitting)
+            print(f"PCA fitted on {len(color_features_for_fitting)} color feature samples")
+        else:
+            print("Warning: No color features extracted for PCA fitting, color features may not work properly")
     
     # Create model based on UQ setting
     if args.use_uq:
@@ -357,12 +430,12 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None)
         if avg_val_acc > best_val_accuracy:
             best_val_accuracy = avg_val_acc
             model_name = 'best_probabilistic_classifier' if args.use_uq else 'best_candidate_classifier'
-            save_model(model, feature_scaler, args.output_dir, model_name)
+            save_model(model, feature_scaler, args.output_dir, model_name, color_extractor)
             print(f"New best model saved with validation accuracy: {best_val_accuracy:.3f}")
     
     # Save final model
     final_model_name = 'final_probabilistic_classifier' if args.use_uq else 'final_candidate_classifier'
-    save_model(model, feature_scaler, args.output_dir, final_model_name)
+    save_model(model, feature_scaler, args.output_dir, final_model_name, color_extractor)
     
     # Plot training curves
     if args.plot:
@@ -377,7 +450,7 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None)
     }
 
 
-def save_model(model, feature_scaler, output_dir, name):
+def save_model(model, feature_scaler, output_dir, name, color_extractor=None):
     """Save model and scaler."""
     os.makedirs(output_dir, exist_ok=True)
     
@@ -388,6 +461,12 @@ def save_model(model, feature_scaler, output_dir, name):
     # Save feature scaler
     scaler_path = os.path.join(output_dir, f"{name}_scaler.pkl")
     joblib.dump(feature_scaler, scaler_path)
+    
+    # Save color extractor if available
+    if color_extractor is not None:
+        color_extractor_path = os.path.join(output_dir, f"{name}_color_extractor.pkl")
+        joblib.dump(color_extractor, color_extractor_path)
+        print(f"Color extractor saved to: {color_extractor_path}")
     
     print(f"Model saved to: {model_path}")
     print(f"Scaler saved to: {scaler_path}")
@@ -498,13 +577,21 @@ def main(args):
         # Use DESprior candidates for BCG data
         print("Using DESprior candidates...")
         
+        # Initialize color extractor if needed
+        color_extractor = None
+        if args.use_color_features:
+            print("Initializing color feature extractor...")
+            color_extractor = ColorFeatureExtractor(use_pca_reduction=True, n_pca_components=8)
+        
         # Create full datasets with DESprior candidates 
         full_train_candidate_dataset = create_desprior_candidate_dataset_from_files(
             dataset_type=args.bcg_arcmin_type,
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
             candidate_delta_mstar_range=args.candidate_delta_mstar_range,
-            filter_inside_image=args.filter_inside_image
+            filter_inside_image=args.filter_inside_image,
+            use_color_features=args.use_color_features,
+            color_extractor=color_extractor
         )
         
         # Split the DESprior dataset to match our train/val split ratios
@@ -530,11 +617,19 @@ def main(args):
             'max_candidates': args.max_candidates
         }
         
+        # Initialize color extractor if needed
+        color_extractor = None
+        if args.use_color_features:
+            print("Initializing color feature extractor...")
+            color_extractor = ColorFeatureExtractor(use_pca_reduction=True, n_pca_components=8)
+        
         train_candidate_dataset = create_bcg_candidate_dataset_from_loader(
-            train_subset, candidate_params, candidate_type='automatic'
+            train_subset, candidate_params, candidate_type='automatic',
+            use_color_features=args.use_color_features, color_extractor=color_extractor
         )
         val_candidate_dataset = create_bcg_candidate_dataset_from_loader(
-            val_subset, candidate_params, candidate_type='automatic'
+            val_subset, candidate_params, candidate_type='automatic',
+            use_color_features=args.use_color_features, color_extractor=color_extractor
         )
         
         # Use BCG-specific collate function
@@ -587,7 +682,8 @@ def main(args):
         train_candidate_dataset, 
         val_candidate_dataset, 
         args,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        color_extractor=color_extractor if 'color_extractor' in locals() else None
     )
     
     print(f"\nTraining completed!")
@@ -629,6 +725,10 @@ if __name__ == "__main__":
     parser.add_argument('--patch_size', type=int, default=64,
                        help='Size of square patches extracted around candidates (e.g., 64, 128, 256)')
     
+    
+    # NEW: Color features arguments
+    parser.add_argument('--use_color_features', action='store_true',
+                       help='Enable color feature extraction from RGB patches for red-sequence detection')
     
     # NEW: Uncertainty quantification arguments
     parser.add_argument('--use_uq', action='store_true',

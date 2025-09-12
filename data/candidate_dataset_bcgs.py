@@ -23,7 +23,8 @@ class BCGCandidateDataset(Dataset):
     5. Return (candidate_features, target_label, additional_features)
     """
     
-    def __init__(self, images, bcg_coords, additional_features=None, candidate_params=None, min_candidates=3, patch_size=64):
+    def __init__(self, images, bcg_coords, additional_features=None, candidate_params=None, min_candidates=3, patch_size=64, 
+                 use_color_features=False, color_extractor=None):
         """
         Parameters:
         -----------
@@ -39,12 +40,18 @@ class BCGCandidateDataset(Dataset):
             Minimum number of candidates required (skip images with fewer)
         patch_size : int
             Size of square patches extracted around candidates (default: 64)
+        use_color_features : bool
+            Whether to extract color features from RGB patches (default: False)
+        color_extractor : ColorFeatureExtractor or None
+            Color feature extractor instance (default: None, creates new one)
         """
         self.images = images
         self.bcg_coords = bcg_coords
         self.additional_features = additional_features
         self.min_candidates = min_candidates
         self.patch_size = patch_size
+        self.use_color_features = use_color_features
+        self.color_extractor = color_extractor
         
         # Default candidate finding parameters
         if candidate_params is None:
@@ -84,12 +91,14 @@ class BCGCandidateDataset(Dataset):
                 skipped_samples += 1
                 continue
             
-            # Extract features for all candidates
+            # Extract features for all candidates (including color if requested)
             features, patches = extract_candidate_features(
                 image, 
                 candidates,
                 patch_size=self.patch_size,
-                include_context=True
+                include_context=True,
+                include_color=self.use_color_features,
+                color_extractor=self.color_extractor
             )
             
             if len(features) == 0:
@@ -163,7 +172,8 @@ class DESpriorBCGCandidateDataset(Dataset):
     """
     
     def __init__(self, images, bcg_coords, candidates_coords, candidate_features=None, 
-                 additional_features=None, filter_inside_image=True, patch_size=64):
+                 additional_features=None, filter_inside_image=True, patch_size=64,
+                 use_color_features=False, color_extractor=None):
         """
         Parameters:
         -----------
@@ -181,6 +191,10 @@ class DESpriorBCGCandidateDataset(Dataset):
             Whether to filter out candidates outside image bounds
         patch_size : int
             Size of square patches extracted around candidates (default: 64)
+        use_color_features : bool
+            Whether to extract color features from RGB patches (default: False)
+        color_extractor : ColorFeatureExtractor or None
+            Color feature extractor instance (default: None, creates new one)
         """
         self.images = images
         self.bcg_coords = bcg_coords
@@ -189,6 +203,8 @@ class DESpriorBCGCandidateDataset(Dataset):
         self.additional_features = additional_features
         self.filter_inside_image = filter_inside_image
         self.patch_size = patch_size
+        self.use_color_features = use_color_features
+        self.color_extractor = color_extractor
         
         # Process all images to create candidate-based samples
         self.samples = []
@@ -232,12 +248,14 @@ class DESpriorBCGCandidateDataset(Dataset):
                 skipped_samples += 1
                 continue
             
-            # Extract features for all candidates using standard method
+            # Extract features for all candidates (including color if requested)
             features, patches = extract_candidate_features(
                 image, 
                 candidates_filtered,
                 patch_size=self.patch_size,
-                include_context=True
+                include_context=True,
+                include_color=self.use_color_features,
+                color_extractor=self.color_extractor
             )
             
             if len(features) == 0:
@@ -373,7 +391,8 @@ def collate_bcg_candidate_samples(batch):
 
 
 # Utility functions to create BCG candidate datasets from the data reading modules
-def create_bcg_candidate_dataset_from_loader(dataset_loader, candidate_params=None, candidate_type='automatic'):
+def create_bcg_candidate_dataset_from_loader(dataset_loader, candidate_params=None, candidate_type='automatic',
+                                           use_color_features=False, color_extractor=None):
     """
     Create a BCG candidate dataset from a regular BCG dataset loader.
     
@@ -381,6 +400,8 @@ def create_bcg_candidate_dataset_from_loader(dataset_loader, candidate_params=No
         dataset_loader: BCGDataset instance (2.2 or 3.8 arcmin)
         candidate_params: Parameters for candidate finding (for automatic type)
         candidate_type: Either 'automatic' or 'DESprior'
+        use_color_features: Whether to extract color features from RGB patches
+        color_extractor: ColorFeatureExtractor instance (None creates default)
         
     Returns:
         BCGCandidateDataset or DESpriorBCGCandidateDataset
@@ -412,7 +433,9 @@ def create_bcg_candidate_dataset_from_loader(dataset_loader, candidate_params=No
             images=images,
             bcg_coords=bcg_coords,
             additional_features=additional_features,
-            candidate_params=candidate_params
+            candidate_params=candidate_params,
+            use_color_features=use_color_features,
+            color_extractor=color_extractor
         )
     else:
         raise ValueError(f"Use create_desprior_candidate_dataset_from_files() for DESprior candidates")
@@ -422,7 +445,7 @@ def create_bcg_candidate_dataset_from_loader(dataset_loader, candidate_params=No
 
 def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_range=None, delta_mstar_z_range=None,
                                                 filter_inside_image=True, candidate_delta_mstar_range=None,
-                                                use_clean_data=True):
+                                                use_clean_data=True, use_color_features=False, color_extractor=None):
     """
     Create a DESprior candidate dataset from CSV files.
     
@@ -433,6 +456,8 @@ def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_ran
         filter_inside_image: Whether to filter out candidates outside image bounds
         candidate_delta_mstar_range: Tuple (delta_min, delta_max) to filter candidates by delta_mstar
         use_clean_data: Use clean matched datasets for pristine ML training (recommended: True)
+        use_color_features: Whether to extract color features from RGB patches
+        color_extractor: ColorFeatureExtractor instance (None creates default)
         
     Returns:
         DESpriorBCGCandidateDataset
@@ -526,7 +551,9 @@ def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_ran
         candidates_coords=candidates_coords,
         candidate_features=candidate_features,
         additional_features=additional_features,
-        filter_inside_image=filter_inside_image
+        filter_inside_image=filter_inside_image,
+        use_color_features=use_color_features,
+        color_extractor=color_extractor
     )
     
     return candidate_dataset

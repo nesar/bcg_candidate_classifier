@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from scipy.ndimage import maximum_filter
 from sklearn.preprocessing import StandardScaler
+from .color_features import ColorFeatureExtractor, extract_candidate_color_features
 
 
 def find_bcg_candidates(image, min_distance=8, threshold_rel=0.1, exclude_border=30, max_candidates=50):
@@ -103,7 +104,8 @@ def find_bcg_candidates(image, min_distance=8, threshold_rel=0.1, exclude_border
     return candidates, intensities
 
 
-def extract_candidate_features(image, candidate_coords, patch_size=64, include_context=True):
+def extract_candidate_features(image, candidate_coords, patch_size=64, include_context=True, 
+                              include_color=False, color_extractor=None):
     """
     Extract features around each candidate location.
     
@@ -117,6 +119,10 @@ def extract_candidate_features(image, candidate_coords, patch_size=64, include_c
         Size of patch to extract around each candidate
     include_context : bool
         Whether to include contextual features
+    include_color : bool
+        Whether to include color features (requires RGB image)
+    color_extractor : ColorFeatureExtractor
+        Color feature extractor (if None, creates default)
         
     Returns:
     --------
@@ -159,13 +165,23 @@ def extract_candidate_features(image, candidate_coords, patch_size=64, include_c
         
         patches_list.append(patch)
         
-        # Extract features from patch
+        # Extract morphological features from patch
         patch_features = extract_patch_features(patch, x, y, image.shape[:2])
         
         if include_context:
             # Add contextual features
             context_features = extract_context_features(image, x, y, patch_size)
             patch_features = np.concatenate([patch_features, context_features])
+        
+        # Add color features if requested
+        if include_color and image.shape[2] == 3:
+            if color_extractor is None:
+                color_extractor = ColorFeatureExtractor()
+            color_features = color_extractor.extract_color_features(patch)
+            # Apply PCA reduction if fitted
+            if color_extractor.use_pca_reduction and color_extractor.pca_fitted:
+                color_features = color_extractor.reduce_color_features(color_features)
+            patch_features = np.concatenate([patch_features, color_features])
         
         features_list.append(patch_features)
     
@@ -353,7 +369,23 @@ def extract_context_features(image, center_x, center_y, patch_size):
     return np.array(features)
 
 
-def predict_bcg_from_candidates(image, model=None, feature_scaler=None, **candidate_kwargs):
+def extract_candidate_features_with_color(image, candidate_coords, patch_size=64, 
+                                        include_context=True, color_extractor=None):
+    """
+    Convenience function to extract both morphological and color features.
+    
+    This function automatically includes color features if the image is RGB.
+    """
+    return extract_candidate_features(
+        image, candidate_coords, patch_size=patch_size, 
+        include_context=include_context, include_color=True, 
+        color_extractor=color_extractor
+    )
+
+
+def predict_bcg_from_candidates(image, model=None, feature_scaler=None, 
+                               include_color_features=False, color_extractor=None,
+                               **candidate_kwargs):
     """
     Complete pipeline: find candidates, extract features, predict best BCG.
     
@@ -365,6 +397,10 @@ def predict_bcg_from_candidates(image, model=None, feature_scaler=None, **candid
         Trained classifier model
     feature_scaler : StandardScaler or None
         Feature scaler
+    include_color_features : bool
+        Whether to include color features in prediction
+    color_extractor : ColorFeatureExtractor or None
+        Fitted color feature extractor
     **candidate_kwargs : dict
         Arguments for candidate finding
         
@@ -383,8 +419,11 @@ def predict_bcg_from_candidates(image, model=None, feature_scaler=None, **candid
     if len(candidates) == 0:
         return None, np.array([]), np.array([])
     
-    # Extract features
-    features, patches = extract_candidate_features(image, candidates)
+    # Extract features (with color features if requested)
+    features, patches = extract_candidate_features(
+        image, candidates, include_color=include_color_features, 
+        color_extractor=color_extractor
+    )
     
     if model is None or feature_scaler is None:
         # Fallback: return brightest candidate
