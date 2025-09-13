@@ -40,7 +40,7 @@ sys.path.append('..')
 from ml_models.candidate_classifier import BCGCandidateClassifier
 from ml_models.uq_classifier import BCGProbabilisticClassifier
 from data.candidate_dataset_bcgs import BCGCandidateDataset
-from utils.candidate_based_bcg import create_feature_names
+from .feature_utils import create_bcg_feature_names
 
 
 class BCGAnalysisRunner:
@@ -122,13 +122,12 @@ class BCGAnalysisRunner:
             checkpoint = torch.load(model_path, map_location=self.device)
             
             # Get model parameters from checkpoint or config
-            input_size = checkpoint.get('input_size', self.config.get('input_size', 58))
-            hidden_sizes = checkpoint.get('hidden_sizes', self.config.get('hidden_sizes', [128, 64, 32]))
+            feature_dim = checkpoint.get('feature_dim', checkpoint.get('input_size', self.config.get('input_size', 58)))
+            hidden_dims = checkpoint.get('hidden_dims', checkpoint.get('hidden_sizes', self.config.get('hidden_sizes', [128, 64, 32])))
             
             self.model = BCGProbabilisticClassifier(
-                input_size=input_size,
-                hidden_sizes=hidden_sizes,
-                num_classes=2
+                feature_dim=feature_dim,
+                hidden_dims=hidden_dims
             )
             
             if 'model_state_dict' in checkpoint:
@@ -140,13 +139,12 @@ class BCGAnalysisRunner:
             # Load deterministic model
             checkpoint = torch.load(model_path, map_location=self.device)
             
-            input_size = checkpoint.get('input_size', self.config.get('input_size', 58))
-            hidden_sizes = checkpoint.get('hidden_sizes', self.config.get('hidden_sizes', [128, 64, 32]))
+            feature_dim = checkpoint.get('feature_dim', checkpoint.get('input_size', self.config.get('input_size', 58)))
+            hidden_dims = checkpoint.get('hidden_dims', checkpoint.get('hidden_sizes', self.config.get('hidden_sizes', [128, 64, 32])))
             
             self.model = BCGCandidateClassifier(
-                input_size=input_size,
-                hidden_sizes=hidden_sizes,
-                num_classes=2
+                feature_dim=feature_dim,
+                hidden_dims=hidden_dims
             )
             
             if 'model_state_dict' in checkpoint:
@@ -209,7 +207,7 @@ class BCGAnalysisRunner:
         else:
             # Create default feature names based on feature configuration
             feature_config = self.config.get('features', {})
-            self.feature_names = create_feature_names(
+            self.feature_names = create_bcg_feature_names(
                 use_color_features=feature_config.get('use_color', True),
                 use_auxiliary_features=feature_config.get('use_auxiliary', True),
                 color_pca_components=feature_config.get('color_pca_components', 8)

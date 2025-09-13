@@ -39,6 +39,10 @@ class PyTorchModelWrapper(BaseEstimator, ClassifierMixin):
         self.probabilistic = probabilistic
         self.model.eval()
     
+    def fit(self, X, y):
+        """Dummy fit method for sklearn compatibility (model is already trained)."""
+        return self
+    
     def predict_proba(self, X):
         """Predict class probabilities."""
         with torch.no_grad():

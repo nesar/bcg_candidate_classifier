@@ -546,7 +546,12 @@ def main():
             evaluation_csv = os.path.join(test_output_dir, "evaluation_results.csv")
             if os.path.exists(evaluation_csv):
                 print("Using evaluation results for analysis...")
-                test_data_path = evaluation_csv
+                # First try to prepare the data in the right format
+                prepare_data_command = f"python analysis/prepare_analysis_data.py --test_output_dir '{test_output_dir}'"
+                if run_command(prepare_data_command, "Preparing analysis data from evaluation results"):
+                    test_data_path = os.path.join(test_output_dir, "analysis_data.npz")
+                else:
+                    test_data_path = evaluation_csv
             else:
                 print("No suitable data found for analysis. Skipping feature importance analysis.")
                 run_analysis = False
