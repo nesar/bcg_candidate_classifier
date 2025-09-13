@@ -14,6 +14,10 @@ Usage:
     python analysis/run_analysis.py --model_path path/to/model.pth --data_path path/to/data
 """
 
+import os
+# Fix NUMEXPR warning - MUST be set before ANY numpy/sklearn imports
+os.environ['NUMEXPR_MAX_THREADS'] = '64'
+
 import argparse
 import yaml
 import numpy as np

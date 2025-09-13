@@ -9,6 +9,9 @@ The script maintains all existing functionality while adding options for these i
 """
 
 import os
+# Fix NUMEXPR warning - MUST be set before ANY numpy/sklearn imports
+os.environ['NUMEXPR_MAX_THREADS'] = '64'
+
 import subprocess
 import sys
 from datetime import datetime

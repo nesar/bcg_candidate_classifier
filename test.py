@@ -9,8 +9,8 @@ This script evaluates trained BCG classifiers with:
 """
 
 import os
-# Fix NUMEXPR warning - use available threads
-os.environ['NUMEXPR_MAX_THREADS'] = str(min(64, os.cpu_count() or 4))
+# Fix NUMEXPR warning - MUST be set before ANY numpy/sklearn imports
+os.environ['NUMEXPR_MAX_THREADS'] = '64'
 
 import argparse
 import torch
