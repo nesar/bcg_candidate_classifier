@@ -221,14 +221,14 @@ def main():
     use_uq = use_uq not in ['n', 'no']
     
     # UQ parameters
-    detection_threshold = 0.4
+    detection_threshold = 0.5
     if use_uq:
         print("\nUncertainty quantification parameters:")
         print(f"Detection threshold: {detection_threshold} (candidates above this probability are considered 'detections')")
         modify_uq = input("Modify detection threshold? (y/N): ").strip().lower()
         
         if modify_uq in ['y', 'yes']:
-            detection_threshold = float(input("Detection threshold (0.0-1.0, default 0.4): ") or "0.4")
+            detection_threshold = float(input("Detection threshold (0.0-1.0, default 0.5): ") or "0.5")
             detection_threshold = max(0.0, min(1.0, detection_threshold))
             print(f"Using detection threshold: {detection_threshold}")
         
