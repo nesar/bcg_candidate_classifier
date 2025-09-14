@@ -393,7 +393,7 @@ class PermutationImportanceAnalyzer:
             scoring=scoring,
             n_repeats=n_repeats,
             random_state=random_state,
-            n_jobs=-1
+            n_jobs=1  # Use single process to avoid CUDA serialization issues
         )
         
         return {
