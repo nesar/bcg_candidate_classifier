@@ -388,12 +388,9 @@ class PermutationImportanceAnalyzer:
         Returns:
             Dictionary containing importance scores
         """
-        result = permutation_importance(
-            self.model, X, y,
-            scoring=scoring,
-            n_repeats=n_repeats,
-            random_state=random_state,
-            n_jobs=1  # Use single process to avoid CUDA serialization issues
+        # Use custom permutation importance to avoid multiprocessing issues
+        result = self._compute_permutation_importance_safe(
+            X, y, scoring, n_repeats, random_state
         )
         
         return {
@@ -402,6 +399,46 @@ class PermutationImportanceAnalyzer:
             'feature_names': self.feature_names,
             'ranking': np.argsort(result.importances_mean)[::-1]
         }
+    
+    def _compute_permutation_importance_safe(self, X, y, scoring, n_repeats, random_state):
+        """
+        Safe permutation importance implementation without multiprocessing.
+        """
+        from sklearn.metrics import accuracy_score
+        
+        rng = np.random.RandomState(random_state)
+        
+        # Get baseline score
+        baseline_score = accuracy_score(y, self.model.predict(X))
+        
+        # Initialize arrays to store importance scores
+        n_features = X.shape[1]
+        importances = np.zeros((n_repeats, n_features))
+        
+        for repeat_idx in range(n_repeats):
+            for feature_idx in range(n_features):
+                # Make a copy of the data
+                X_permuted = X.copy()
+                
+                # Permute the feature
+                feature_values = X_permuted[:, feature_idx].copy()
+                rng.shuffle(feature_values)
+                X_permuted[:, feature_idx] = feature_values
+                
+                # Get score with permuted feature
+                permuted_score = accuracy_score(y, self.model.predict(X_permuted))
+                
+                # Importance is the decrease in score
+                importances[repeat_idx, feature_idx] = baseline_score - permuted_score
+        
+        # Create result object that mimics sklearn's permutation_importance result
+        class PermutationResult:
+            def __init__(self, importances):
+                self.importances = importances
+                self.importances_mean = np.mean(importances, axis=0)
+                self.importances_std = np.std(importances, axis=0)
+        
+        return PermutationResult(importances)
 
 
 class FeatureGroupAnalyzer:

@@ -17,6 +17,12 @@ Usage:
 import os
 # Fix NUMEXPR warning for HPC systems - set high enough for cluster nodes
 os.environ['NUMEXPR_MAX_THREADS'] = '128'
+# Force single-threaded operation to avoid CUDA multiprocessing issues
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+os.environ['NUMBA_NUM_THREADS'] = '1'
 
 import argparse
 import yaml
@@ -74,6 +80,11 @@ class BCGAnalysisRunner:
         self.y_test = None
         # Force CPU for analysis to avoid CUDA memory issues and multiprocessing problems
         self.device = torch.device('cpu')
+        
+        # Clear CUDA cache to prevent memory issues
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
         
         # Initialize analyzers
         self.importance_analyzer = None
@@ -193,6 +204,15 @@ class BCGAnalysisRunner:
         
         self.model.to(self.device)
         self.model.eval()
+        
+        # Ensure all model parameters are on CPU
+        for param in self.model.parameters():
+            param.data = param.data.cpu()
+        
+        # Clear any remaining CUDA references
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
         print(f"Model loaded successfully: {type(self.model).__name__}")
     
     def load_data(self):
