@@ -28,6 +28,9 @@ import pickle
 from typing import Dict, List, Optional
 import warnings
 import json
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for HPC
+import matplotlib.pyplot as plt
 
 # Import analysis modules
 from .feature_importance import (
@@ -125,8 +128,23 @@ class BCGAnalysisRunner:
             # Load probabilistic model
             checkpoint = torch.load(model_path, map_location=self.device)
             
-            # Get model parameters from checkpoint or config
-            feature_dim = checkpoint.get('feature_dim', checkpoint.get('input_size', self.config.get('input_size', 58)))
+            # Get actual feature dimension from saved model weights (smart detection)
+            if 'model_state_dict' in checkpoint:
+                state_dict = checkpoint['model_state_dict']
+            else:
+                state_dict = checkpoint
+            
+            # Read actual feature dimension from first layer
+            if 'network.0.weight' in state_dict:
+                feature_dim = state_dict['network.0.weight'].shape[1]
+                print(f"Detected feature dimension from model: {feature_dim}")
+            else:
+                raise RuntimeError(
+                    f"Cannot determine feature dimension from model at {model_path}. "
+                    f"Expected 'network.0.weight' in state dict but found keys: {list(state_dict.keys())}. "
+                    f"Model may be corrupted or incompatible."
+                )
+            
             hidden_dims = checkpoint.get('hidden_dims', checkpoint.get('hidden_sizes', self.config.get('hidden_sizes', [128, 64, 32])))
             
             self.model = BCGProbabilisticClassifier(
@@ -143,7 +161,23 @@ class BCGAnalysisRunner:
             # Load deterministic model
             checkpoint = torch.load(model_path, map_location=self.device)
             
-            feature_dim = checkpoint.get('feature_dim', checkpoint.get('input_size', self.config.get('input_size', 58)))
+            # Get actual feature dimension from saved model weights (smart detection)
+            if 'model_state_dict' in checkpoint:
+                state_dict = checkpoint['model_state_dict']
+            else:
+                state_dict = checkpoint
+            
+            # Read actual feature dimension from first layer
+            if 'network.0.weight' in state_dict:
+                feature_dim = state_dict['network.0.weight'].shape[1]
+                print(f"Detected feature dimension from model: {feature_dim}")
+            else:
+                raise RuntimeError(
+                    f"Cannot determine feature dimension from model at {model_path}. "
+                    f"Expected 'network.0.weight' in state dict but found keys: {list(state_dict.keys())}. "
+                    f"Model may be corrupted or incompatible."
+                )
+            
             hidden_dims = checkpoint.get('hidden_dims', checkpoint.get('hidden_sizes', self.config.get('hidden_sizes', [128, 64, 32])))
             
             self.model = BCGCandidateClassifier(

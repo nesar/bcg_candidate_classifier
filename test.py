@@ -397,17 +397,23 @@ def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False, use_c
                     color_extractor = joblib.load(color_extractor_path)
                     print(f"Loaded color extractor from: {color_extractor_path}")
                 except Exception as e:
-                    print(f"Warning: Could not load color extractor: {e}")
-                    print("Creating default color extractor (may not work properly)")
-                    color_extractor = ColorFeatureExtractor(use_pca_reduction=True, n_pca_components=8)
+                    raise RuntimeError(
+                        f"Failed to load required color extractor from {color_extractor_path}: {e}. "
+                        f"Color features cannot be used without the properly trained color extractor. "
+                        f"Either re-run without --use_color_features or ensure the color extractor file exists."
+                    )
             else:
-                print(f"Warning: Color extractor not found at: {color_extractor_path}")
-                print("Creating default color extractor (may not work properly)")
-                color_extractor = ColorFeatureExtractor(use_pca_reduction=True, n_pca_components=8)
+                raise FileNotFoundError(
+                    f"Color extractor not found at: {color_extractor_path}. "
+                    f"Color features require the trained color extractor file. "
+                    f"Either re-run without --use_color_features or ensure the color extractor was saved during training."
+                )
         except ImportError as e:
-            print(f"Warning: Could not import ColorFeatureExtractor: {e}")
-            print("Color features will be disabled")
-            use_color_features = False
+            raise ImportError(
+                f"Failed to import ColorFeatureExtractor: {e}. "
+                f"Color features cannot be used without the color feature module. "
+                f"Either re-run without --use_color_features or install the required dependencies."
+            )
     
     return model, feature_scaler, color_extractor
 
@@ -900,10 +906,9 @@ def main(args):
                 base_feature_dim = combined_features.shape[1]
                 print(f"Determined DESprior feature dimension: {base_feature_dim}")
             else:
-                base_feature_dim = 32  # Fallback
+                raise ValueError("No DESprior candidates found for feature dimension determination. Cannot proceed without real feature data.")
         except Exception as e:
-            print(f"Warning: Could not determine DESprior feature dim: {e}")
-            base_feature_dim = 32  # Fallback
+            raise RuntimeError(f"Failed to determine DESprior feature dimension: {e}. Cannot proceed without accurate feature dimensions.")
     else:
         # For regular candidate detection
         from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
@@ -914,9 +919,12 @@ def main(args):
                 include_context=True, include_color=False,  # Don't use color for dimension estimation
                 color_extractor=None
             )
-            base_feature_dim = features.shape[1] if len(features) > 0 else 30
+            if len(features) > 0:
+                base_feature_dim = features.shape[1]
+            else:
+                raise ValueError("No candidates found for feature dimension determination. Cannot proceed without real feature data.")
         else:
-            base_feature_dim = 30  # Default for single-scale
+            raise ValueError("No candidates could be detected for feature dimension determination. Cannot proceed without real candidate data.")
     
     # Adjust feature dimension for BCG dataset additional features
     print(f"Base feature dimension (without color): {base_feature_dim}")

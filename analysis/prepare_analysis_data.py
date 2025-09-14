@@ -53,8 +53,11 @@ def convert_evaluation_csv_to_analysis_format(csv_path, output_path):
     elif 'correct' in df.columns:
         y = df['correct'].values.astype(int)
     else:
-        print("Warning: No labels found. Using dummy labels.")
-        y = np.zeros(len(X))
+        raise ValueError(
+            "No valid labels found in CSV. Expected 'true_class' or 'correct' column. "
+            "Cannot proceed with analysis without real labels. "
+            "Available columns: " + str(list(df.columns))
+        )
     
     # Save in analysis format
     output_path = Path(output_path)
