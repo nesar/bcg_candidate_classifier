@@ -889,12 +889,12 @@ def main(args):
                 candidates = file_candidates[['x', 'y']].values
                 candidate_features = file_candidates[['delta_mstar', 'starflag']].values
                 
-                # Extract visual features
+                # Extract visual features (without color for dimension estimation)
                 from utils.candidate_based_bcg import extract_candidate_features
                 visual_features, _ = extract_candidate_features(
                     sample_image, candidates, patch_size=args.patch_size, 
-                    include_context=True, include_color=args.use_color_features, 
-                    color_extractor=color_extractor if args.use_color_features else None
+                    include_context=True, include_color=False,  # Don't use color for dimension estimation
+                    color_extractor=None
                 )
                 combined_features = np.hstack([visual_features, candidate_features])
                 base_feature_dim = combined_features.shape[1]
@@ -911,27 +911,56 @@ def main(args):
         if len(candidates) > 0:
             features, _ = extract_candidate_features(
                 sample_image, candidates, patch_size=args.patch_size, 
-                include_context=True, include_color=args.use_color_features, 
-                color_extractor=color_extractor if args.use_color_features else None
+                include_context=True, include_color=False,  # Don't use color for dimension estimation
+                color_extractor=None
             )
             base_feature_dim = features.shape[1] if len(features) > 0 else 30
         else:
             base_feature_dim = 30  # Default for single-scale
     
     # Adjust feature dimension for BCG dataset additional features
+    print(f"Base feature dimension (without color): {base_feature_dim}")
+    
+    # Add color features if enabled
+    if args.use_color_features:
+        print("Model was trained with color features - adding color feature dimensions")
+        # Color features add: 8 color ratios + 8 PCA components + other color stats = ~20+ features
+        color_feature_count = 20  # Estimated from ColorFeatureExtractor
+        base_feature_dim += color_feature_count
+        print(f"Added {color_feature_count} color features")
+    
     # NOTE: DESprior candidates already have their optimal feature set, don't add more
     if args.use_bcg_data and args.use_additional_features and not args.use_desprior_candidates:
-        print(f"Base feature dimension: {base_feature_dim}")
         print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
         base_feature_dim += 2
     elif args.use_bcg_data and args.use_additional_features and args.use_desprior_candidates:
-        print(f"Base feature dimension: {base_feature_dim}")
         print("DESprior candidates already include optimal features - not adding additional features")
     
     print(f"Final feature dimension: {base_feature_dim}")
     
-    # Load trained model
+    # Load trained model and determine actual feature dimension from the saved model
     print("Loading trained model...")
+    print("Determining actual feature dimension from saved model...")
+    
+    # Read the model checkpoint to get the actual input dimension
+    checkpoint = torch.load(args.model_path, map_location='cpu')
+    if 'model_state_dict' in checkpoint:
+        state_dict = checkpoint['model_state_dict']
+    else:
+        state_dict = checkpoint
+    
+    # Get actual feature dimension from first layer
+    if 'network.0.weight' in state_dict:
+        actual_feature_dim = state_dict['network.0.weight'].shape[1]
+        print(f"Model expects {actual_feature_dim} features")
+        
+        if base_feature_dim != actual_feature_dim:
+            print(f"⚠️  WARNING: Calculated dimension ({base_feature_dim}) != model's actual dimension ({actual_feature_dim})")
+            print("   Using model's actual dimension for compatibility...")
+            base_feature_dim = actual_feature_dim
+    else:
+        print("⚠️  Could not determine feature dimension from model, using calculated dimension")
+    
     if args.use_color_features:
         print("Color features enabled - loading color extractor...")
     model, scaler, color_extractor = load_trained_model(args.model_path, args.scaler_path, 
