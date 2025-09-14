@@ -72,7 +72,8 @@ class BCGAnalysisRunner:
         self.feature_names = None
         self.X_test = None
         self.y_test = None
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # Force CPU for analysis to avoid CUDA memory issues and multiprocessing problems
+        self.device = torch.device('cpu')
         
         # Initialize analyzers
         self.importance_analyzer = None
