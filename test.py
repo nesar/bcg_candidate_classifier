@@ -159,7 +159,8 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             'probabilities': np.array([]),
             'uncertainties': np.array([]),
             'detections': np.array([]),
-            'detection_probabilities': np.array([])
+            'detection_probabilities': np.array([]),
+            'best_features': None  # No features when no candidates
         }
     
     # Scale features
@@ -167,6 +168,7 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         scaled_features = feature_scaler.transform(features)
         features_tensor = torch.FloatTensor(scaled_features)
     else:
+        scaled_features = features
         features_tensor = torch.FloatTensor(features)
     
     # Get probabilities and uncertainties
@@ -215,8 +217,11 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
     if len(probabilities) > 0:
         best_idx = np.argmax(probabilities)
         best_bcg = tuple(all_candidates[best_idx])
+        # FEATURE ANALYSIS: Get best candidate's features
+        best_features = scaled_features[best_idx]
     else:
         best_bcg = None
+        best_features = None
     
     results = {
         'best_bcg': best_bcg,
@@ -224,7 +229,8 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         'probabilities': probabilities,
         'uncertainties': uncertainties,
         'detections': detections,
-        'detection_probabilities': detection_probabilities
+        'detection_probabilities': detection_probabilities,
+        'best_features': best_features  # Add features to return
     }
     
     return results
@@ -522,6 +528,10 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
             probabilities = results['probabilities']
             uncertainties = results['uncertainties']
             detections = results['detections']
+            best_features = results['best_features']  # Get the best candidate's features
+            
+            # FEATURE ANALYSIS: Store features for UQ case
+            all_features_list.append(best_features)
             
             # Track UQ metrics
             all_probabilities_list.append(probabilities)
