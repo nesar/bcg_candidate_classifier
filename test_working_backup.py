@@ -83,8 +83,7 @@ def calculate_bcg_rank(true_bcg, all_candidates, scores, distance_threshold=10.0
 
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
                                  detection_threshold=0.1, return_all_candidates=False, additional_features=None, 
-                                 use_desprior_candidates=False, filename=None, dataset_type=None, 
-                                 use_color_features=False, color_extractor=None, **candidate_kwargs):
+                                 use_desprior_candidates=False, filename=None, dataset_type=None, **candidate_kwargs):
     """Predict BCG candidates with calibrated probabilities and uncertainty.
     
     Args:
@@ -117,11 +116,7 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
                 
                 # Extract visual features and combine with candidate features
                 from utils.candidate_based_bcg import extract_candidate_features
-                visual_features, _ = extract_candidate_features(
-                    image, all_candidates, patch_size=candidate_kwargs.get('patch_size', 64), 
-                    include_context=True, include_color=use_color_features, 
-                    color_extractor=color_extractor
-                )
+                visual_features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size, include_context=True)
                 
                 # Combine visual features with candidate-specific features
                 features = np.hstack([visual_features, candidate_specific_features])
@@ -138,11 +133,7 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         all_candidates, intensities = find_bcg_candidates(image, **candidate_kwargs)
         
         if len(all_candidates) > 0:
-            features, _ = extract_candidate_features(
-                image, all_candidates, patch_size=candidate_kwargs.get('patch_size', 64),
-                include_context=True, include_color=use_color_features, 
-                color_extractor=color_extractor
-            )
+            features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size)
             
             # Append additional features if provided (e.g., from BCG dataset)
             if additional_features is not None and len(features) > 0:
@@ -365,8 +356,8 @@ def split_dataset(dataset, train_ratio=0.7, val_ratio=0.2, random_seed=42):
     return train_subset, val_subset, test_subset
 
 
-def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False, use_color_features=False):
-    """Load trained model, feature scaler, and optional color extractor."""
+def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False):
+    """Load trained model and feature scaler."""
     # Load appropriate model type
     if use_uq:
         model = BCGProbabilisticClassifier(feature_dim, hidden_dims=[128, 64, 32], dropout_rate=0.2)
@@ -379,42 +370,13 @@ def load_trained_model(model_path, scaler_path, feature_dim, use_uq=False, use_c
     # Load scaler
     feature_scaler = joblib.load(scaler_path)
     
-    # Load color extractor if available (lazy import to avoid NUMEXPR issues)
-    color_extractor = None
-    if use_color_features:
-        try:
-            from utils.color_features import ColorFeatureExtractor
-            
-            # Try to load color extractor from the same directory as the model
-            model_dir = os.path.dirname(model_path)
-            model_name = os.path.splitext(os.path.basename(model_path))[0]
-            color_extractor_path = os.path.join(model_dir, f"{model_name}_color_extractor.pkl")
-            
-            if os.path.exists(color_extractor_path):
-                try:
-                    color_extractor = joblib.load(color_extractor_path)
-                    print(f"Loaded color extractor from: {color_extractor_path}")
-                except Exception as e:
-                    print(f"Warning: Could not load color extractor: {e}")
-                    print("Creating default color extractor (may not work properly)")
-                    color_extractor = ColorFeatureExtractor(use_pca_reduction=True, n_pca_components=8)
-            else:
-                print(f"Warning: Color extractor not found at: {color_extractor_path}")
-                print("Creating default color extractor (may not work properly)")
-                color_extractor = ColorFeatureExtractor(use_pca_reduction=True, n_pca_components=8)
-        except ImportError as e:
-            print(f"Warning: Could not import ColorFeatureExtractor: {e}")
-            print("Color features will be disabled")
-            use_color_features = False
-    
-    return model, feature_scaler, color_extractor
+    return model, feature_scaler
 
 
 def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params, 
                           original_dataframe=None, dataset_type='SPT3G_1500d',
                           use_uq=False, detection_threshold=0.1,
-                          use_desprior_candidates=False, use_color_features=False, 
-                          color_extractor=None):
+                          use_desprior_candidates=False):
     """Evaluate enhanced model with UQ capabilities."""
     print(f"Evaluating {'probabilistic' if use_uq else 'deterministic'} model on {len(test_dataset)} test images...")
     print("Using rank-based evaluation (top-k candidate success tracking)...")
@@ -499,8 +461,6 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 use_desprior_candidates=use_desprior_candidates,
                 filename=filename,
                 dataset_type=dataset_type,
-                use_color_features=use_color_features,
-                color_extractor=color_extractor,
                 **candidate_params
             )
             
@@ -551,11 +511,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         
                         # Extract visual features and combine with candidate features
                         from utils.candidate_based_bcg import extract_candidate_features
-                        visual_features, _ = extract_candidate_features(
-                            image, all_candidates, patch_size=candidate_params.get('patch_size', 64), 
-                            include_context=True, include_color=use_color_features, 
-                            color_extractor=color_extractor
-                        )
+                        visual_features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size, include_context=True)
                         
                         # Combine visual features with candidate-specific features
                         combined_features = np.hstack([visual_features, candidate_specific_features])
@@ -588,17 +544,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     predicted_bcg = None
                     scores = np.array([])
                 else:
-                    features, _ = extract_candidate_features(
-                        image, all_candidates, patch_size=candidate_params.get('patch_size', 64),
-                        include_context=True, include_color=use_color_features, 
-                        color_extractor=color_extractor
-                    )
-                    
-                    # Append additional features if provided (e.g., from BCG dataset)
-                    if additional_features is not None and len(features) > 0:
-                        # Replicate additional features for each candidate
-                        additional_features_repeated = np.tile(additional_features, (len(features), 1))
-                        features = np.concatenate([features, additional_features_repeated], axis=1)
+                    features, _ = extract_candidate_features(image, all_candidates, patch_size=args.patch_size)
                     
                     if scaler is not None:
                         scaled_features = scaler.transform(features)
@@ -889,11 +835,7 @@ def main(args):
                 
                 # Extract visual features
                 from utils.candidate_based_bcg import extract_candidate_features
-                visual_features, _ = extract_candidate_features(
-                    sample_image, candidates, patch_size=args.patch_size, 
-                    include_context=True, include_color=args.use_color_features, 
-                    color_extractor=color_extractor if args.use_color_features else None
-                )
+                visual_features, _ = extract_candidate_features(sample_image, candidates, patch_size=args.patch_size, include_context=True)
                 combined_features = np.hstack([visual_features, candidate_features])
                 base_feature_dim = combined_features.shape[1]
                 print(f"Determined DESprior feature dimension: {base_feature_dim}")
@@ -907,11 +849,7 @@ def main(args):
         from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
         candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
         if len(candidates) > 0:
-            features, _ = extract_candidate_features(
-                sample_image, candidates, patch_size=args.patch_size, 
-                include_context=True, include_color=args.use_color_features, 
-                color_extractor=color_extractor if args.use_color_features else None
-            )
+            features, _ = extract_candidate_features(sample_image, candidates, patch_size=args.patch_size, include_context=True)
             base_feature_dim = features.shape[1] if len(features) > 0 else 30
         else:
             base_feature_dim = 30  # Default for single-scale
@@ -930,11 +868,8 @@ def main(args):
     
     # Load trained model
     print("Loading trained model...")
-    if args.use_color_features:
-        print("Color features enabled - loading color extractor...")
-    model, scaler, color_extractor = load_trained_model(args.model_path, args.scaler_path, 
-                                                       base_feature_dim, use_uq=args.use_uq, 
-                                                       use_color_features=args.use_color_features)
+    model, scaler = load_trained_model(args.model_path, args.scaler_path, 
+                                     base_feature_dim, use_uq=args.use_uq)
     
     # Set up candidate parameters
     candidate_params = {
@@ -950,9 +885,7 @@ def main(args):
         model, scaler, test_subset, candidate_params, original_df, args.dataset_type,
         use_uq=args.use_uq, 
         detection_threshold=args.detection_threshold,
-        use_desprior_candidates=args.use_desprior_candidates,
-        use_color_features=args.use_color_features,
-        color_extractor=color_extractor
+        use_desprior_candidates=args.use_desprior_candidates
     )
     
     (predictions, targets, distances, failures, metrics, 
@@ -1287,10 +1220,6 @@ if __name__ == "__main__":
     parser.add_argument('--patch_size', type=int, default=64,
                        help='Size of square patches extracted around candidates (e.g., 64, 128, 256)')
     
-    
-    # Color features arguments
-    parser.add_argument('--use_color_features', action='store_true',
-                       help='Enable color feature extraction from RGB patches for red-sequence detection')
     
     parser.add_argument('--use_uq', action='store_true',
                        help='Enable uncertainty quantification with probabilistic outputs')
