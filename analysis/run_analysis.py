@@ -15,8 +15,8 @@ Usage:
 """
 
 import os
-# Fix NUMEXPR warning - MUST be set before ANY numpy/sklearn imports
-os.environ['NUMEXPR_MAX_THREADS'] = '64'
+# Fix NUMEXPR warning for HPC systems - set high enough for cluster nodes
+os.environ['NUMEXPR_MAX_THREADS'] = '128'
 
 import argparse
 import yaml

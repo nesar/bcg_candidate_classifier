@@ -9,8 +9,10 @@ The script maintains all existing functionality while adding options for these i
 """
 
 import os
-# Fix NUMEXPR warning - MUST be set before ANY numpy/sklearn imports
-os.environ['NUMEXPR_MAX_THREADS'] = '64'
+# Fix threading issues for HPC systems - set before any numpy/sklearn imports
+os.environ['NUMEXPR_MAX_THREADS'] = '128'
+os.environ['OMP_NUM_THREADS'] = '1'  # Prevent numpy threading conflicts
+os.environ['MKL_NUM_THREADS'] = '1'  # Intel MKL threading limit
 
 import subprocess
 import sys
