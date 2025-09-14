@@ -52,9 +52,18 @@ def convert_evaluation_csv_to_analysis_format(csv_path, output_path):
         y = df['true_class'].values
     elif 'correct' in df.columns:
         y = df['correct'].values.astype(int)
+    elif 'bcg_rank' in df.columns:
+        # Use BCG rank as proxy for success (rank 1 = success)
+        y = (df['bcg_rank'] == 1).astype(int)
+        print("Using BCG rank to derive labels: rank=1 -> label=1 (success), rank>1 -> label=0")
+    elif 'distance_error' in df.columns:
+        # Use distance error as proxy for success (small error = success)
+        threshold = 20.0  # 20 pixel threshold for success
+        y = (df['distance_error'] <= threshold).astype(int)
+        print(f"Using distance error to derive labels: error<={threshold} -> label=1 (success), error>{threshold} -> label=0")
     else:
         raise ValueError(
-            "No valid labels found in CSV. Expected 'true_class' or 'correct' column. "
+            "No valid labels found in CSV. Expected one of: 'true_class', 'correct', 'bcg_rank', or 'distance_error' column. "
             "Cannot proceed with analysis without real labels. "
             "Available columns: " + str(list(df.columns))
         )

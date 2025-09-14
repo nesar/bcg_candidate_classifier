@@ -218,21 +218,24 @@ class BCGAnalysisRunner:
                 self.X_test = data
                 self.y_test = None
                 
+        elif data_path.endswith('.csv'):
+            # CSV files from testing don't contain the model features, only evaluation results
+            # For feature importance analysis, we need to extract features from the original data
+            raise ValueError(
+                f"CSV evaluation results cannot be used directly for feature importance analysis. "
+                f"CSV files contain prediction results, not the original model features. "
+                f"Feature importance analysis requires the original high-dimensional feature vectors "
+                f"that were input to the model, not the evaluation metrics. "
+                f"Please provide a .npz file with the original features and labels, "
+                f"or modify the test script to save features during evaluation."
+            )
+                
         else:
-            # Try to load as dataset
-            dataset = BCGCandidateDataset(data_path, test_mode=True)
-            # Extract features and labels
-            self.X_test = []
-            self.y_test = []
-            
-            for i in range(len(dataset)):
-                sample = dataset[i]
-                self.X_test.append(sample['features'].numpy())
-                if 'label' in sample:
-                    self.y_test.append(sample['label'])
-            
-            self.X_test = np.array(self.X_test)
-            self.y_test = np.array(self.y_test) if self.y_test else None
+            raise ValueError(
+                f"Unsupported data format: {data_path}. "
+                f"Expected .npz or .pkl file containing original model features. "
+                f"CSV evaluation files cannot be used for feature importance analysis."
+            )
         
         print(f"Data loaded: {self.X_test.shape} samples")
         if self.y_test is not None:

@@ -547,16 +547,24 @@ def main():
         test_data_path = os.path.join(test_output_dir, "test_features.npz")
         if not os.path.exists(test_data_path):
             print("Warning: Test features file not found. Checking for evaluation data...")
-            # Try to use evaluation CSV data
+            # Check for proper feature data
+            test_features_npz = os.path.join(test_output_dir, "test_features.npz")
             evaluation_csv = os.path.join(test_output_dir, "evaluation_results.csv")
-            if os.path.exists(evaluation_csv):
-                print("Using evaluation results for analysis...")
-                # First try to prepare the data in the right format
-                prepare_data_command = f"python analysis/prepare_analysis_data.py --test_output_dir '{test_output_dir}'"
-                if run_command(prepare_data_command, "Preparing analysis data from evaluation results"):
-                    test_data_path = os.path.join(test_output_dir, "analysis_data.npz")
-                else:
-                    test_data_path = evaluation_csv
+            
+            if os.path.exists(test_features_npz):
+                print("Found test features file for analysis...")
+                test_data_path = test_features_npz
+            elif os.path.exists(evaluation_csv):
+                print("WARNING: Only evaluation CSV found, which lacks the original model features.")
+                print("Feature importance analysis requires the original high-dimensional feature vectors,")
+                print("not the evaluation results. Skipping feature importance analysis.")
+                print("")
+                print("To enable feature importance analysis in future runs:")
+                print("1. Modify test.py to save features during evaluation, or")
+                print("2. Re-extract features from the original dataset")
+                print("")
+                run_analysis = False
+                test_data_path = None
             else:
                 print("No suitable data found for analysis. Skipping feature importance analysis.")
                 run_analysis = False

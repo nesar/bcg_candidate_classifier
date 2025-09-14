@@ -445,6 +445,10 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
     # Rank-based evaluation tracking
     bcg_ranks = []
     
+    # FEATURE ANALYSIS: Collect features for post-analysis
+    all_features_list = []  # Store all features for analysis
+    sample_labels = []      # Store labels for analysis (rank-based success)
+    
     for i in range(len(test_dataset)):
         sample = test_dataset[i]
         image = sample['image']
@@ -574,6 +578,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                             scaled_features = scaler.transform(combined_features)
                             features_tensor = torch.FloatTensor(scaled_features)
                         else:
+                            scaled_features = combined_features
                             features_tensor = torch.FloatTensor(combined_features)
                         
                         with torch.no_grad():
@@ -582,11 +587,16 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         best_idx = np.argmax(scores)
                         predicted_bcg = tuple(all_candidates[best_idx])
                         
+                        # FEATURE ANALYSIS: Store the best candidate's features
+                        all_features_list.append(scaled_features[best_idx])
+                        
                 except Exception as e:
                     print(f"Warning: Failed to load DESprior candidates for {filename}: {e}")
                     predicted_bcg = None
                     scores = np.array([])
                     all_candidates = np.array([])
+                    # FEATURE ANALYSIS: Add placeholder for failed cases
+                    all_features_list.append(None)
                     
             else:
                 from utils.candidate_based_bcg import find_bcg_candidates, extract_candidate_features
@@ -595,6 +605,8 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 if len(all_candidates) == 0:
                     predicted_bcg = None
                     scores = np.array([])
+                    # FEATURE ANALYSIS: Add placeholder for no candidates case
+                    all_features_list.append(None)
                 else:
                     features, _ = extract_candidate_features(
                         image, all_candidates, patch_size=candidate_params.get('patch_size', 64),
@@ -612,6 +624,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         scaled_features = scaler.transform(features)
                         features_tensor = torch.FloatTensor(scaled_features)
                     else:
+                        scaled_features = features
                         features_tensor = torch.FloatTensor(features)
                     
                     with torch.no_grad():
@@ -619,6 +632,9 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     
                     best_idx = np.argmax(scores)
                     predicted_bcg = tuple(all_candidates[best_idx])
+                    
+                    # FEATURE ANALYSIS: Store the best candidate's features
+                    all_features_list.append(scaled_features[best_idx])
             
             # No UQ information available
             probabilities = np.array([])
@@ -644,6 +660,8 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
             all_scores_list.append(np.array([]))
             sample_metadata.append(metadata)
             bcg_ranks.append(None)  # No rank when no candidates found
+            # FEATURE ANALYSIS: Add label for failed case (failure = 0)
+            sample_labels.append(0)
             continue
         
         # Compute distance error
@@ -661,6 +679,11 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         # Calculate rank of true BCG among all candidates
         bcg_rank = calculate_bcg_rank(true_bcg, all_candidates, scores, distance_threshold=10.0)
         bcg_ranks.append(bcg_rank)
+        
+        # FEATURE ANALYSIS: Generate label based on rank and distance
+        # Success criteria: rank 1 (best candidate) OR distance <= 20 pixels
+        label = 1 if (bcg_rank == 1 or distance <= 20.0) else 0
+        sample_labels.append(label)
         
         # Check for potential failure cases - only consider it a failure if:
         # 1. Distance is large AND true BCG is not in top-3 candidates
@@ -744,7 +767,8 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
     
     return (predictions, targets, distances, failed_predictions, metrics,
             all_candidates_list, all_scores_list, test_images, sample_metadata,
-            all_probabilities_list, all_uncertainties_list, bcg_ranks)
+            all_probabilities_list, all_uncertainties_list, bcg_ranks,
+            all_features_list, sample_labels)
 
 
 def print_enhanced_evaluation_report(metrics, failed_predictions, use_uq=False):
@@ -996,7 +1020,8 @@ def main(args):
     
     (predictions, targets, distances, failures, metrics, 
      all_candidates_list, all_scores_list, test_images, sample_metadata,
-     all_probabilities_list, all_uncertainties_list, bcg_ranks) = results
+     all_probabilities_list, all_uncertainties_list, bcg_ranks,
+     all_features_list, sample_labels) = results
     
     # Print results
     print_enhanced_evaluation_report(metrics, failures, use_uq=args.use_uq)
@@ -1177,6 +1202,10 @@ def main(args):
     if args.save_results and len(predictions) > 0:
         results_file = os.path.join(args.output_dir, 'evaluation_results.csv')
         
+        # FEATURE ANALYSIS: Save collected features for analysis
+        features_file = os.path.join(args.output_dir, 'test_features.npz')
+        print(f"Saving {len(all_features_list)} samples of features for analysis...")
+        
         # Create enhanced results dictionary
         results_data = {
             'pred_x': [pred[0] for pred in predictions],
@@ -1265,6 +1294,35 @@ def main(args):
         results_df.to_csv(results_file, index=False)
         print(f"\nDetailed results saved to: {results_file}")
         print(f"Results include {len(results_df.columns)} columns: {', '.join(results_df.columns)}")
+        
+        # FEATURE ANALYSIS: Save features and labels for analysis
+        valid_features = []
+        valid_labels = []
+        valid_indices = []
+        
+        for i, (features, label) in enumerate(zip(all_features_list, sample_labels)):
+            if features is not None:  # Skip failed cases with no features
+                valid_features.append(features)
+                valid_labels.append(label)
+                valid_indices.append(i)
+        
+        if len(valid_features) > 0:
+            # Convert to numpy arrays
+            features_array = np.array(valid_features)
+            labels_array = np.array(valid_labels)
+            indices_array = np.array(valid_indices)
+            
+            # Save features, labels, and indices
+            np.savez(features_file, 
+                    X=features_array, 
+                    y=labels_array, 
+                    sample_indices=indices_array)
+            
+            print(f"Feature analysis data saved to: {features_file}")
+            print(f"Features: {features_array.shape}, Labels: {labels_array.shape}")
+            print(f"Success rate: {np.mean(labels_array):.3f} ({np.sum(labels_array)}/{len(labels_array)} samples)")
+        else:
+            print("Warning: No valid features collected for analysis")
         
         # Save UQ-specific analysis if enabled
         if args.use_uq:
