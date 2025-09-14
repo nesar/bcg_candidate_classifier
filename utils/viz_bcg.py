@@ -101,7 +101,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
             
             # Get top candidates by probability
             top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
-            colors = ['red', 'orange', 'yellow', 'lime', 'cyan']  # More colors for up to 5 ranks
+            colors = ["#FF0000", "#ff7b00", "#ff9900", "#ffe100", "#b7ff00"]  # More colors for up to 5 ranks
             
             # Plot all candidates as light gray squares first
             candidates_array = np.array(candidates)
@@ -126,19 +126,19 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                 
                 # Add probability label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=10, color=color, weight='bold', 
+                        fontsize=10, color='k', weight='bold', 
                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
                 
             # Update label for best candidate
             if len(top_indices) > 0:
                 best_idx = top_indices[0]
                 best_prob = probabilities[best_idx]
-                plt.scatter([], [], marker='o', s=400, 
-                           facecolors='none', edgecolors="red", linewidths=2, alpha=0.9,
-                           label=f'Best BCG (p={best_prob:.2f})')
+                # plt.scatter([], [], marker='o', s=400, 
+                #            facecolors='none', edgecolors="red", linewidths=2, alpha=0.9,
+                #            label=f'Best BCG (p={best_prob:.2f})')
         else:
             # Traditional visualization
-            # Plot all candidates as cyan squares (transparent with edges only)
+            # Plot all candidates as grey squares (transparent with edges only)
             if len(candidates) > 0:
                 candidates_array = np.array(candidates)
                 plt.scatter(candidates_array[:, 0], candidates_array[:, 1], 
@@ -152,8 +152,8 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                        label='Predicted BCG')
         
         # Always plot true BCG location as yellow circle (transparent with edges only)
-        plt.scatter(target[0], target[1], marker='o', s=850, 
-                   facecolors='none', edgecolors="#70F559", linewidths=3, alpha=1.0, ls='dashed',
+        plt.scatter(target[0], target[1], marker='o', s=950, 
+                   facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
                    label='True BCG')
         
         # Add title with information
@@ -346,7 +346,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
             
             # Get top candidates by probability
             top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
-            colors = ['red', 'orange', 'yellow', 'lime', 'cyan']  # More colors for up to 5 ranks
+            colors = ["#FF0000", "#ff7b00", "#ff9900", "#ffe100", "#b7ff00"]  # More colors for up to 5 ranks
             
             # Plot all candidates as light gray squares first
             candidates_array = np.array(candidates)
@@ -370,16 +370,16 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
                 
                 # Add probability label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=10, color=color, weight='bold', 
+                        fontsize=10, color='k', weight='bold', 
                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
                 
             # Update label for best candidate
             if len(top_indices) > 0:
                 best_idx = top_indices[0]
                 best_prob = probabilities[best_idx]
-                plt.scatter([], [], marker='o', s=400, 
-                           facecolors='none', edgecolors="red", linewidths=2, alpha=0.9,
-                           label=f'Best BCG (p={best_prob:.2f})')
+                # plt.scatter([], [], marker='o', s=400, 
+                #            facecolors='none', edgecolors="red", linewidths=2, alpha=0.9,
+                #            label=f'Best BCG (p={best_prob:.2f})')
         else:
             # Traditional visualization or fallback
             # Plot all candidates as gray squares (if available)
@@ -402,8 +402,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
                         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
         
         # Always plot true BCG location as blue dashed circle (same as successful cases)
-        plt.scatter(target[0], target[1], marker='o', s=850, 
-                   facecolors='none', edgecolors="#70F559", linewidths=3, alpha=1.0, ls='dashed',
+        plt.scatter(target[0], target[1], marker='o', s=950, 
+                   facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
                    label='True BCG')
         
         # Add title with failure information and cluster name
