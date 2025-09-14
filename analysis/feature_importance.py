@@ -227,10 +227,25 @@ class FeatureImportanceAnalyzer:
         else:
             importance = importance_results[method]['importance']
         
+        # Ensure feature names match importance array length
+        if len(self.feature_names) != len(importance):
+            print(f"Warning: Feature names ({len(self.feature_names)}) don't match importance array ({len(importance)})")
+            if len(self.feature_names) < len(importance):
+                # Extend feature names if too short
+                extended_names = self.feature_names.copy()
+                for i in range(len(self.feature_names), len(importance)):
+                    extended_names.append(f"feature_{i}")
+                feature_names = extended_names
+            else:
+                # Truncate feature names if too long
+                feature_names = self.feature_names[:len(importance)]
+        else:
+            feature_names = self.feature_names
+        
         ranking_df = pd.DataFrame({
-            'feature_name': self.feature_names,
+            'feature_name': feature_names,
             'importance': importance,
-            'rank': range(1, len(self.feature_names) + 1)
+            'rank': range(1, len(feature_names) + 1)
         }).sort_values('importance', ascending=False).reset_index(drop=True)
         
         ranking_df['rank'] = range(1, len(ranking_df) + 1)

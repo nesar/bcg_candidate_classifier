@@ -275,6 +275,21 @@ class BCGAnalysisRunner:
                 color_pca_components=feature_config.get('color_pca_components', 8)
             )
         
+        # Ensure feature names match actual data dimensions
+        if hasattr(self, 'X_test') and self.X_test is not None:
+            actual_features = self.X_test.shape[1]
+            if len(self.feature_names) != actual_features:
+                print(f"Warning: Generated feature names ({len(self.feature_names)}) don't match data dimensions ({actual_features})")
+                if len(self.feature_names) < actual_features:
+                    # Extend feature names
+                    for i in range(len(self.feature_names), actual_features):
+                        self.feature_names.append(f"feature_{i}")
+                    print(f"Extended feature names to {len(self.feature_names)} features")
+                else:
+                    # Truncate feature names
+                    self.feature_names = self.feature_names[:actual_features]
+                    print(f"Truncated feature names to {len(self.feature_names)} features")
+        
         print(f"Feature names setup: {len(self.feature_names)} features")
     
     def run_global_analysis(self):
@@ -382,32 +397,53 @@ class BCGAnalysisRunner:
         csv_dir.mkdir(exist_ok=True)
         
         for method in importance_results:
-            ranking_df = self.importance_analyzer.get_feature_ranking(
-                importance_results, method
-            )
-            ranking_df.to_csv(csv_dir / f'{method}_feature_ranking.csv', index=False)
+            try:
+                print(f"Generating CSV report for {method}...")
+                ranking_df = self.importance_analyzer.get_feature_ranking(
+                    importance_results, method
+                )
+                ranking_df.to_csv(csv_dir / f'{method}_feature_ranking.csv', index=False)
+                print(f"✓ Saved {method}_feature_ranking.csv")
+            except Exception as e:
+                print(f"✗ Failed to generate CSV report for {method}: {e}")
+                import traceback
+                traceback.print_exc()
         
         # 3. Generate comprehensive visual report
         plots_dir = output_dir / 'plots'
-        plot_paths = create_comprehensive_report(
-            importance_results, 
-            self.X_test[:100],  # Sample for plotting
-            self.feature_names,
-            plots_dir,
-            sample_indices=[r['sample_index'] for r in individual_results[:3]]
-        )
+        try:
+            print("Generating comprehensive visual report...")
+            plot_paths = create_comprehensive_report(
+                importance_results, 
+                self.X_test[:100],  # Sample for plotting
+                self.feature_names,
+                plots_dir,
+                sample_indices=[r['sample_index'] for r in individual_results[:3]]
+            )
+            print(f"✓ Visual reports saved to {plots_dir}")
+        except Exception as e:
+            print(f"✗ Failed to generate visual reports: {e}")
+            import traceback
+            traceback.print_exc()
+            plot_paths = []
         
         # 4. Generate individual sample plots
         individual_plots_dir = output_dir / 'individual_plots'
         individual_plots_dir.mkdir(exist_ok=True)
         
+        print("Generating individual sample plots...")
         for result in individual_results:
-            idx = result['sample_index']
-            fig = self.individual_analyzer.plot_sample_explanation(
-                result,
-                save_path=individual_plots_dir / f'sample_{idx}_explanation.png'
-            )
-            plt.close(fig)
+            try:
+                idx = result['sample_index']
+                fig = self.individual_analyzer.plot_sample_explanation(
+                    result,
+                    save_path=individual_plots_dir / f'sample_{idx}_explanation.png'
+                )
+                plt.close(fig)
+            except Exception as e:
+                print(f"✗ Failed to generate plot for sample {idx}: {e}")
+                continue
+        print(f"✓ Individual plots saved to {individual_plots_dir}")
         
         # 5. Generate summary report
         self.generate_summary_report(
