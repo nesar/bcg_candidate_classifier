@@ -1,0 +1,103 @@
+\begin{thebibliography}{}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\href{#1}{#1}}
+\providecommand{\dodoi}[1]{doi:~\href{http://doi.org/#1}{\nolinkurl{#1}}}
+\providecommand{\doeprint}[1]{\href{http://ascl.net/#1}{\nolinkurl{http://ascl.net/#1}}}
+\providecommand{\doarXiv}[1]{\href{https://arxiv.org/abs/#1}{\nolinkurl{https://arxiv.org/abs/#1}}}
+
+\bibitem[{{Abraham} {et~al.}(1996){Abraham}, {van den Bergh}, {Glazebrook},
+  {et~al.}}]{Abraham1996}
+{Abraham}, R.~G., {van den Bergh}, S., {Glazebrook}, K., {et~al.} 1996, \apjs,
+  107, 1, \dodoi{10.1086/192352}
+
+\bibitem[{{Bell} {et~al.}(2004){Bell}, {Wolf}, {Meisenheimer},
+  {et~al.}}]{Bell2004}
+{Bell}, E.~F., {Wolf}, C., {Meisenheimer}, K., {et~al.} 2004, \apj, 608, 752,
+  \dodoi{10.1086/420778}
+
+\bibitem[{{Bertin} \& {Arnouts}(1996)}]{Bertin1996}
+{Bertin}, E., \& {Arnouts}, S. 1996, \aaps, 117, 393,
+  \dodoi{10.1051/aas:1996164}
+
+\bibitem[{{Bruzual} \& {Charlot}(2003)}]{Bruzual2003}
+{Bruzual}, G., \& {Charlot}, S. 2003, \mnras, 344, 1000,
+  \dodoi{10.1046/j.1365-8711.2003.06897.x}
+
+\bibitem[{{Chen} {et~al.}(2024){Chen}, {Wang}, {Zhang}, {et~al.}}]{COSMIC2024}
+{Chen}, L., {Wang}, X., {Zhang}, Y., {et~al.} 2024, arXiv e-prints,
+  arXiv:2410.20083.
+\newblock \doarXiv{2410.20083}
+
+\bibitem[{{Conselice}(2003)}]{Conselice2003}
+{Conselice}, C.~J. 2003, \apjs, 147, 1, \dodoi{10.1086/375001}
+
+\bibitem[{{Conselice}(2014)}]{Conselice2014}
+---. 2014, \araa, 52, 291, \dodoi{10.1146/annurev-astro-081913-040037}
+
+\bibitem[{{Cooper} {et~al.}(2025){Cooper}, {Rykoff}, {Wechsler},
+  {et~al.}}]{Cooper2025DESI}
+{Cooper}, A.~P., {Rykoff}, E.~S., {Wechsler}, R.~H., {et~al.} 2025, arXiv
+  e-prints, arXiv:2506.06249.
+\newblock \doarXiv{2506.06249}
+
+\bibitem[{{Dainotti} {et~al.}(2025){Dainotti}, {Bogdan}, {Narendra},
+  {et~al.}}]{Dainotti2025InterpretableAI}
+{Dainotti}, M.~G., {Bogdan}, M., {Narendra}, A., {et~al.} 2025, Universe, 11,
+  187, \dodoi{10.3390/universe11060187}
+
+\bibitem[{{Dieleman} {et~al.}(2015){Dieleman}, {Willett}, \&
+  {Dambre}}]{Dieleman2015}
+{Dieleman}, S., {Willett}, K.~W., \& {Dambre}, J. 2015, \mnras, 450, 1441,
+  \dodoi{10.1093/mnras/stv632}
+
+\bibitem[{{Gal} \& {Ghahramani}(2016)}]{Gal2016MCDropout}
+{Gal}, Y., \& {Ghahramani}, Z. 2016, Proceedings of The 33rd International
+  Conference on Machine Learning, 48, 1050.
+\newblock \doarXiv{1506.02142}
+
+\bibitem[{{Gladders} \& {Yee}(2000)}]{Gladders2000}
+{Gladders}, M.~D., \& {Yee}, H.~K.~C. 2000, \aj, 120, 2148,
+  \dodoi{10.1086/301557}
+
+\bibitem[{{Grandis} {et~al.}(2025){Grandis}, {Lesci}, {Bocquet},
+  {et~al.}}]{Grandis2025LSST}
+{Grandis}, S., {Lesci}, G.~F., {Bocquet}, S., {et~al.} 2025, \aap, 692, A123,
+  \dodoi{10.1051/0004-6361/202454107-25}
+
+\bibitem[{{Hambleton} {et~al.}(2011){Hambleton}, {Gibson}, {Brook},
+  {et~al.}}]{Hambleton2011}
+{Hambleton}, K.~M., {Gibson}, B.~K., {Brook}, C.~B., {et~al.} 2011, \mnras,
+  418, 801, \dodoi{10.1111/j.1365-2966.2011.19532.x}
+
+\bibitem[{{Janulewicz} {et~al.}(2025{\natexlab{a}}){Janulewicz}, {Webb}, \&
+  {Perreault-Levasseur}}]{Janulewicz2025BCG}
+{Janulewicz}, P., {Webb}, T.~M.~A., \& {Perreault-Levasseur}, L.
+  2025{\natexlab{a}}, arXiv e-prints, arXiv:2502.00104.
+\newblock \doarXiv{2502.00104}
+
+\bibitem[{{Janulewicz} {et~al.}(2025{\natexlab{b}}){Janulewicz}, {Webb}, \&
+  {Perreault-Levasseur}}]{Janulewicz2025}
+---. 2025{\natexlab{b}}, arXiv e-prints, arXiv:2502.00104.
+\newblock \doarXiv{2502.00104}
+
+\bibitem[{{Kodama} \& {Arimoto}(1997)}]{Kodama1997}
+{Kodama}, T., \& {Arimoto}, N. 1997, \aap, 320, 41.
+\newblock \doarXiv{astro-ph/9609112}
+
+\bibitem[{{Laves} {et~al.}(2019){Laves}, {Ihler}, {Kortmann}, \&
+  {Ortmaier}}]{Laves2019WellCalibratedMU}
+{Laves}, M.-H., {Ihler}, S., {Kortmann}, K.-P., \& {Ortmaier}, T. 2019, arXiv
+  e-prints, arXiv:1909.13550.
+\newblock \doarXiv{1909.13550}
+
+\bibitem[{{Rykoff} {et~al.}(2014){Rykoff}, {Rozo}, {Busha},
+  {et~al.}}]{Rykoff2014redMaPPer}
+{Rykoff}, E.~S., {Rozo}, E., {Busha}, M.~T., {et~al.} 2014, \apj, 785, 104,
+  \dodoi{10.1088/0004-637X/785/2/104}
+
+\bibitem[{{Rykoff} {et~al.}(2016){Rykoff}, {Rozo}, {Hollowood},
+  {et~al.}}]{Rykoff2016DES}
+{Rykoff}, E.~S., {Rozo}, E., {Hollowood}, D., {et~al.} 2016, \apjs, 224, 1,
+  \dodoi{10.3847/0067-0049/224/1/1}
+
+\end{thebibliography}

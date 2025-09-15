@@ -22,6 +22,153 @@ class PhysicalFeatureInterpreter:
         self.feature_groups = self._create_feature_groups()
         self.feature_mappings = self._create_feature_mappings()
     
+    def validate_feature_names(self, feature_names: List[str], importance_values: Optional[List[float]] = None) -> Dict:
+        """
+        Validate feature names and identify potential issues.
+        
+        Args:
+            feature_names: List of feature names
+            importance_values: Optional list of importance values to check for duplicates
+            
+        Returns:
+            Dictionary with validation results
+        """
+        validation_results = {
+            'total_features': len(feature_names),
+            'unique_features': len(set(feature_names)),
+            'duplicates': [],
+            'color_pca_components': [],
+            'unmapped_features': [],
+            'identical_values': [],
+            'warnings': []
+        }
+        
+        # Check for duplicate feature names
+        seen_names = {}
+        for i, name in enumerate(feature_names):
+            if name in seen_names:
+                validation_results['duplicates'].append({
+                    'name': name,
+                    'indices': [seen_names[name], i]
+                })
+            else:
+                seen_names[name] = i
+        
+        # Check color PCA components
+        color_pca_features = [name for name in feature_names if name.startswith('color_pca_')]
+        validation_results['color_pca_components'] = color_pca_features
+        
+        # Check for unmapped features
+        for name in feature_names:
+            if name not in self.feature_mappings and not any([
+                name.startswith('color_pca_'),
+                name.startswith('color_conv_'),
+                name.startswith('moment_'),
+                name.startswith('context_'),
+                name.startswith('feature_')
+            ]):
+                validation_results['unmapped_features'].append(name)
+        
+        # Check for identical importance values if provided
+        if importance_values is not None:
+            if len(importance_values) == len(feature_names):
+                value_groups = {}
+                for i, (name, value) in enumerate(zip(feature_names, importance_values)):
+                    # Round to avoid floating point precision issues
+                    rounded_value = round(value, 10)
+                    if rounded_value not in value_groups:
+                        value_groups[rounded_value] = []
+                    value_groups[rounded_value].append((i, name))
+                
+                # Find groups with multiple features
+                for value, features in value_groups.items():
+                    if len(features) > 1:
+                        validation_results['identical_values'].append({
+                            'value': value,
+                            'count': len(features),
+                            'features': [f[1] for f in features]
+                        })
+        
+        # Generate warnings
+        if validation_results['duplicates']:
+            validation_results['warnings'].append(f"Found {len(validation_results['duplicates'])} duplicate feature names")
+        
+        if len(validation_results['color_pca_components']) != 8:
+            validation_results['warnings'].append(f"Expected 8 color PCA components, found {len(validation_results['color_pca_components'])}")
+        
+        if validation_results['identical_values']:
+            identical_count = sum(group['count'] for group in validation_results['identical_values'])
+            validation_results['warnings'].append(f"Found {identical_count} features with identical importance values")
+        
+        return validation_results
+    
+    def print_color_feature_summary(self, feature_names: List[str], importance_values: Optional[List[float]] = None):
+        """
+        Print a detailed summary of color features for debugging.
+        
+        Args:
+            feature_names: List of feature names
+            importance_values: Optional importance values
+        """
+        print("\n" + "="*60)
+        print("COLOR FEATURE ANALYSIS SUMMARY")
+        print("="*60)
+        
+        # Find all color-related features
+        color_features = {
+            'pca_components': [],
+            'ratios': [],
+            'convolution': [],
+            'spatial': [],
+            'gradient': [],
+            'other': []
+        }
+        
+        for i, name in enumerate(feature_names):
+            importance = importance_values[i] if importance_values else None
+            
+            if name.startswith('color_pca_'):
+                color_features['pca_components'].append((name, importance))
+            elif 'ratio' in name and 'color' in name:
+                color_features['ratios'].append((name, importance))
+            elif name.startswith('color_conv_'):
+                color_features['convolution'].append((name, importance))
+            elif 'spatial' in name and 'color' in name:
+                color_features['spatial'].append((name, importance))
+            elif 'grad' in name and 'color' in name:
+                color_features['gradient'].append((name, importance))
+            elif 'color' in name:
+                color_features['other'].append((name, importance))
+        
+        # Print summary for each category
+        for category, features in color_features.items():
+            if features:
+                print(f"\n{category.upper().replace('_', ' ')} ({len(features)} features):")
+                for name, importance in features:
+                    mapped_name = self.map_feature_names([name])[0]
+                    if importance is not None:
+                        print(f"  {name:20} -> {mapped_name:35} (importance: {importance:.6f})")
+                    else:
+                        print(f"  {name:20} -> {mapped_name}")
+        
+        # Check for identical importance values among color features
+        if importance_values:
+            all_color_features = []
+            for category_features in color_features.values():
+                all_color_features.extend(category_features)
+            
+            color_values = [imp for _, imp in all_color_features if imp is not None]
+            color_names = [name for name, imp in all_color_features if imp is not None]
+            
+            if color_values:
+                validation = self.validate_feature_names(color_names, color_values)
+                if validation['identical_values']:
+                    print(f"\n⚠️  IDENTICAL COLOR FEATURE VALUES:")
+                    for group in validation['identical_values']:
+                        print(f"    Value {group['value']:.6f}: {group['features']}")
+        
+        print("="*60)
+    
     def _create_feature_groups(self) -> Dict[str, Dict]:
         """Create physical feature groups from technical features."""
         return {
@@ -42,7 +189,7 @@ class PhysicalFeatureInterpreter:
                 'description': 'Red-sequence and color properties',
                 'technical_features': ['color_pca_0', 'color_pca_1', 'color_pca_2', 'color_pca_3', 'color_pca_4',
                                      'color_pca_5', 'color_pca_6', 'color_pca_7', 'color_ratio_rg', 'color_ratio_rb',
-                                     'color_ratio_gb', 'color_variation'],
+                                     'color_ratio_gb', 'color_variation', 'color_conv_', 'color_grad_', 'color_spatial_'],
                 'combination_method': 'weighted_sum',
                 'color': '#45B7D1'
             },
@@ -89,10 +236,17 @@ class PhysicalFeatureInterpreter:
             'moment_m11': 'XY-correlation',
             'moment_m02': 'Y-spread',
             
-            # Color
-            'color_pca_0': 'Primary Color Component',
-            'color_pca_1': 'Secondary Color Component',
-            'color_pca_2': 'Tertiary Color Component',
+            # Color PCA Components - each represents different color aspects
+            'color_pca_0': 'Red-Sequence Color (PC1)',
+            'color_pca_1': 'Blue-Red Contrast (PC2)',
+            'color_pca_2': 'Color Uniformity (PC3)',
+            'color_pca_3': 'Spatial Color Gradient (PC4)',
+            'color_pca_4': 'Multi-Band Color (PC5)',
+            'color_pca_5': 'Color Asymmetry (PC6)',
+            'color_pca_6': 'Chromatic Structure (PC7)',
+            'color_pca_7': 'Color Noise Pattern (PC8)',
+            
+            # Direct Color Ratios
             'color_ratio_rg': 'Red-Green Color',
             'color_ratio_rb': 'Red-Blue Color',
             'color_ratio_gb': 'Green-Blue Color',
@@ -131,9 +285,39 @@ class PhysicalFeatureInterpreter:
                 idx = name.split('_')[1]
                 mapped_names.append(f'Extended Feature {idx}')
             elif name.startswith('color_pca_'):
-                # Handle additional color PCA components
-                idx = name.split('_')[2]
-                mapped_names.append(f'Color Component {idx}')
+                # Handle color PCA components with proper numbering
+                try:
+                    idx = int(name.split('_')[2])
+                    # Map to predefined PCA component meanings
+                    pca_meanings = [
+                        'Red-Sequence Color (PC1)',
+                        'Blue-Red Contrast (PC2)',
+                        'Color Uniformity (PC3)',
+                        'Spatial Color Gradient (PC4)',
+                        'Multi-Band Color (PC5)',
+                        'Color Asymmetry (PC6)',
+                        'Chromatic Structure (PC7)',
+                        'Color Noise Pattern (PC8)'
+                    ]
+                    if idx < len(pca_meanings):
+                        mapped_names.append(pca_meanings[idx])
+                    else:
+                        mapped_names.append(f'Color Component {idx+1}')
+                except (ValueError, IndexError):
+                    mapped_names.append(f'Color Component (Unknown)')
+            elif name.startswith('color_conv_'):
+                # Handle color convolution features
+                parts = name.split('_')
+                if len(parts) >= 4:
+                    channel = parts[2].upper()
+                    kernel = parts[3].title()
+                    mapped_names.append(f'{channel}-Channel {kernel} Response')
+                else:
+                    mapped_names.append('Color Convolution Feature')
+            elif name.startswith('color_'):
+                # Handle other color features with better naming
+                clean_name = name.replace('color_', '').replace('_', ' ').title()
+                mapped_names.append(f'Color: {clean_name}')
             else:
                 # Keep original name if no mapping found
                 mapped_names.append(name.replace('_', ' ').title())
@@ -151,13 +335,29 @@ class PhysicalFeatureInterpreter:
         Returns:
             Dictionary with physical group importance scores
         """
-        physical_results = {}
+        # Validate feature names first
+        validation_results = self.validate_feature_names(feature_names)
+        if validation_results['warnings']:
+            print("⚠️  Feature validation warnings:")
+            for warning in validation_results['warnings']:
+                print(f"    {warning}")
+        
+        physical_results = {
+            'validation': validation_results
+        }
         
         for method, results in importance_results.items():
             if method == 'shap':
                 importance_scores = results['mean_abs_shap']
             else:
                 importance_scores = results['importance']
+            
+            # Validate importance values for this method
+            method_validation = self.validate_feature_names(feature_names, importance_scores)
+            if method_validation['identical_values']:
+                print(f"⚠️  {method.upper()} has identical values:")
+                for group in method_validation['identical_values']:
+                    print(f"    Value {group['value']:.6f}: {group['features']}")
             
             # Create feature importance mapping
             feature_importance_map = dict(zip(feature_names, importance_scores))
@@ -205,8 +405,30 @@ class PhysicalFeatureInterpreter:
         if actual_feature == template_feature:
             return True
         
-        # Handle color_pca extensions
+        # Handle color_pca extensions - exact matching for PCA components
         if template_feature.startswith('color_pca_') and actual_feature.startswith('color_pca_'):
+            # Only match if the component number is within the expected range
+            try:
+                actual_idx = int(actual_feature.split('_')[2])
+                template_idx = int(template_feature.split('_')[2])
+                return actual_idx == template_idx
+            except (ValueError, IndexError):
+                return actual_feature == template_feature
+        
+        # Handle color convolution features
+        if template_feature.startswith('color_conv_') and actual_feature.startswith('color_conv_'):
+            return True
+        
+        # Handle color gradient features  
+        if template_feature.startswith('color_grad_') and actual_feature.startswith('color_grad_'):
+            return True
+        
+        # Handle color spatial features
+        if template_feature.startswith('color_spatial_') and actual_feature.startswith('color_spatial_'):
+            return True
+        
+        # Handle general color feature prefixes
+        if template_feature.endswith('_') and actual_feature.startswith(template_feature.rstrip('_')):
             return True
         
         # Handle moment extensions
