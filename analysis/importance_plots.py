@@ -361,7 +361,9 @@ def create_shap_summary_plot(shap_values, X, feature_names, save_path=None,
                              plot_type='violin', max_display=max_display, show=False)
     except (ValueError, RuntimeError) as e:
         print(f"Warning: SHAP plot failed ({e}), creating fallback plot")
-        # Create fallback bar plot with feature importance
+        # Clear current plot and create fallback bar plot with feature importance
+        plt.clf()
+        
         importance = np.abs(shap_values).mean(axis=0)
         top_indices = np.argsort(importance)[-max_display:][::-1]
         
