@@ -597,7 +597,7 @@ runner = BCGAnalysisRunner(**config)
 try:
     results = runner.run_complete_analysis()
     print(f'Analysis completed successfully!')
-    print(f'Results saved to: {{results[\"output_directory\"]}}')
+    print(f'Results saved to: {analysis_output_dir}')
 except Exception as e:
     print(f'Analysis failed: {{e}}')
     import traceback

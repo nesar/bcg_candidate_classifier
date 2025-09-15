@@ -46,6 +46,7 @@ from .feature_importance import (
 )
 from .importance_plots import ImportancePlotter, create_comprehensive_report
 from .individual_analysis import IndividualSampleAnalyzer, analyze_prediction_boundary
+from .physical_interpretation import PhysicalFeatureInterpreter
 
 # Import model and data utilities (adjust imports based on your project structure)
 import sys
@@ -90,6 +91,7 @@ class BCGAnalysisRunner:
         self.importance_analyzer = None
         self.individual_analyzer = None
         self.plotter = None
+        self.physical_interpreter = PhysicalFeatureInterpreter()
     
     @staticmethod
     def load_config(config_path):
@@ -445,13 +447,168 @@ class BCGAnalysisRunner:
                 continue
         print(f"✓ Individual plots saved to {individual_plots_dir}")
         
-        # 5. Generate summary report
+        # 5. Generate physical interpretation plots and reports
+        try:
+            print("Generating physical interpretation analysis...")
+            self._generate_physical_reports(importance_results, individual_results, output_dir)
+            print("✓ Physical interpretation reports generated")
+        except Exception as e:
+            print(f"✗ Failed to generate physical interpretation reports: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # 6. Generate summary report
         self.generate_summary_report(
             importance_results, individual_results, group_results, output_dir
         )
         
         print(f"Reports generated successfully in: {output_dir}")
         return output_dir
+    
+    def _generate_physical_reports(self, importance_results, individual_results, output_dir):
+        """Generate physical interpretation reports and plots."""
+        
+        # Compute physical importance from technical results
+        physical_results = self.physical_interpreter.compute_physical_importance(
+            importance_results, self.feature_names
+        )
+        
+        # Create physical plots directory
+        physical_plots_dir = output_dir / 'plots' / 'physical_interpretation'
+        physical_plots_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create physical individual plots directory  
+        physical_individual_dir = output_dir / 'individual_plots' / 'physical_interpretation'
+        physical_individual_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate physical importance plots for each method
+        for method in importance_results.keys():
+            try:
+                # Main physical importance plot
+                fig = self.physical_interpreter.create_physical_importance_plot(
+                    physical_results, method, 
+                    save_path=physical_plots_dir / f'{method}_physical_importance.png'
+                )
+                plt.close(fig)
+                
+                # Detailed breakdown plot
+                fig = self.physical_interpreter.create_detailed_breakdown_plot(
+                    physical_results, method,
+                    save_path=physical_plots_dir / f'{method}_physical_breakdown.png'
+                )
+                plt.close(fig)
+                
+            except Exception as e:
+                print(f"✗ Failed to generate physical plots for {method}: {e}")
+                continue
+        
+        # Generate physical summary table
+        try:
+            summary_df = self.physical_interpreter.create_summary_table(physical_results)
+            summary_df.to_csv(output_dir / 'csv_reports' / 'physical_feature_summary.csv', index=False)
+            print("✓ Physical feature summary table saved")
+        except Exception as e:
+            print(f"✗ Failed to generate physical summary table: {e}")
+        
+        # Generate physical interpretation for individual samples
+        try:
+            self._generate_physical_individual_analysis(
+                individual_results, physical_individual_dir
+            )
+        except Exception as e:
+            print(f"✗ Failed to generate physical individual analysis: {e}")
+    
+    def _generate_physical_individual_analysis(self, individual_results, output_dir):
+        """Generate physical interpretation plots for individual samples."""
+        
+        for result in individual_results[:5]:  # Limit to first 5 samples to avoid too many plots
+            try:
+                sample_idx = result['sample_index']
+                
+                if 'shap_values' in result:
+                    # Create physical SHAP interpretation
+                    fig = self._create_physical_individual_plot(result, sample_idx)
+                    if fig:
+                        plt.savefig(output_dir / f'sample_{sample_idx}_physical_explanation.png', 
+                                   dpi=300, bbox_inches='tight')
+                        plt.close(fig)
+                        
+            except Exception as e:
+                print(f"✗ Failed to generate physical plot for sample {sample_idx}: {e}")
+                continue
+    
+    def _create_physical_individual_plot(self, result, sample_idx):
+        """Create physical interpretation plot for individual sample."""
+        
+        if 'shap_values' not in result:
+            return None
+        
+        shap_values = result['shap_values']
+        
+        # Map features to physical groups
+        feature_groups = self.physical_interpreter.feature_groups
+        group_contributions = {}
+        
+        for group_name, group_info in feature_groups.items():
+            group_shap = 0.0
+            group_count = 0
+            
+            for tech_feature in group_info['technical_features']:
+                # Find matching features
+                matching_indices = []
+                for i, feature_name in enumerate(self.feature_names):
+                    if self.physical_interpreter._feature_matches(feature_name, tech_feature):
+                        matching_indices.append(i)
+                
+                # Sum SHAP values for matching features
+                for idx in matching_indices:
+                    if idx < len(shap_values):
+                        group_shap += abs(shap_values[idx])
+                        group_count += 1
+            
+            if group_count > 0:
+                group_contributions[group_name] = group_shap
+        
+        if not group_contributions:
+            return None
+        
+        # Create plot
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        groups = list(group_contributions.keys())
+        contributions = list(group_contributions.values())
+        colors = [feature_groups[group]['color'] for group in groups]
+        
+        # Sort by contribution
+        sorted_data = sorted(zip(groups, contributions, colors), key=lambda x: x[1], reverse=True)
+        groups, contributions, colors = zip(*sorted_data)
+        
+        # Create bar plot
+        bars = ax.barh(range(len(groups)), contributions, color=colors, alpha=0.7, edgecolor='black')
+        
+        # Customize plot
+        ax.set_yticks(range(len(groups)))
+        ax.set_yticklabels([group.replace('_', ' ').title() for group in groups])
+        ax.set_xlabel('SHAP Contribution (Absolute)', fontsize=12)
+        ax.set_title(f'Physical Feature Contributions - Sample {sample_idx}', fontsize=14, fontweight='bold')
+        
+        # Add value labels
+        for bar, contribution in zip(bars, contributions):
+            width = bar.get_width()
+            ax.text(width + max(contributions) * 0.01, bar.get_y() + bar.get_height()/2, 
+                   f'{contribution:.3f}', ha='left', va='center', fontweight='bold')
+        
+        # Add prediction info if available
+        if 'prediction' in result:
+            pred_info = result['prediction']
+            ax.text(0.02, 0.98, 
+                   f"Predicted: {pred_info.get('predicted_class', 'Unknown')}\n"
+                   f"Confidence: {pred_info.get('prediction_confidence', 0):.3f}",
+                   transform=ax.transAxes, va='top', ha='left',
+                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
+        plt.tight_layout()
+        return fig
     
     def generate_summary_report(self, importance_results, individual_results, 
                               group_results, output_dir):
@@ -558,6 +715,68 @@ class BCGAnalysisRunner:
             report_lines.append(f"  Average Importance: {top_group[1]['mean_importance']:.4f}")
             report_lines.append(f"  Number of Features: {top_group[1]['feature_count']}")
             report_lines.append("")
+        
+        # Physical interpretation summary
+        try:
+            physical_results = self.physical_interpreter.compute_physical_importance(
+                importance_results, self.feature_names
+            )
+            
+            report_lines.append("=== Physical Feature Interpretation ===\\n")
+            
+            # Most important physical group across methods
+            all_physical_groups = {}
+            for method, results in physical_results.items():
+                for group, details in results['group_details'].items():
+                    if group not in all_physical_groups:
+                        all_physical_groups[group] = []
+                    all_physical_groups[group].append(details['total_importance'])
+            
+            # Compute average importance for each physical group
+            avg_physical_importance = {
+                group: np.mean(importances) 
+                for group, importances in all_physical_groups.items()
+            }
+            
+            sorted_physical = sorted(avg_physical_importance.items(), 
+                                   key=lambda x: x[1], reverse=True)
+            
+            if sorted_physical:
+                report_lines.append("Most Important Physical Feature Groups:")
+                for i, (group, avg_importance) in enumerate(sorted_physical[:5]):
+                    group_name = group.replace('_', ' ').title()
+                    if physical_results:
+                        first_method = list(physical_results.keys())[0]
+                        if group in physical_results[first_method]['group_details']:
+                            description = physical_results[first_method]['group_details'][group]['description']
+                            report_lines.append(f"  {i+1}. {group_name}: {avg_importance:.4f}")
+                            report_lines.append(f"     {description}")
+                
+                report_lines.append("")
+                report_lines.append("Physical Interpretation Insights:")
+                top_group, top_importance = sorted_physical[0]
+                top_group_name = top_group.replace('_', ' ').title()
+                report_lines.append(f"  - {top_group_name} features are most critical for BCG classification")
+                
+                if len(sorted_physical) > 1:
+                    second_group, second_importance = sorted_physical[1]
+                    second_group_name = second_group.replace('_', ' ').title()
+                    report_lines.append(f"  - {second_group_name} features provide secondary classification power")
+                
+                # Identify if color is important
+                color_importance = avg_physical_importance.get('color_information', 0)
+                morph_importance = avg_physical_importance.get('morphology', 0)
+                
+                if color_importance > morph_importance:
+                    report_lines.append(f"  - Color information is more important than morphology for this dataset")
+                else:
+                    report_lines.append(f"  - Morphological features dominate over color information")
+                
+                report_lines.append("")
+        
+        except Exception as e:
+            report_lines.append("=== Physical Feature Interpretation ===\\n")
+            report_lines.append(f"Physical interpretation failed: {e}\\n")
         
         # Save report
         with open(output_dir / 'analysis_summary.txt', 'w') as f:

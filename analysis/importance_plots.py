@@ -332,6 +332,20 @@ def create_shap_summary_plot(shap_values, X, feature_names, save_path=None,
     if not SHAP_AVAILABLE:
         raise ImportError("SHAP is required for SHAP plots")
     
+    # Validate dimensions
+    if len(shap_values) != len(X):
+        print(f"Warning: SHAP values ({len(shap_values)}) and X ({len(X)}) have different sample counts")
+        min_samples = min(len(shap_values), len(X))
+        shap_values = shap_values[:min_samples]
+        X = X[:min_samples]
+    
+    if shap_values.shape[1] > len(feature_names):
+        print(f"Warning: SHAP values have {shap_values.shape[1]} features but only {len(feature_names)} feature names")
+        feature_names = feature_names + [f'feature_{i}' for i in range(len(feature_names), shap_values.shape[1])]
+    elif shap_values.shape[1] < len(feature_names):
+        print(f"Warning: Truncating feature names from {len(feature_names)} to {shap_values.shape[1]}")
+        feature_names = feature_names[:shap_values.shape[1]]
+    
     # Create plot
     plt.figure(figsize=(12, max(8, max_display * 0.4)))
     
