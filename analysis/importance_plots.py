@@ -349,15 +349,27 @@ def create_shap_summary_plot(shap_values, X, feature_names, save_path=None,
     # Create plot
     plt.figure(figsize=(12, max(8, max_display * 0.4)))
     
-    if plot_type == 'bar':
-        shap.summary_plot(shap_values, X, feature_names=feature_names, 
-                         plot_type='bar', max_display=max_display, show=False)
-    elif plot_type == 'beeswarm':
-        shap.summary_plot(shap_values, X, feature_names=feature_names,
-                         max_display=max_display, show=False)
-    elif plot_type == 'violin':
-        shap.summary_plot(shap_values, X, feature_names=feature_names,
-                         plot_type='violin', max_display=max_display, show=False)
+    try:
+        if plot_type == 'bar':
+            shap.summary_plot(shap_values, X, feature_names=feature_names, 
+                             plot_type='bar', max_display=max_display, show=False)
+        elif plot_type == 'beeswarm':
+            shap.summary_plot(shap_values, X, feature_names=feature_names,
+                             max_display=max_display, show=False)
+        elif plot_type == 'violin':
+            shap.summary_plot(shap_values, X, feature_names=feature_names,
+                             plot_type='violin', max_display=max_display, show=False)
+    except (ValueError, RuntimeError) as e:
+        print(f"Warning: SHAP plot failed ({e}), creating fallback plot")
+        # Create fallback bar plot with feature importance
+        importance = np.abs(shap_values).mean(axis=0)
+        top_indices = np.argsort(importance)[-max_display:][::-1]
+        
+        plt.barh(range(len(top_indices)), importance[top_indices])
+        plt.yticks(range(len(top_indices)), [feature_names[i] for i in top_indices])
+        plt.xlabel('Mean |SHAP value|')
+        plt.title(f'SHAP Feature Importance ({plot_type} plot failed)')
+        plt.tight_layout()
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')

@@ -275,9 +275,20 @@ class PhysicalFeatureInterpreter:
         
         group_details = physical_results[method]['group_details']
         
-        # Create subplot for each group
+        # Create subplot for each group with adaptive height
         n_groups = len(group_details)
-        fig, axes = plt.subplots(n_groups, 1, figsize=(14, 4 * n_groups))
+        
+        # Calculate adaptive height based on number of features in each group
+        total_height = 0
+        group_heights = []
+        for group_name, details in group_details.items():
+            n_features = len(details['contributing_features'])
+            # Minimum 3 inches, then 0.4 inches per feature, with some padding
+            group_height = max(3, n_features * 0.4 + 1.5)
+            group_heights.append(group_height)
+            total_height += group_height
+        
+        fig, axes = plt.subplots(n_groups, 1, figsize=(14, max(total_height, 6)))
         if n_groups == 1:
             axes = [axes]
         
@@ -300,24 +311,38 @@ class PhysicalFeatureInterpreter:
                 bars = ax.barh(range(len(physical_names)), importances, 
                               color=details['color'], alpha=0.7, edgecolor='black')
                 
-                ax.set_yticks(range(len(physical_names)))
-                ax.set_yticklabels(physical_names, fontsize=10)
-                ax.set_xlabel('Importance Score', fontsize=10)
-                ax.set_title(f"{group_name.replace('_', ' ').title()}: {details['description']}", 
-                           fontsize=12, fontweight='bold')
+                # Adjust font size based on number of features
+                n_features = len(physical_names)
+                if n_features > 15:
+                    label_fontsize = 8
+                    title_fontsize = 10
+                elif n_features > 10:
+                    label_fontsize = 9
+                    title_fontsize = 11
+                else:
+                    label_fontsize = 10
+                    title_fontsize = 12
                 
-                # Add value labels
+                ax.set_yticks(range(len(physical_names)))
+                ax.set_yticklabels(physical_names, fontsize=label_fontsize)
+                ax.set_xlabel('Importance Score', fontsize=label_fontsize)
+                ax.set_title(f"{group_name.replace('_', ' ').title()}: {details['description']}", 
+                           fontsize=title_fontsize, fontweight='bold')
+                
+                # Add value labels with adaptive font size
+                value_fontsize = max(6, label_fontsize - 2)
                 for bar, importance in zip(bars, importances):
                     width = bar.get_width()
                     ax.text(width + max(importances) * 0.01, bar.get_y() + bar.get_height()/2, 
-                           f'{importance:.3f}', ha='left', va='center', fontsize=9)
+                           f'{importance:.3f}', ha='left', va='center', fontsize=value_fontsize)
             else:
                 ax.text(0.5, 0.5, 'No features found for this group', 
                        ha='center', va='center', transform=ax.transAxes, fontsize=12)
                 ax.set_title(f"{group_name.replace('_', ' ').title()}: {details['description']}", 
                            fontsize=12, fontweight='bold')
         
-        plt.tight_layout()
+        # Use better spacing for plots with many subplots
+        plt.tight_layout(pad=2.0, h_pad=3.0)
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
