@@ -416,10 +416,10 @@ def main():
         train_command += " --use_redmapper_probs"
     
     if z_range:
-        train_command += f" --z_range \"{z_range}\""
+        train_command += f" --z_range {z_range}"
     
     if delta_mstar_z_range:
-        train_command += f" --delta_mstar_z_range \"{delta_mstar_z_range}\""
+        train_command += f" --delta_mstar_z_range {delta_mstar_z_range}"
     
     if use_desprior_candidates:
         train_command += " --use_desprior_candidates"
@@ -519,10 +519,10 @@ def main():
         test_command += " --use_redmapper_probs"
     
     if z_range:
-        test_command += f" --z_range \"{z_range}\""
+        test_command += f" --z_range {z_range}"
     
     if delta_mstar_z_range:
-        test_command += f" --delta_mstar_z_range \"{delta_mstar_z_range}\""
+        test_command += f" --delta_mstar_z_range {delta_mstar_z_range}"
     
     if use_desprior_candidates:
         test_command += " --use_desprior_candidates"
