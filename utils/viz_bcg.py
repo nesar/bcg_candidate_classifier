@@ -33,7 +33,7 @@ def show_BCG(image, BCG, sample_idx=None, save_path=None):
 
 
 def show_predictions_with_candidates(images, targets, predictions, all_candidates_list, candidate_scores_list=None, indices=None, save_dir=None, phase=None, 
-                                   probabilities_list=None, detection_threshold=0.5, use_uq=False):
+                                   probabilities_list=None, detection_threshold=0.5, use_uq=False, metadata_list=None):
     """
     Show images with candidate local maxima (squares) and selected BCG (circle).
     Enhanced with UQ support: probability labels and adaptive candidate display.
@@ -50,6 +50,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         probabilities_list: List of probability arrays for each image (for UQ mode)
         detection_threshold: Probability threshold for detections (for UQ mode)
         use_uq: Whether to use UQ-specific visualization features
+        metadata_list: List of metadata dictionaries for each image (for cluster names)
     """
     if indices is None:
         indices = range(min(5, len(images)))
@@ -156,11 +157,17 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                    facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
                    label='True BCG')
         
-        # Add title with information
+        # Add title with information including cluster name
+        cluster_name = 'Unknown'
+        if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
+            cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
+        
         title = f'Candidate-Based BCG Prediction - Sample {idx+1}'
         if phase:
             title = f'{phase} - Sample {idx+1}'
         
+        # Add cluster name as second line
+        cluster_line = f'{cluster_name}'
         subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
         if use_uq and len(probabilities) > 0:
             max_prob = np.max(probabilities)
@@ -171,7 +178,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
             avg_score = np.mean(scores)
             subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
         
-        plt.title(f'{title}\n{subtitle}', fontsize=12)
+        plt.title(f'{title}\n{cluster_line}\n{subtitle}', fontsize=12)
         plt.legend(loc='upper right', bbox_to_anchor=(1, 1))
         plt.axis('off')
         

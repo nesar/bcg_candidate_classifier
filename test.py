@@ -259,7 +259,8 @@ def show_enhanced_predictions(images, targets, predictions, all_candidates_list,
         phase=phase,
         probabilities_list=all_probabilities_list,
         detection_threshold=detection_threshold,
-        use_uq=use_uq
+        use_uq=use_uq,
+        metadata_list=metadata_list
     )
 
 
