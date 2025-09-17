@@ -397,6 +397,11 @@ def create_individual_explanation_plot(shap_values, X, feature_names,
     if not SHAP_AVAILABLE:
         raise ImportError("SHAP is required for SHAP plots")
     
+    # Ensure matplotlib backend is properly set for SHAP
+    import matplotlib
+    matplotlib.use('Agg')  # Use non-interactive backend
+    import matplotlib.pyplot as plt
+    
     plt.figure(figsize=(12, 8))
     
     # Create waterfall plot
