@@ -128,7 +128,11 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
                 # Combine visual features with candidate-specific features
                 features = np.hstack([visual_features, candidate_specific_features])
                 
-                # NOTE: DESprior candidates use their own feature set and don't include additional BCG features
+                # Append additional features if provided (e.g., from BCG dataset)
+                if additional_features is not None and len(features) > 0:
+                    # Replicate additional features for each candidate
+                    additional_features_repeated = np.tile(additional_features, (len(features), 1))
+                    features = np.concatenate([features, additional_features_repeated], axis=1)
                 
         except Exception as e:
             print(f"Warning: Failed to load DESprior candidates for {filename}: {e}")
@@ -972,12 +976,15 @@ def main(args):
         base_feature_dim += color_feature_count
         print(f"Added {color_feature_count} color features")
     
-    # NOTE: DESprior candidates already have their optimal feature set, don't add more
-    if args.use_bcg_data and args.use_additional_features and not args.use_desprior_candidates:
+    # Add DESprior candidate-specific features if using DESprior
+    if args.use_desprior_candidates:
+        print("Adding DESprior candidate-specific features: +2 (delta_mstar, starflag)")
+        base_feature_dim += 2
+        
+    # Add additional BCG features if enabled
+    if args.use_bcg_data and args.use_additional_features:
         print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
         base_feature_dim += 2
-    elif args.use_bcg_data and args.use_additional_features and args.use_desprior_candidates:
-        print("DESprior candidates already include optimal features - not adding additional features")
     
     print(f"Final feature dimension: {base_feature_dim}")
     

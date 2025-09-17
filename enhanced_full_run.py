@@ -425,7 +425,7 @@ def main():
         train_command += " --use_desprior_candidates"
         
         if candidate_delta_mstar_range:
-            train_command += f" --candidate_delta_mstar_range \"{candidate_delta_mstar_range}\""
+            train_command += f" --candidate_delta_mstar_range {candidate_delta_mstar_range}"
     
     # Check for GPU
     gpu_available = input("\nUse GPU if available? (Y/n): ").strip().lower()
@@ -528,7 +528,7 @@ def main():
         test_command += " --use_desprior_candidates"
         
         if candidate_delta_mstar_range:
-            test_command += f" --candidate_delta_mstar_range \"{candidate_delta_mstar_range}\""
+            test_command += f" --candidate_delta_mstar_range {candidate_delta_mstar_range}"
     
     if not run_command(test_command, f"Testing BCG classifier with {test_script}"):
         print("Testing failed.")
