@@ -130,9 +130,12 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
                 
                 # Append additional features if provided (e.g., from BCG dataset)
                 if additional_features is not None and len(features) > 0:
+                    print(f"DEBUG: Features shape before additional: {features.shape}")
+                    print(f"DEBUG: Additional features shape: {additional_features.shape}")
                     # Replicate additional features for each candidate
                     additional_features_repeated = np.tile(additional_features, (len(features), 1))
                     features = np.concatenate([features, additional_features_repeated], axis=1)
+                    print(f"DEBUG: Features shape after additional: {features.shape}")
                 
         except Exception as e:
             print(f"Warning: Failed to load DESprior candidates for {filename}: {e}")
@@ -152,9 +155,12 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             
             # Append additional features if provided (e.g., from BCG dataset)
             if additional_features is not None and len(features) > 0:
+                print(f"DEBUG AUTO: Features shape before additional: {features.shape}")
+                print(f"DEBUG AUTO: Additional features shape: {additional_features.shape}")
                 # Replicate additional features for each candidate
                 additional_features_repeated = np.tile(additional_features, (len(features), 1))
                 features = np.concatenate([features, additional_features_repeated], axis=1)
+                print(f"DEBUG AUTO: Features shape after additional: {features.shape}")
     
     if len(all_candidates) == 0:
         return {
@@ -976,11 +982,8 @@ def main(args):
         base_feature_dim += color_feature_count
         print(f"Added {color_feature_count} color features")
     
-    # Add DESprior candidate-specific features if using DESprior
-    if args.use_desprior_candidates:
-        print("Adding DESprior candidate-specific features: +2 (delta_mstar, starflag)")
-        base_feature_dim += 2
-        
+    # Note: DESprior candidate-specific features (delta_mstar, starflag) are already included in base_feature_dim
+    
     # Add additional BCG features if enabled
     if args.use_bcg_data and args.use_additional_features:
         print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
