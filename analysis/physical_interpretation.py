@@ -83,10 +83,19 @@ class PhysicalFeatureInterpreter:
                 # Find groups with multiple features
                 for value, features in value_groups.items():
                     if len(features) > 1:
+                        feature_list = [f[1] for f in features]
+                        
+                        # Special analysis for morphology features
+                        morphology_features = [f for f in feature_list if any(
+                            morph_pattern in f for morph_pattern in ['moment_', 'concentration', 'eccentricity', 'gradient_']
+                        )]
+                        
                         validation_results['identical_values'].append({
                             'value': value,
                             'count': len(features),
-                            'features': [f[1] for f in features]
+                            'features': feature_list,
+                            'morphology_count': len(morphology_features),
+                            'morphology_features': morphology_features
                         })
         
         # Generate warnings
@@ -226,15 +235,16 @@ class PhysicalFeatureInterpreter:
             
             # Morphology
             'concentration': 'Light Concentration',
+            'concentration_ratio': 'Central Light Concentration Ratio',
             'eccentricity': 'Galaxy Ellipticity',
             'asymmetry': 'Structural Asymmetry',
             'smoothness': 'Surface Smoothness',
-            'moment_m00': 'Total Flux',
-            'moment_m10': 'X-centroid',
-            'moment_m01': 'Y-centroid',
-            'moment_m20': 'X-spread',
-            'moment_m11': 'XY-correlation',
-            'moment_m02': 'Y-spread',
+            'moment_m00': 'Total Flux (0th moment)',
+            'moment_m10': 'X-centroid (1st x-moment)',
+            'moment_m01': 'Y-centroid (1st y-moment)',
+            'moment_m20': 'X-spread (2nd x-moment)',
+            'moment_m11': 'XY-correlation (mixed 2nd moment)',
+            'moment_m02': 'Y-spread (2nd y-moment)',
             
             # Color PCA Components - each represents different color aspects
             'color_pca_0': 'Red-Sequence Color (PC1)',

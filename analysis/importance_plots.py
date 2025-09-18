@@ -18,7 +18,13 @@ from pathlib import Path
 import warnings
 
 try:
+    import matplotlib
+    matplotlib.use('Agg')  # Set backend before importing pyplot
+    import matplotlib.pyplot as plt
+    
     import shap
+    # Patch SHAP's internal modules to have access to plt
+    shap.plots._waterfall.plt = plt
     SHAP_AVAILABLE = True
 except ImportError:
     SHAP_AVAILABLE = False
@@ -397,15 +403,7 @@ def create_individual_explanation_plot(shap_values, X, feature_names,
     if not SHAP_AVAILABLE:
         raise ImportError("SHAP is required for SHAP plots")
     
-    # Ensure matplotlib is available globally for SHAP
-    import matplotlib
-    matplotlib.use('Agg')  # Use non-interactive backend
-    import matplotlib.pyplot as plt
-    
-    # Make plt available globally for SHAP's internal use
-    import sys
-    sys.modules['__main__'].plt = plt
-    globals()['plt'] = plt
+    # matplotlib and SHAP are already configured at module level
     
     plt.figure(figsize=(12, 8))
     
