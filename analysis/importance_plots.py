@@ -397,10 +397,15 @@ def create_individual_explanation_plot(shap_values, X, feature_names,
     if not SHAP_AVAILABLE:
         raise ImportError("SHAP is required for SHAP plots")
     
-    # Ensure matplotlib backend is properly set for SHAP
+    # Ensure matplotlib is available globally for SHAP
     import matplotlib
     matplotlib.use('Agg')  # Use non-interactive backend
     import matplotlib.pyplot as plt
+    
+    # Make plt available globally for SHAP's internal use
+    import sys
+    sys.modules['__main__'].plt = plt
+    globals()['plt'] = plt
     
     plt.figure(figsize=(12, 8))
     
