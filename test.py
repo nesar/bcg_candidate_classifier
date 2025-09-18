@@ -128,14 +128,8 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
                 # Combine visual features with candidate-specific features
                 features = np.hstack([visual_features, candidate_specific_features])
                 
-                # Append additional features if provided (e.g., from BCG dataset)
-                if additional_features is not None and len(features) > 0:
-                    print(f"DEBUG: Features shape before additional: {features.shape}")
-                    print(f"DEBUG: Additional features shape: {additional_features.shape}")
-                    # Replicate additional features for each candidate
-                    additional_features_repeated = np.tile(additional_features, (len(features), 1))
-                    features = np.concatenate([features, additional_features_repeated], axis=1)
-                    print(f"DEBUG: Features shape after additional: {features.shape}")
+                # NOTE: DESprior candidates already include all necessary features including additional features
+                # Do not add additional features again as they are already included in the feature extraction
                 
         except Exception as e:
             print(f"Warning: Failed to load DESprior candidates for {filename}: {e}")
@@ -155,12 +149,9 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             
             # Append additional features if provided (e.g., from BCG dataset)
             if additional_features is not None and len(features) > 0:
-                print(f"DEBUG AUTO: Features shape before additional: {features.shape}")
-                print(f"DEBUG AUTO: Additional features shape: {additional_features.shape}")
                 # Replicate additional features for each candidate
                 additional_features_repeated = np.tile(additional_features, (len(features), 1))
                 features = np.concatenate([features, additional_features_repeated], axis=1)
-                print(f"DEBUG AUTO: Features shape after additional: {features.shape}")
     
     if len(all_candidates) == 0:
         return {
