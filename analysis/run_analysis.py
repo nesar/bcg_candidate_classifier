@@ -512,29 +512,47 @@ class BCGAnalysisRunner:
         
         # Generate physical interpretation for individual samples
         try:
+            print(f"DEBUG: Attempting to generate physical individual analysis...")
+            print(f"DEBUG: individual_results count: {len(individual_results)}")
+            print(f"DEBUG: output directory: {physical_individual_dir}")
             self._generate_physical_individual_analysis(
                 individual_results, physical_individual_dir
             )
+            print(f"✓ Physical individual analysis completed")
         except Exception as e:
             print(f"✗ Failed to generate physical individual analysis: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _generate_physical_individual_analysis(self, individual_results, output_dir):
         """Generate physical interpretation plots for individual samples."""
         
-        for result in individual_results[:5]:  # Limit to first 5 samples to avoid too many plots
+        print(f"DEBUG: Processing {len(individual_results[:5])} samples for physical analysis...")
+        
+        for i, result in enumerate(individual_results[:5]):  # Limit to first 5 samples to avoid too many plots
             try:
                 sample_idx = result['sample_index']
+                print(f"DEBUG: Processing sample {i+1}/5, sample_idx={sample_idx}")
                 
                 if 'shap_values' in result:
+                    print(f"DEBUG: SHAP values found for sample {sample_idx}")
                     # Create physical SHAP interpretation
                     fig = self._create_physical_individual_plot(result, sample_idx)
                     if fig:
-                        plt.savefig(output_dir / f'sample_{sample_idx}_physical_explanation.png', 
-                                   dpi=300, bbox_inches='tight')
+                        output_path = output_dir / f'sample_{sample_idx}_physical_explanation.png'
+                        print(f"DEBUG: Saving plot to {output_path}")
+                        plt.savefig(output_path, dpi=300, bbox_inches='tight')
                         plt.close(fig)
+                        print(f"✓ Saved physical plot for sample {sample_idx}")
+                    else:
+                        print(f"DEBUG: No figure returned for sample {sample_idx}")
+                else:
+                    print(f"DEBUG: No SHAP values found for sample {sample_idx}")
                         
             except Exception as e:
                 print(f"✗ Failed to generate physical plot for sample {sample_idx}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
     
     def _create_physical_individual_plot(self, result, sample_idx):
