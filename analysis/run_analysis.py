@@ -534,8 +534,15 @@ class BCGAnalysisRunner:
                 sample_idx = result['sample_index']
                 print(f"DEBUG: Processing sample {i+1}/5, sample_idx={sample_idx}")
                 
-                if 'shap_values' in result:
+                # Check if SHAP values are available in feature_contributions
+                if ('feature_contributions' in result and 
+                    'shap' in result['feature_contributions'] and 
+                    'values' in result['feature_contributions']['shap']):
                     print(f"DEBUG: SHAP values found for sample {sample_idx}")
+                    # Extract SHAP values from the nested structure
+                    shap_values = result['feature_contributions']['shap']['values']
+                    print(f"DEBUG: SHAP values shape: {np.array(shap_values).shape}")
+                    
                     # Create physical SHAP interpretation
                     fig = self._create_physical_individual_plot(result, sample_idx)
                     if fig:
@@ -548,6 +555,10 @@ class BCGAnalysisRunner:
                         print(f"DEBUG: No figure returned for sample {sample_idx}")
                 else:
                     print(f"DEBUG: No SHAP values found for sample {sample_idx}")
+                    if 'feature_contributions' in result:
+                        print(f"DEBUG: Available keys in feature_contributions: {list(result['feature_contributions'].keys())}")
+                    else:
+                        print(f"DEBUG: No feature_contributions found in result")
                         
             except Exception as e:
                 print(f"✗ Failed to generate physical plot for sample {sample_idx}: {e}")
@@ -558,10 +569,13 @@ class BCGAnalysisRunner:
     def _create_physical_individual_plot(self, result, sample_idx):
         """Create physical interpretation plot for individual sample."""
         
-        if 'shap_values' not in result:
+        # Extract SHAP values from the nested structure
+        if ('feature_contributions' not in result or 
+            'shap' not in result['feature_contributions'] or 
+            'values' not in result['feature_contributions']['shap']):
             return None
         
-        shap_values = result['shap_values']
+        shap_values = np.array(result['feature_contributions']['shap']['values'])
         
         # Map features to physical groups
         feature_groups = self.physical_interpreter.feature_groups
