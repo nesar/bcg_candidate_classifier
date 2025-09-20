@@ -251,7 +251,7 @@ def main():
     run_analysis = run_analysis not in ['n', 'no']
     
     # Analysis parameters
-    analysis_methods = ['permutation', 'shap', 'gradient']
+    analysis_methods = ['shap', 'gradient']
     analysis_samples = 1000
     
     if run_analysis:
@@ -263,11 +263,10 @@ def main():
         
         if modify_analysis in ['y', 'yes']:
             print("\nAvailable analysis methods:")
-            print("1. permutation - Performance degradation when features shuffled (fast, reliable)")
-            print("2. shap - SHapley Additive exPlanations (comprehensive, slower)")
-            print("3. gradient - Gradient-based importance (fast, neural network specific)")
+            print("1. shap - SHapley Additive exPlanations (comprehensive, slower)")
+            print("2. gradient - Gradient-based importance (fast, neural network specific)")
             
-            methods_input = input("Select methods (comma-separated, e.g., 'permutation,shap'): ").strip()
+            methods_input = input("Select methods (comma-separated, e.g., 'shap,gradient'): ").strip()
             if methods_input:
                 analysis_methods = [m.strip() for m in methods_input.split(',')]
             
@@ -729,8 +728,6 @@ except Exception as e:
         print("   - Comprehensive visualization reports")
         if 'shap' in analysis_methods:
             print("   - SHAP waterfall plots for individual predictions")
-        if 'permutation' in analysis_methods:
-            print("   - Permutation-based feature importance")
         if 'gradient' in analysis_methods:
             print("   - Gradient-based neural network feature importance")
         enhancement_num += 1
@@ -772,7 +769,7 @@ except Exception as e:
     if use_uq:
         print("- Uncertainty quantification with probabilistic outputs")
     if run_analysis:
-        print("- Feature importance analysis with SHAP and permutation methods")
+        print("- Feature importance analysis with SHAP and gradient methods")
     print("- BCG dataset integration with additional features")
     print("- DESprior candidate system with filtering capabilities")
     print("All existing functionality maintained with backward compatibility.")

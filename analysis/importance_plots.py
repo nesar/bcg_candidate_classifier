@@ -121,7 +121,7 @@ class ImportancePlotter:
         for method, results in importance_results.items():
             if method == 'shap':
                 importance = results['mean_abs_shap']
-            elif method in ['permutation', 'gradient']:
+            elif method == 'gradient':
                 importance = results['importance']
             else:
                 continue

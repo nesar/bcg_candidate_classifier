@@ -3,7 +3,6 @@ Feature importance analysis for BCG candidate classification models.
 
 This module provides comprehensive feature importance analysis including:
 - SHAP (SHapley Additive exPlanations) analysis
-- Permutation importance
 - Gradient-based importance for neural networks
 - Feature ranking and selection utilities
 """
@@ -15,9 +14,7 @@ import torch.nn as nn
 from typing import Dict, List, Tuple, Optional, Union
 from pathlib import Path
 import pickle
-from sklearn.inspection import permutation_importance
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.metrics import accuracy_score
 import warnings
 
 try:
@@ -97,7 +94,6 @@ class FeatureImportanceAnalyzer:
         
         # Initialize analyzers
         self.shap_analyzer = None
-        self.perm_analyzer = None
         
         if SHAP_AVAILABLE:
             self.shap_analyzer = SHAPAnalyzer(model, feature_names, device, probabilistic)
@@ -110,7 +106,7 @@ class FeatureImportanceAnalyzer:
                 return module.in_features
         return None
     
-    def analyze_feature_importance(self, X, y=None, methods=['permutation', 'shap'], 
+    def analyze_feature_importance(self, X, y=None, methods=['shap', 'gradient'], 
                                  n_repeats=10, random_state=42):
         """
         Comprehensive feature importance analysis.
@@ -118,7 +114,7 @@ class FeatureImportanceAnalyzer:
         Args:
             X: Input features (numpy array or torch tensor)
             y: True labels (optional, for permutation importance)
-            methods: List of methods to use ['permutation', 'shap', 'gradient']
+            methods: List of methods to use ['shap', 'gradient']
             n_repeats: Number of permutation repeats
             random_state: Random state for reproducibility
             
@@ -133,16 +129,6 @@ class FeatureImportanceAnalyzer:
         else:
             X_np = X
         
-        # Permutation importance
-        if 'permutation' in methods and y is not None:
-            print("Computing permutation importance...")
-            self.perm_analyzer = PermutationImportanceAnalyzer(
-                self.wrapped_model, self.feature_names
-            )
-            perm_results = self.perm_analyzer.compute_importance(
-                X_np, y, n_repeats=n_repeats, random_state=random_state
-            )
-            results['permutation'] = perm_results
         
         # SHAP analysis
         if 'shap' in methods and SHAP_AVAILABLE:
@@ -202,13 +188,20 @@ class FeatureImportanceAnalyzer:
             
             importance = grad.abs().mean(dim=0).cpu().numpy()
         
+        # Debug: Print top gradient features
+        top_grad_indices = np.argsort(importance)[-10:][::-1]
+        print(f"DEBUG GRADIENT: Top 10 features by importance:")
+        for i, idx in enumerate(top_grad_indices):
+            feature_name = self.feature_names[idx] if idx < len(self.feature_names) else f"feature_{idx}"
+            print(f"  {i+1}. {feature_name}: {importance[idx]:.6f}")
+        
         return {
             'importance': importance,
             'feature_names': self.feature_names,
             'ranking': np.argsort(importance)[::-1]
         }
     
-    def get_feature_ranking(self, importance_results, method='permutation'):
+    def get_feature_ranking(self, importance_results, method='shap'):
         """
         Get ranked list of features based on importance scores.
         
@@ -371,6 +364,13 @@ class SHAPAnalyzer:
         mean_abs_shap = np.mean(np.abs(shap_values_class), axis=0)
         std_abs_shap = np.std(np.abs(shap_values_class), axis=0)
         
+        # Debug: Print top SHAP features
+        top_shap_indices = np.argsort(mean_abs_shap)[-10:][::-1]
+        print(f"DEBUG SHAP: Top 10 features by importance:")
+        for i, idx in enumerate(top_shap_indices):
+            feature_name = self.feature_names[idx] if idx < len(self.feature_names) else f"feature_{idx}"
+            print(f"  {i+1}. {feature_name}: {mean_abs_shap[idx]:.6f}")
+        
         return {
             'shap_values': shap_values_class,
             'mean_abs_shap': mean_abs_shap,
@@ -380,80 +380,6 @@ class SHAPAnalyzer:
         }
 
 
-class PermutationImportanceAnalyzer:
-    """
-    Permutation-based feature importance analysis.
-    """
-    
-    def __init__(self, model, feature_names=None):
-        self.model = model
-        self.feature_names = feature_names
-    
-    def compute_importance(self, X, y, scoring='accuracy', n_repeats=10, random_state=42):
-        """
-        Compute permutation importance.
-        
-        Args:
-            X: Input features
-            y: Target labels
-            scoring: Scoring method
-            n_repeats: Number of permutation repeats
-            random_state: Random state
-            
-        Returns:
-            Dictionary containing importance scores
-        """
-        # Use custom permutation importance to avoid multiprocessing issues
-        result = self._compute_permutation_importance_safe(
-            X, y, scoring, n_repeats, random_state
-        )
-        
-        return {
-            'importance': result.importances_mean,
-            'importance_std': result.importances_std,
-            'feature_names': self.feature_names,
-            'ranking': np.argsort(result.importances_mean)[::-1]
-        }
-    
-    def _compute_permutation_importance_safe(self, X, y, scoring, n_repeats, random_state):
-        """
-        Safe permutation importance implementation without multiprocessing.
-        """
-        from sklearn.metrics import accuracy_score
-        
-        rng = np.random.RandomState(random_state)
-        
-        # Get baseline score
-        baseline_score = accuracy_score(y, self.model.predict(X))
-        
-        # Initialize arrays to store importance scores
-        n_features = X.shape[1]
-        importances = np.zeros((n_repeats, n_features))
-        
-        for repeat_idx in range(n_repeats):
-            for feature_idx in range(n_features):
-                # Make a copy of the data
-                X_permuted = X.copy()
-                
-                # Permute the feature
-                feature_values = X_permuted[:, feature_idx].copy()
-                rng.shuffle(feature_values)
-                X_permuted[:, feature_idx] = feature_values
-                
-                # Get score with permuted feature
-                permuted_score = accuracy_score(y, self.model.predict(X_permuted))
-                
-                # Importance is the decrease in score
-                importances[repeat_idx, feature_idx] = baseline_score - permuted_score
-        
-        # Create result object that mimics sklearn's permutation_importance result
-        class PermutationResult:
-            def __init__(self, importances):
-                self.importances = importances
-                self.importances_mean = np.mean(importances, axis=0)
-                self.importances_std = np.std(importances, axis=0)
-        
-        return PermutationResult(importances)
 
 
 class FeatureGroupAnalyzer:

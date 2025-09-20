@@ -3,7 +3,7 @@ Main analysis runner for BCG candidate classification feature importance analysi
 
 This script provides a comprehensive interface for running feature importance
 analysis on trained BCG classification models, including:
-- Global feature importance analysis (SHAP, permutation, gradient-based)
+- Global feature importance analysis (SHAP, gradient-based)
 - Individual sample explanations
 - Feature group analysis
 - Comprehensive visualization reports
@@ -299,7 +299,7 @@ class BCGAnalysisRunner:
         print("Running global feature importance analysis...")
         
         # Configuration
-        methods = self.config.get('analysis_methods', ['permutation', 'shap', 'gradient'])
+        methods = self.config.get('analysis_methods', ['shap', 'gradient'])
         n_samples = self.config.get('analysis_samples', min(1000, len(self.X_test)))
         
         # Sample data for analysis (to speed up computation)
@@ -315,7 +315,7 @@ class BCGAnalysisRunner:
         results = self.importance_analyzer.analyze_feature_importance(
             X_analysis, y_analysis, 
             methods=methods,
-            n_repeats=self.config.get('permutation_repeats', 10)
+            n_repeats=10
         )
         
         return results
@@ -850,9 +850,8 @@ def create_default_config():
         'input_size': 58,
         'hidden_sizes': [128, 64, 32],
         'output_dir': 'analysis_results',
-        'analysis_methods': ['permutation', 'shap', 'gradient'],
+        'analysis_methods': ['shap', 'gradient'],
         'analysis_samples': 1000,
-        'permutation_repeats': 10,
         'features': {
             'use_color': True,
             'use_auxiliary': True,
@@ -876,8 +875,8 @@ def main():
     parser.add_argument('--output_dir', type=str, default='analysis_results',
                        help='Output directory for results')
     parser.add_argument('--methods', nargs='+', 
-                       choices=['permutation', 'shap', 'gradient'],
-                       default=['permutation', 'shap'],
+                       choices=['shap', 'gradient'],
+                       default=['shap', 'gradient'],
                        help='Analysis methods to use')
     parser.add_argument('--samples', type=int, default=1000,
                        help='Number of samples to use for analysis')

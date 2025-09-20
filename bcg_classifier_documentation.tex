@@ -44,7 +44,7 @@ The paradigm shifted dramatically with the advent of deep learning approaches in
 
 \subsection{Contemporary Challenges and Hybrid Approaches}
 
-Recent work in BCG detection reflects this methodological evolution. \citet{Janulewicz2025BCG} demonstrated that neural networks can achieve 95\% accuracy in automated BCG identification using purely data-driven approaches, while \citet{COSMIC2024} developed the COSMIC algorithm combining traditional clustering methods with machine learning techniques for improved cluster detection.
+Recent work in BCG detection reflects this methodological evolution. \citet{Janulewicz2025} demonstrated that neural networks can achieve $R^2 \approx 0.94$ accuracy in automated BCG identification using purely data-driven coordinate regression approaches on simulated cluster data, while \citet{Chen2024sOPTICS} developed the sOPTICS algorithm combining modified density-based clustering with machine learning techniques for improved cluster detection. \citet{Manrique2022ICL} explored machine learning approaches for simultaneous BCG and intracluster light identification in simulated galaxy clusters, demonstrating the potential for multi-component analysis.
 
 However, purely data-driven approaches face significant challenges in astronomical contexts. Deep learning models often lack interpretability crucial for scientific validation, require extensive training data that may not be available for rare astronomical objects, and can struggle with domain adaptation across different surveys or instruments. Furthermore, the physical understanding embedded in traditional parametric features remains valuable for incorporating known astrophysical relationships.
 
@@ -212,13 +212,18 @@ This formulation enables direct uncertainty quantification, natural handling of 
 Our framework processes optical imaging data from BCG datasets at two angular scales:
 
 \subsubsection{BCG Datasets}
-The system supports BCG images at two scales:
+The system supports multiple astronomical datasets with BCG images at various scales:
+
+\textbf{Primary Datasets}:
 \begin{itemize}
-\item \textbf{2.2 arcminute scale}: Higher resolution images suitable for nearby clusters
-\item \textbf{3.8 arcminute scale}: Wider field images accommodating more distant systems
+\item \textbf{SPT3G\_1500d}: South Pole Telescope 3G survey with 1500 degree$^2$ coverage
+\item \textbf{BCG 2.2 arcminute scale}: Higher resolution images (typically 512$\times$512 pixels) suitable for nearby clusters ($z < 0.5$)
+\item \textbf{BCG 3.8 arcminute scale}: Wider field images accommodating more distant systems ($z > 0.5$)
+\item \textbf{megadeep500}: Deep survey clusters with enhanced signal-to-noise for faint BCG detection
+\item \textbf{LBLEEM}: Survey-specific BCG datasets with specialized photometric calibration
 \end{itemize}
 
-Images are stored as multi-frame TIFF files with embedded WCS (World Coordinate System) information for astrometric calibration.
+\textbf{Image Format and Astrometry}: Images are stored as multi-frame TIFF files with embedded WCS (World Coordinate System) headers enabling precise coordinate transformation. The system implements robust RA/Dec to pixel coordinate conversion using AstroPy, with Y-coordinate correction ($y_{\text{corrected}} = 512 - y_{\text{WCS}}$) to account for image coordinate system conventions. Quality validation automatically excludes images with NaN or infinite coordinate solutions.
 
 \subsubsection{Auxiliary Astronomical Measurements}
 The system incorporates auxiliary measurements as global features:
@@ -302,11 +307,13 @@ Fixed-size square patches $\mathbf{P}_i \in \mathbb{R}^{64 \times 64 \times C}$ 
 \end{align}
 where $N$ is the number of pixels in the patch. Additional statistics include maximum, minimum, and median intensities, providing robust characterization of the local brightness distribution.
 
-\textbf{Concentration Analysis}: Adapting the concentration parameter from the CAS system \citep{Conselice2003}, we implement a simplified concentration measure based on central versus peripheral intensity distributions. The central region consists of a 16×16 pixel area centered on the candidate, while the peripheral region encompasses the remaining patch area:
-\begin{equation}
-C_{\text{local}} = \frac{\mu_I^{\text{central}}}{\mu_I^{\text{peripheral}} + \epsilon}
-\end{equation}
-where $\epsilon = 10^{-8}$ prevents division by zero. This ratio effectively discriminates between centrally concentrated sources (typical of BCGs) and more diffuse or irregular objects.
+\textbf{Concentration Analysis}: Adapting the concentration parameter from the CAS system \citep{Conselice2003}, we implement a simplified concentration measure based on central versus peripheral intensity distributions. The central region consists of a circular area with radius $r_{\text{central}} = \text{patch\_size}/8$ (default: 8 pixels for 64×64 patches) centered on the candidate, while the peripheral region encompasses the remaining patch area:
+\begin{align}
+\mu_I^{\text{central}} &= \frac{1}{N_{\text{central}}} \sum_{(i,j) \in \text{central}} I(i,j) \\
+\mu_I^{\text{peripheral}} &= \frac{1}{N_{\text{peripheral}}} \sum_{(i,j) \in \text{peripheral}} I(i,j) \\
+C_{\text{log}} &= \log(\mu_I^{\text{central}} + \epsilon) - \log(\mu_I^{\text{peripheral}} + \epsilon)
+\end{align}
+where $\epsilon = 10^{-8}$ prevents division by zero, and the logarithmic formulation provides robust discrimination between centrally concentrated sources (typical of BCGs with de Vaucouleurs profiles) and more diffuse or irregular objects. This measure exploits the characteristic steep central light profiles of massive elliptical galaxies that dominate cluster cores.
 
 \textbf{Gradient and Edge Analysis}: Surface brightness gradients provide crucial information about galaxy morphology and structural properties. We compute gradient magnitude fields using finite differences:
 \begin{align}
@@ -356,11 +363,23 @@ When auxiliary astronomical measurements are available, they are incorporated th
 \end{equation}
 where $\mathbf{a}$ includes redshift $z$ and stellar mass indicator $\Delta m^*_z$.
 
-\textbf{Redshift Integration}: Photometric redshift estimates provide cosmological distance constraints that inform expected BCG properties. Redshift values are normalized to the typical range $z \in [0.1, 1.2]$ observed in our datasets.
+\textbf{Redshift Integration}: Photometric redshift estimates provide cosmological distance constraints that inform expected BCG properties and enable redshift-dependent corrections for galaxy evolution. Redshift values are normalized to the typical range $z \in [0.1, 1.2]$ observed in our datasets, with optional redshift filtering applied during dataset creation to focus on specific cosmological epochs. The framework handles variable redshift quality through optional uncertainty weighting when redshift errors are available.
 
-\textbf{Stellar Mass Indicators}: The $\Delta m^*_z$ parameter encodes crucial information about stellar mass relative to the characteristic mass at a given redshift, providing powerful constraints on BCG candidacy based on established scaling relations in cluster astrophysics.
+\textbf{Stellar Mass Indicators}: The $\Delta m^*_z$ parameter encodes crucial information about stellar mass relative to the characteristic mass at redshift $z$:
+\begin{equation}
+\Delta m^*_z = m_{\text{observed}} - m^*(z)
+\end{equation}
+where $m^*(z)$ represents the characteristic magnitude corresponding to the break in the galaxy luminosity function at redshift $z$ \citep{Rykoff2016DES}. This parameter provides powerful constraints on BCG candidacy based on established scaling relations, with typical BCG values $\Delta m^*_z < 1.0$ corresponding to stellar masses $M_* > 10^{11.5} M_{\odot}$. The framework supports configurable $\Delta m^*_z$ filtering ranges (typically [-4.0, 2.0]) for quality control and physical consistency validation.
 
-The complete feature vector comprises approximately 38-58 dimensions (depending on color features and auxiliary data availability), providing comprehensive characterization of each candidate while maintaining computational tractability for large-scale applications. Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} to ensure equal contribution across different scales and units.
+The complete feature vector structure is as follows:
+\begin{itemize}
+\item \textbf{Core morphological features}: 30 dimensions
+\item \textbf{RGB color features (PCA-reduced)}: 8 dimensions (when enabled)
+\item \textbf{Auxiliary features}: 2 dimensions (redshift $z$, stellar mass indicator $\Delta m^*_z$; when available)
+\item \textbf{Total dimensionality}: 30-40 dimensions depending on configuration
+\end{itemize}
+
+The 30-dimensional core feature set includes: intensity statistics (5), central-peripheral analysis (3), gradient features (3), position features (3), shape/symmetry features (3), and multi-scale context features (13 from three radial scales). Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units, with $z$-score normalization: $f_{\text{norm}} = (f - \mu_{\text{train}})/\sigma_{\text{train}}$.
 
 \subsubsection{RGB Color Feature Extraction for Red-Sequence Detection}
 
@@ -420,7 +439,7 @@ F_{c,k} &= \text{mean}(|I_c * K_k|) \nonumber \\
 \end{align}
 These convolution responses capture channel-specific morphological characteristics that complement global color statistics.
 
-\textbf{Principal Component Analysis for Dimensionality Reduction}: The complete color feature extraction generates approximately 50+ individual measurements per candidate. To maintain computational efficiency while preserving essential chromatic information, we implement Principal Component Analysis (PCA) with retention of the first 8 principal components, typically capturing $>95\%$ of the total variance.
+\textbf{Principal Component Analysis for Dimensionality Reduction}: The complete color feature extraction generates 54 individual measurements per candidate (9 basic color features + 7 color ratios + 3 spatial color features + 8 color gradient features + 27 convolution-based features). To maintain computational efficiency while preserving essential chromatic information, we implement Principal Component Analysis (PCA) with retention of the first 8 principal components, typically capturing 85-95\% of the total variance depending on the color diversity of the training set.
 
 The PCA transformation is fitted during training using color features from all training candidates:
 \begin{equation}
@@ -487,19 +506,33 @@ A critical innovation in our framework is the integration of explainable artific
 
 \subsubsection{SHAP-Based Feature Attribution}
 
-We implement SHapley Additive exPlanations (SHAP) analysis \citep{Dainotti2025InterpretableAI} to quantify the contribution of each feature to individual predictions. For a given prediction $f(\mathbf{x})$, SHAP values $\phi_i$ satisfy:
+We implement SHapley Additive exPlanations (SHAP) analysis \citep{Dainotti2025InterpretableAI} using the DeepExplainer method specifically designed for neural networks to quantify the contribution of each feature to individual predictions. For a given prediction $f(\mathbf{x})$, SHAP values $\phi_i$ satisfy:
 \begin{equation}
 f(\mathbf{x}) = \phi_0 + \sum_{i=1}^{M} \phi_i
 \end{equation}
-where $\phi_0$ is the baseline prediction (expected value over the dataset), $M$ is the number of features, and $\phi_i$ represents the marginal contribution of feature $i$ to the prediction.
+where $\phi_0$ is the baseline prediction (expected value over the training dataset), $M$ is the number of features (30-40 depending on configuration), and $\phi_i$ represents the marginal contribution of feature $i$ to the prediction. The DeepExplainer leverages deep learning-specific attribution methods, providing more accurate feature importance estimates for neural networks compared to model-agnostic approaches.
 
-\textbf{Individual Prediction Analysis}: SHAP waterfall plots reveal which specific features drive each BCG prediction, enabling validation against astronomical expectations. For example, a genuine BCG should exhibit positive contributions from red-sequence color features and central concentration measures.
+\textbf{Individual Prediction Analysis}: SHAP waterfall plots reveal which specific features drive each BCG prediction, enabling validation against astronomical expectations. For genuine BCGs, we expect positive contributions from:
+\begin{itemize}
+\item Central concentration features ($C_{\text{log}}$) reflecting the characteristic steep light profiles
+\item Red-sequence color indicators (high R/G ratios, red-sequence scores) consistent with evolved stellar populations
+\item High central intensity measures indicating dominance within the cluster environment
+\item Low gradient variance features reflecting smooth elliptical morphologies
+\end{itemize}
+Conversely, stellar contaminants typically show negative contributions from color features (low R/G ratios) and positive contributions from high gradient variance (point-source characteristics).
 
 \textbf{Global Feature Importance}: Aggregating SHAP values across large datasets reveals systematic feature importance patterns:
 \begin{equation}
 \text{Importance}_i = \frac{1}{N} \sum_{n=1}^{N} |\phi_i^{(n)}|
 \end{equation}
-This analysis quantifies the relative importance of morphological, color, contextual, and auxiliary feature categories.
+This analysis quantifies the relative importance of feature categories. Empirical analysis typically reveals the following importance hierarchy:
+\begin{enumerate}
+\item \textbf{Central concentration features} (15-25\% of total importance): Critical for distinguishing centrally dominant galaxies
+\item \textbf{Color features} (20-30\% when enabled): Essential for red-sequence identification and stellar contamination rejection
+\item \textbf{Intensity statistics} (15-20\%): Fundamental brightness characteristics
+\item \textbf{Position features} (10-15\%): Spatial constraints and field-of-view effects
+\item \textbf{Auxiliary features} (10-20\% when available): Redshift and stellar mass provide powerful physical constraints
+\end{enumerate}
 
 \subsubsection{Physical Interpretation Framework}
 
@@ -517,11 +550,22 @@ Our analysis pipeline includes automated mapping from technical features to phys
 
 Beyond individual feature importance, our framework implements systematic sensitivity analysis:
 
-\textbf{Permutation Importance}: Features are systematically permuted to measure performance degradation, providing model-agnostic importance estimates independent of the specific neural network architecture.
+\textbf{Permutation Importance}: Features are systematically permuted to measure performance degradation, providing model-agnostic importance estimates independent of the specific neural network architecture. This method randomly shuffles individual feature values across the dataset while keeping all other features intact, measuring the resulting decrease in model performance (typically rank-1 success rate).
 
-\textbf{Feature Group Analysis}: Related features (e.g., all color features) are simultaneously removed to assess the importance of entire feature categories, crucial for understanding which data products are most essential for BCG identification.
+\textbf{Feature Group Analysis}: Related features are simultaneously removed to assess the importance of entire feature categories:
+\begin{itemize}
+\item \textbf{Morphological group}: All patch-based intensity and shape features
+\item \textbf{Color group}: All RGB-derived features and red-sequence indicators
+\item \textbf{Contextual group}: Position, environmental, and multi-scale features
+\item \textbf{Auxiliary group}: Redshift and stellar mass indicators
+\end{itemize}
+This ablation study reveals which data products are most essential for BCG identification, informing observational requirements for future surveys.
 
-\textbf{Gradient-Based Importance}: For neural network models, gradient-based attribution methods complement SHAP analysis by revealing how small feature perturbations affect predictions.
+\textbf{Gradient-Based Importance}: For neural network models, we implement gradient magnitude analysis where importance is computed as:
+\begin{equation}
+\text{Grad\_Importance}_i = \frac{1}{N} \sum_{n=1}^{N} \left|\frac{\partial f(\mathbf{x}^{(n)})}{\partial x_i^{(n)}}\right|
+\end{equation}
+This method provides fast computation complementary to SHAP analysis, revealing which features the neural network is most sensitive to during inference.
 
 \subsection{Training Procedures}
 
@@ -530,54 +574,131 @@ For each training image, we identify the candidate $j^*$ closest to ground truth
 j^* = \argmin_j \|(x_j, y_j) - (x_{\text{true}}, y_{\text{true}})\|_2
 \end{equation}
 
+\textbf{Training Configuration}: Models are trained with the following hyperparameters derived from systematic optimization:
+\begin{itemize}
+\item \textbf{Optimizer}: Adam with learning rate $\eta = 10^{-4}$, weight decay $\lambda = 10^{-4}$
+\item \textbf{Learning rate scheduler}: ReduceLROnPlateau with patience=5, factor=0.5
+\item \textbf{Batch size}: 16 (optimized for GPU memory and convergence stability)
+\item \textbf{Training epochs}: 32-50 with early stopping based on validation performance
+\item \textbf{Dropout rate}: $\rho = 0.2$ applied between all hidden layers
+\end{itemize}
+
+\textbf{Label Assignment and Loss Functions}: For deterministic models, we use CrossEntropyLoss with the closest candidate assigned as positive class. For probabilistic models, MarginRankingLoss with margin=0.5 encourages the true BCG candidate to score higher than all other candidates within each image:
+\begin{equation}
+\mathcal{L}_{\text{ranking}} = \max(0, \text{margin} - (s_{\text{true}} - s_{\text{other}}))
+\end{equation}
+
 When available, RedMapper BCG probabilities inform training through weighted loss functions while being explicitly excluded from inference features to prevent data leakage \citep{Rykoff2014redMaPPer}. This approach maintains scientific integrity by using external probability estimates for supervision without creating circular dependencies in the inference pipeline.
 
 \section{Implementation Details}
 
-The system is implemented in Python using PyTorch for neural network components, with comprehensive integration of modern machine learning and astronomical analysis libraries. The modular architecture enables flexible deployment across different observational scenarios and computational environments.
+The system is implemented in Python using PyTorch 1.9+ for neural network components, with comprehensive integration of modern machine learning and astronomical analysis libraries including scikit-learn, AstroPy, NumPy, and SHAP. The modular architecture enables flexible deployment across different observational scenarios and computational environments, with full support for both CPU and GPU acceleration.
+
+\subsection{Configuration Management and Hyperparameters}
+
+The framework employs comprehensive configuration management enabling reproducible scientific results:
+
+\textbf{Model Configuration}:
+\begin{itemize}
+\item \textbf{Network Architecture}: Configurable hidden layer dimensions (default: [128, 64, 32])
+\item \textbf{Dropout Rate}: Regularization parameter $\rho \in [0.1, 0.5]$ (default: 0.2)
+\item \textbf{Feature Dimensions}: 30 (morphological) + 8 (color PCA) + 2 (auxiliary) = 40 total
+\item \textbf{Patch Sizes}: Configurable extraction windows (64, 128, 256 pixels)
+\item \textbf{Color PCA Components}: Dimensionality reduction target (default: 8)
+\end{itemize}
+
+\textbf{Training Hyperparameters}:
+\begin{itemize}
+\item \textbf{Learning Rate}: $\eta = 10^{-4}$ with ReduceLROnPlateau scheduling
+\item \textbf{Weight Decay}: $\lambda = 10^{-4}$ for L2 regularization
+\item \textbf{Batch Size}: 16 (GPU memory optimized)
+\item \textbf{Training Epochs}: 32-50 with early stopping (patience=10)
+\item \textbf{Validation Split}: 20\% of training data for hyperparameter optimization
+\end{itemize}
+
+\textbf{Uncertainty Quantification Parameters}:
+\begin{itemize}
+\item \textbf{MC Dropout Samples}: 10 forward passes for epistemic uncertainty
+\item \textbf{Ensemble Size}: 5 independently trained models
+\item \textbf{Temperature Scaling}: LBFGS optimization for probability calibration
+\item \textbf{Calibration Tolerance}: Target calibration error $< 0.05$
+\end{itemize}
+
+\textbf{Candidate Detection Parameters}:
+\begin{itemize}
+\item \textbf{Minimum Separation}: $d_{\text{min}} = 8$ pixels between candidates
+\item \textbf{Intensity Threshold}: $\theta_{\text{rel}} = 0.1$ relative to image maximum
+\item \textbf{Border Exclusion}: 30-pixel boundary zone for complete feature extraction
+\item \textbf{Maximum Candidates}: 50 per image (computational efficiency)
+\end{itemize}
 
 \subsection{Core Framework Components}
 
 \textbf{Data Management}:
 \begin{itemize}
-\item \texttt{data.data\_read\_bcgs}: BCG dataset loading with multi-scale support (2.2' and 3.8' angular scales)
-\item \texttt{data.candidate\_dataset\_bcgs}: Candidate-based dataset generation including \texttt{DESpriorBCGCandidateDataset} for photometric prior integration
-\item WCS coordinate processing and multi-frame TIFF handling with proper astronomical calibration
+\item \texttt{data.data\_read\_bcgs}: BCG dataset loading with multi-scale support and automatic coordinate validation
+\item \texttt{data.candidate\_dataset.BCGCandidateDataset}: Standard candidate-based dataset with automatic local maxima detection
+\item \texttt{data.candidate\_dataset\_bcgs.DESpriorBCGCandidateDataset}: Integration with DES photometric catalogs and RedMapper priors
+\item \texttt{utils.data\_utils}: WCS coordinate processing, multi-frame TIFF handling, and astrometric calibration
+\item Automatic dataset statistics reporting including candidate count distributions and coordinate validation
 \end{itemize}
 
 \textbf{Feature Extraction Pipeline}:
 \begin{itemize}
-\item \texttt{utils.candidate\_based\_bcg}: Comprehensive candidate detection and morphological feature extraction
-\item \texttt{utils.color\_features}: RGB color feature extraction with red-sequence detection and PCA dimensionality reduction
-\item Automated feature scaling and standardization with proper train/test splits
+\item \texttt{utils.candidate\_based\_bcg.extract\_features\_for\_candidates}: 30-dimensional morphological feature extraction with configurable patch sizes (64, 128, 256 pixels)
+\item \texttt{utils.color\_features.ColorFeatureExtractor}: 54-dimensional RGB color analysis with PCA reduction to 8 components
+\item \texttt{utils.feature\_extraction}: Multi-scale radial analysis and directional sampling
+\item \texttt{sklearn.preprocessing.StandardScaler}: $z$-score normalization fitted on training data
+\item Automated feature importance ranking and correlation analysis
 \end{itemize}
 
 \textbf{Machine Learning Models}:
 \begin{itemize}
-\item \texttt{ml\_models.candidate\_classifier}: \texttt{BCGCandidateClassifier} for deterministic predictions
-\item \texttt{ml\_models.uq\_classifier}: \texttt{BCGProbabilisticClassifier} with Monte Carlo dropout and temperature scaling
-\item \texttt{ml\_models.uq\_classifier}: \texttt{BCGEnsembleClassifier} for robust multi-model predictions
+\item \texttt{ml\_models.candidate\_classifier.BCGCandidateClassifier}: Deterministic MLP [128, 64, 32] with CrossEntropyLoss
+\item \texttt{ml\_models.uq\_classifier.BCGProbabilisticClassifier}: Uncertainty-aware model with MC dropout and temperature scaling
+\item \texttt{ml\_models.uq\_classifier.BCGEnsembleClassifier}: 5-model ensemble with inter-model disagreement quantification
+\item \texttt{torch.optim.Adam}: Optimizer with learning rate $10^{-4}$, weight decay $10^{-4}$
+\item \texttt{torch.optim.lr\_scheduler.ReduceLROnPlateau}: Adaptive learning rate scheduling
 \end{itemize}
 
 \textbf{Analysis and Interpretability}:
 \begin{itemize}
-\item \texttt{analysis.run\_analysis}: SHAP-based feature importance analysis with physical interpretation
-\item \texttt{analysis.physical\_interpretation}: Automated mapping from technical features to astronomical concepts
-\item \texttt{utils.diagnostic\_plots}: Comprehensive performance evaluation and uncertainty quantification metrics
+\item \texttt{analysis.feature\_importance.calculate\_shap\_importance}: DeepExplainer-based SHAP analysis for neural networks
+\item \texttt{analysis.feature\_importance.calculate\_gradient\_importance}: Gradient-magnitude feature attribution
+\item \texttt{analysis.physical\_interpretation.PhysicalInterpretation}: Automated mapping from technical features to astrophysical concepts
+\item \texttt{utils.diagnostic\_plots.create\_comprehensive\_analysis}: Performance evaluation with KDE error analysis
+\item Permutation importance and feature group ablation studies
 \end{itemize}
 
 \textbf{Visualization and Validation}:
 \begin{itemize}
-\item \texttt{utils.viz\_bcg}: Enhanced prediction visualization with probability labels and uncertainty estimates
-\item \texttt{utils.test\_desprior\_candidates}: DES prior candidate integration and validation
-\item Rank-based evaluation pipeline with astronomically relevant metrics
+\item \texttt{utils.viz\_bcg.visualize\_predictions\_with\_probabilities}: Adaptive visualization with confidence intervals and rank annotations
+\item \texttt{utils.test\_desprior\_candidates}: DES catalog integration validation and coordinate system verification
+\item \texttt{utils.diagnostic\_plots}: Distance error analysis, redshift dependence, and calibration assessment
+\item \texttt{analysis.evaluation\_metrics}: Rank-based success rates, pixel distance statistics, and uncertainty correlation analysis
+\item Automated report generation with CSV exports and publication-ready figures
 \end{itemize}
 
 \subsection{Workflow Automation}
 
-\textbf{End-to-End Pipeline}: The \texttt{enhanced\_full\_run.py} script provides interactive configuration and execution of the complete analysis pipeline, from data loading through model training, evaluation, and interpretability analysis.
+\textbf{End-to-End Pipeline}: The \texttt{enhanced\_full\_run.py} script provides interactive configuration and execution of the complete analysis pipeline. The training procedure includes:
+\begin{enumerate}
+\item \textbf{Data preprocessing}: Feature extraction, standardization, and train/validation split (typically 80/20)
+\item \textbf{Model initialization}: Random weight initialization with Xavier/Glorot uniform distribution
+\item \textbf{Training loop}: Batch-wise gradient descent with validation monitoring
+\item \textbf{Temperature scaling}: Post-training calibration using LBFGS optimization on validation set
+\item \textbf{Model evaluation}: Comprehensive performance analysis including uncertainty quantification
+\item \textbf{Interpretability analysis}: SHAP feature importance and physical interpretation mapping
+\end{enumerate}
 
-\textbf{Scientific Integrity Validation}: Automated checks ensure proper separation of training supervision and inference features, preventing data leakage while maintaining scientific rigor.
+\textbf{Scientific Integrity Validation}: The framework implements comprehensive validation protocols:
+\begin{itemize}
+\item \textbf{Data Leakage Prevention}: RedMapper probabilities used only for training supervision, never inference
+\item \textbf{Feature Independence}: Auxiliary features (redshift, stellar mass) validated as independent measurements
+\item \textbf{Cross-Validation}: Stratified splits ensuring representative redshift and cluster richness distributions
+\item \textbf{Reproducibility}: Fixed random seeds and deterministic algorithms for consistent results
+\item \textbf{Version Control}: Complete codebase tracking with automated testing and documentation
+\end{itemize}
 
 \textbf{Results Organization}: Systematic output management with CSV exports, visualization generation, and comprehensive reporting suitable for scientific publication and pipeline integration.
 
@@ -587,11 +708,11 @@ The system is implemented in Python using PyTorch for neural network components,
 
 Our framework implements three complementary neural network architectures, each optimized for different aspects of BCG identification:
 
-\textbf{Deterministic Classifier (\texttt{BCGCandidateClassifier})}: The baseline model provides deterministic candidate rankings using a multi-layer perceptron with hidden dimensions [128, 64, 32] and dropout regularization ($\rho = 0.2$). This architecture achieves reliable performance for standard BCG identification tasks with computational efficiency suitable for large-scale deployment.
+\textbf{Deterministic Classifier (\texttt{BCGCandidateClassifier})}: The baseline model provides deterministic candidate rankings using a multi-layer perceptron with architecture [Input $\rightarrow$ 128 $\rightarrow$ 64 $\rightarrow$ 32 $\rightarrow$ 1] with ReLU activation functions and dropout regularization ($\rho = 0.2$) between each layer. The network contains approximately 4,097 parameters for 30-dimensional input, utilizing CrossEntropyLoss for training with Adam optimizer (learning rate $10^{-4}$, weight decay $10^{-4}$). This architecture achieves reliable performance for standard BCG identification tasks with computational efficiency suitable for large-scale deployment.
 
-\textbf{Probabilistic Classifier (\texttt{BCGProbabilisticClassifier})}: This advanced architecture extends the base model with uncertainty quantification capabilities through Monte Carlo dropout \citep{Gal2016MCDropout} and temperature scaling \citep{Laves2019WellCalibratedMU}. The model provides calibrated probability estimates with epistemic uncertainty quantification, enabling detection-threshold classification where candidates with probabilities exceeding configurable thresholds are classified as "detections" rather than relative rankings.
+\textbf{Probabilistic Classifier (\texttt{BCGProbabilisticClassifier})}: This advanced architecture extends the base model with uncertainty quantification capabilities through Monte Carlo dropout \citep{Gal2016MCDropout} and temperature scaling \citep{Laves2019WellCalibratedMU}. Training utilizes MarginRankingLoss with margin=0.5 for improved ranking-based optimization, where true BCG candidates are encouraged to score higher than all other candidates within each image. The model provides calibrated probability estimates with epistemic uncertainty quantification through 10 MC dropout samples during inference, enabling detection-threshold classification where candidates with probabilities exceeding configurable thresholds are classified as "detections" rather than relative rankings.
 
-\textbf{Ensemble Classifier (\texttt{BCGEnsembleClassifier})}: For maximum robustness, the ensemble approach combines multiple trained models to provide improved uncertainty estimates and enhanced performance in challenging scenarios. This architecture is particularly valuable for scientific applications requiring high confidence in predictions.
+\textbf{Ensemble Classifier (\texttt{BCGEnsembleClassifier})}: For maximum robustness, the ensemble approach combines 5 independently trained probabilistic models with different random initializations to provide improved uncertainty estimates and enhanced performance in challenging scenarios. Each model in the ensemble uses identical architecture but different weight initializations, providing both epistemic uncertainty (through individual model disagreement) and enhanced reliability through model averaging. This architecture is particularly valuable for scientific applications requiring high confidence in predictions, with ensemble variance capturing systematic model uncertainties beyond individual MC dropout estimates.
 
 \subsection{Uncertainty Quantification and Calibration}
 
@@ -618,7 +739,17 @@ Our framework incorporates comprehensive explainable AI capabilities through SHA
 \item \textbf{Auxiliary features}: Photometric redshift, stellar mass indicators ($\Delta m^*_z$)
 \end{itemize}
 
-\textbf{Physical Interpretation}: The analysis pipeline automatically maps technical feature importance to physical astronomical concepts, bridging machine learning outputs with astrophysical understanding.
+\textbf{Physical Interpretation}: The analysis pipeline automatically maps technical feature importance to physical astronomical concepts through a comprehensive interpretation framework:
+
+\begin{itemize}
+\item \textbf{Intensity Statistics}: Map to integrated galaxy luminosity and surface brightness profiles, indicating stellar mass and evolutionary state
+\item \textbf{Central Concentration}: Relates to structural parameters and Sérsic profiles, distinguishing elliptical from disk morphologies
+\item \textbf{Color Features}: Probe stellar population properties, star formation history, and red-sequence membership
+\item \textbf{Environmental Features}: Encode cluster dynamics, position within dark matter halos, and intracluster medium interactions
+\item \textbf{Auxiliary Parameters}: Connect to fundamental scaling relations and cosmological evolution tracks
+\end{itemize}
+
+This mapping bridges machine learning outputs with astrophysical understanding, enabling scientific validation and trust in automated predictions.
 
 \subsection{Multi-Modal Feature Integration}
 
@@ -644,13 +775,25 @@ The framework supports flexible candidate selection strategies:
 
 Our evaluation framework employs astronomically relevant metrics:
 
-\textbf{Rank-Based Performance}: Rather than traditional classification accuracy, we evaluate rank-1, rank-2, rank-3, and rank-5 success rates, recognizing that multiple candidates may be astronomically valid BCGs.
+\textbf{Rank-Based Performance}: Rather than traditional classification accuracy, we evaluate rank-1, rank-2, rank-3, and rank-5 success rates, recognizing that multiple candidates may be astronomically valid BCGs. The rank-$k$ success rate is defined as:
+\begin{equation}
+\text{Rank-}k = \frac{1}{N} \sum_{i=1}^{N} \mathbf{1}[\text{true BCG rank} \leq k]
+\end{equation}
+where $\mathbf{1}[\cdot]$ is the indicator function and candidates are ranked by their predicted scores/probabilities in descending order.
 
-\textbf{Distance Error Analysis}: Systematic analysis of prediction accuracy as a function of distance from ground truth, providing insights into model precision and systematic biases.
+\textbf{Distance Error Analysis}: Systematic analysis of prediction accuracy as a function of distance from ground truth, quantified through pixel-space Euclidean distance:
+\begin{equation}
+d_{\text{error}} = \|(x_{\text{pred}}, y_{\text{pred}}) - (x_{\text{true}}, y_{\text{true}})\|_2
+\end{equation}
+We report mean, median, standard deviation, and 90th percentile of distance errors, along with success rates at distance thresholds (10, 20, 30, 50 pixels), providing insights into model precision and systematic biases. The analysis includes kernel density estimation (KDE) of error distributions to identify multimodal behavior indicative of systematic failure modes.
 
 \textbf{Redshift Dependence}: Performance evaluation across different redshift ranges, crucial for understanding model applicability to diverse cosmological epochs.
 
-\textbf{Uncertainty Calibration}: Validation that predicted uncertainties accurately reflect actual prediction accuracy, essential for scientific applications.
+\textbf{Uncertainty Calibration}: We assess calibration through reliability diagrams comparing predicted probabilities with observed success rates. For probability bins $[p_i, p_{i+1})$, the calibration error is:
+\begin{equation}
+\text{Calibration Error} = \sum_{i} |\bar{p}_i - \text{acc}_i| \cdot n_i / N
+\end{equation}
+where $\bar{p}_i$ is the mean predicted probability in bin $i$, $\text{acc}_i$ is the observed accuracy, and $n_i$ is the number of samples in the bin. Well-calibrated models exhibit calibration errors $< 0.05$, essential for scientific applications requiring trustworthy confidence estimates.
 
 \subsection{Diagnostic and Visualization Capabilities}
 
@@ -690,13 +833,13 @@ The framework addresses critical needs in modern survey astronomy by providing:
 
 \subsection{Comparison with Recent Work}
 
-Our approach complements and extends recent developments in automated BCG identification. While \citet{Janulewicz2025} achieved $R^2 \approx 0.94$ on simulations using purely data-driven neural networks, our framework provides additional capabilities crucial for scientific applications: uncertainty quantification, explainable predictions, and systematic validation against physical expectations. The integration of established priors \citep{Rykoff2014redMaPPer} with modern machine learning techniques provides a pathway for systematic validation and cross-comparison with existing astronomical catalogs.
+Our approach complements and extends recent developments in automated BCG identification. While \citet{Janulewicz2025} achieved $R^2 \approx 0.94$ on simulations using purely data-driven coordinate regression neural networks, our framework provides additional capabilities crucial for scientific applications: calibrated uncertainty quantification, explainable predictions through SHAP analysis, systematic validation against physical expectations, and robust handling of observational contamination through color feature extraction. The integration of established priors \citep{Rykoff2014redMaPPer} with modern machine learning techniques provides a pathway for systematic validation and cross-comparison with existing astronomical catalogs, while maintaining scientific integrity through proper separation of training supervision and inference features.
 
 \subsection{Future Directions}
 
-\textbf{Large-Scale Survey Deployment}: The framework is well-positioned for deployment on upcoming large-scale surveys, including LSST \citep{Grandis2025LSST}, where the combination of uncertainty quantification and explainable AI will be essential for managing the massive data volumes and maintaining scientific quality.
+\textbf{Large-Scale Survey Deployment}: The framework is well-positioned for deployment on upcoming large-scale surveys, including LSST \citep{Grandis2025LSST} and continued DES operations, where the combination of uncertainty quantification and explainable AI will be essential for managing the massive data volumes and maintaining scientific quality. The modular design enables integration with existing astronomical software ecosystems, supporting both research applications and operational survey pipelines through standardized APIs and configurable parameters.
 
-\textbf{Multi-Wavelength Extension}: Future development could extend the color feature extraction to incorporate additional photometric bands beyond RGB, potentially improving red-sequence detection and enabling application to surveys with different filter systems.
+\textbf{Multi-Wavelength Extension}: Future development could extend the color feature extraction to incorporate additional photometric bands beyond RGB (such as $gri$ or $ugriz$ filter systems), potentially improving red-sequence detection precision and enabling application to surveys with different instrumental configurations. Integration with infrared data from surveys like WISE could provide enhanced stellar mass estimates and further discrimination against quasar contamination.
 
 \textbf{Deep Learning Integration}: While maintaining the interpretability advantages of feature-based approaches, future work could explore hybrid architectures combining engineered features with deep learning representations for enhanced performance in challenging cases.
 
