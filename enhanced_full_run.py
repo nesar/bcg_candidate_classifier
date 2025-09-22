@@ -125,25 +125,33 @@ def main():
     
     # Additional features option
     use_additional_features_input = input("\nInclude redshift and delta_mstar_z as additional features? (Y/n): ").strip().lower()
+    if use_additional_features_input == "":
+        use_additional_features_input = "y"  # Default to Y
     use_additional_features = use_additional_features_input not in ['n', 'no']
     
     # RedMapper probabilities option  
     print("\nRedMapper BCG Probabilities:")
     print("These can be used for training supervision (loss weighting, evaluation) but")
     print("will NOT be used as input features during testing (to avoid cheating).")
-    use_redmapper_probs_input = input("Include RedMapper BCG probabilities for training supervision? (y/N): ").strip().lower()
-    use_redmapper_probs = use_redmapper_probs_input in ['y', 'yes']
+    use_redmapper_probs_input = input("Include RedMapper BCG probabilities for training supervision? (Y/n): ").strip().lower()
+    if use_redmapper_probs_input == "":
+        use_redmapper_probs_input = "y"  # Default to Y
+    use_redmapper_probs = use_redmapper_probs_input not in ['n', 'no']
     
     # Filtering options
     print("\nFiltering options:")
-    apply_filters = input("Apply redshift or delta_mstar_z filters? (y/N): ").strip().lower()
+    apply_filters = input("Apply redshift or delta_mstar_z filters? (Y/n): ").strip().lower()
+    if apply_filters == "":
+        apply_filters = "y"  # Default to Y
     
     if apply_filters in ['y', 'yes']:
         # Get actual data ranges
         z_data_range, delta_data_range = get_bcg_data_ranges(bcg_arcmin_type)
         
         # Redshift filtering
-        z_input = input(f"Redshift range (format: min,max, data range: {z_data_range}, or press Enter to skip): ").strip()
+        z_input = input(f"Redshift range (format: min,max, data range: {z_data_range}, or press Enter for default 0.2,1): ").strip()
+        if z_input == "":
+            z_input = "0.2,1"  # Default redshift range
         if z_input:
             try:
                 z_min, z_max = map(lambda x: float(x.strip()), z_input.split(','))
@@ -153,7 +161,9 @@ def main():
                 print("Invalid format, skipping redshift filter")
         
         # Delta M* z filtering
-        delta_input = input(f"Delta M* z range (format: min,max, data range: {delta_data_range}, or press Enter to skip): ").strip()
+        delta_input = input(f"Delta M* z range (format: min,max, data range: {delta_data_range}, or press Enter for default -3.5,0): ").strip()
+        if delta_input == "":
+            delta_input = "-3.5,0"  # Default delta_mstar range
         if delta_input:
             try:
                 delta_min, delta_max = map(lambda x: float(x.strip()), delta_input.split(','))
@@ -164,12 +174,16 @@ def main():
     
     # DESprior candidates option
     print("\nCandidate selection:")
-    use_desprior_input = input("Use DESprior candidates instead of automatic detection? (y/N): ").strip().lower()
-    use_desprior_candidates = use_desprior_input in ['y', 'yes']
+    use_desprior_input = input("Use DESprior candidates instead of automatic detection? (Y/n): ").strip().lower()
+    if use_desprior_input == "":
+        use_desprior_input = "y"  # Default to Y
+    use_desprior_candidates = use_desprior_input not in ['n', 'no']
     
     if use_desprior_candidates:
         # DESprior candidate filtering
-        candidate_delta_input = input("Filter DESprior candidates by delta_mstar range (format: min,max, or press Enter to skip): ").strip()
+        candidate_delta_input = input("Filter DESprior candidates by delta_mstar range (format: min,max, or press Enter for default -3.5,0): ").strip()
+        if candidate_delta_input == "":
+            candidate_delta_input = "-3.5,0"  # Default candidate delta_mstar range
         if candidate_delta_input:
             try:
                 candidate_delta_min, candidate_delta_max = map(lambda x: float(x.strip()), candidate_delta_input.split(','))
@@ -201,6 +215,8 @@ def main():
     print("This preserves RGB color information lost during grayscale conversion.")
     
     use_color_features = input("\nEnable color features for red-sequence detection? (Y/n): ").strip().lower()
+    if use_color_features == "":
+        use_color_features = "y"  # Default to Y
     use_color_features = use_color_features not in ['n', 'no']
     
     if use_color_features:
@@ -218,6 +234,8 @@ def main():
     print("This addresses the need for probabilistic outputs and confidence estimates.")
     
     use_uq = input("\nEnable uncertainty quantification? (Y/n): ").strip().lower()
+    if use_uq == "":
+        use_uq = "y"  # Default to Y
     use_uq = use_uq not in ['n', 'no']
     
     # UQ parameters
@@ -248,6 +266,8 @@ def main():
     print("- Comprehensive visualizations and reports")
     
     run_analysis = input("\nRun feature importance analysis after training/testing? (Y/n): ").strip().lower()
+    if run_analysis == "":
+        run_analysis = "y"  # Default to Y
     run_analysis = run_analysis not in ['n', 'no']
     
     # Analysis parameters
@@ -323,11 +343,11 @@ def main():
     modify_training = input("Modify training parameters? (y/N): ").strip().lower()
     
     if modify_training in ['y', 'yes']:
-        epochs = int(input("Number of epochs (default 32): ") or "32")
+        epochs = int(input("Number of epochs (default 64): ") or "64")
         batch_size = int(input("Batch size (default 16): ") or "16")
         lr = float(input("Learning rate (default 0.0001): ") or "0.0001")
     else:
-        epochs = 32
+        epochs = 64
         batch_size = 16
         lr = 0.0001
         print(f"Using defaults: epochs={epochs}, batch_size={batch_size}, lr={lr}")
