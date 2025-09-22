@@ -272,7 +272,7 @@ def main():
     
     # Analysis parameters
     analysis_methods = ['shap', 'gradient']
-    analysis_samples = 1000
+    analysis_samples = 500
     
     if run_analysis:
         print("\nFeature importance analysis configuration:")
@@ -280,6 +280,8 @@ def main():
         print(f"Default analysis samples: {analysis_samples}")
         
         modify_analysis = input("Modify analysis parameters? (y/N): ").strip().lower()
+        if modify_analysis == "":
+            modify_analysis = "n"  # Default to N
         
         if modify_analysis in ['y', 'yes']:
             print("\nAvailable analysis methods:")
