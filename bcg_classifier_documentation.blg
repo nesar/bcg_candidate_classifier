@@ -27,37 +27,37 @@ Warning--I didn't find a database entry for "Rykoff2016"
 Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
 You've used 20 entries,
             3168 wiz_defined-function locations,
-            813 strings with 8441 characters,
-and the built_in function-call counts, 9562 in all, are:
-= -- 858
-> -- 604
+            820 strings with 8658 characters,
+and the built_in function-call counts, 9460 in all, are:
+= -- 847
+> -- 612
 < -- 7
-+ -- 204
-- -- 224
-* -- 810
-:= -- 1685
-add.period$ -- 27
++ -- 206
+- -- 228
+* -- 800
+:= -- 1684
+add.period$ -- 26
 call.type$ -- 20
 change.case$ -- 112
-chr.to.int$ -- 19
+chr.to.int$ -- 20
 cite$ -- 20
 duplicate$ -- 336
-empty$ -- 618
-format.name$ -- 249
-if$ -- 2007
-int.to.chr$ -- 2
+empty$ -- 604
+format.name$ -- 252
+if$ -- 1975
+int.to.chr$ -- 1
 int.to.str$ -- 0
 missing$ -- 20
-newline$ -- 75
+newline$ -- 74
 num.names$ -- 80
-pop$ -- 110
+pop$ -- 107
 preamble$ -- 1
 purify$ -- 112
 quote$ -- 0
-skip$ -- 342
+skip$ -- 334
 stack$ -- 0
-substring$ -- 529
-swap$ -- 2
+substring$ -- 493
+swap$ -- 0
 text.length$ -- 0
 text.prefix$ -- 0
 top$ -- 0

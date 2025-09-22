@@ -23,10 +23,11 @@
 {Bruzual}, G., \& {Charlot}, S. 2003, \mnras, 344, 1000,
   \dodoi{10.1046/j.1365-8711.2003.06897.x}
 
-\bibitem[{{Chen} {et~al.}(2024){Chen}, {Wang}, {Zhang}, {et~al.}}]{COSMIC2024}
+\bibitem[{{Chen} {et~al.}(2024){Chen}, {Wang}, {Zhang},
+  {et~al.}}]{Chen2024sOPTICS}
 {Chen}, L., {Wang}, X., {Zhang}, Y., {et~al.} 2024, arXiv e-prints,
-  arXiv:2410.20083.
-\newblock \doarXiv{2410.20083}
+  arXiv:2405.09855.
+\newblock \doarXiv{2405.09855}
 
 \bibitem[{{Conselice}(2003)}]{Conselice2003}
 {Conselice}, C.~J. 2003, \apjs, 147, 1, \dodoi{10.1086/375001}
@@ -69,15 +70,10 @@
 {Hambleton}, K.~M., {Gibson}, B.~K., {Brook}, C.~B., {et~al.} 2011, \mnras,
   418, 801, \dodoi{10.1111/j.1365-2966.2011.19532.x}
 
-\bibitem[{{Janulewicz} {et~al.}(2025{\natexlab{a}}){Janulewicz}, {Webb}, \&
-  {Perreault-Levasseur}}]{Janulewicz2025BCG}
-{Janulewicz}, P., {Webb}, T.~M.~A., \& {Perreault-Levasseur}, L.
-  2025{\natexlab{a}}, arXiv e-prints, arXiv:2502.00104.
-\newblock \doarXiv{2502.00104}
-
-\bibitem[{{Janulewicz} {et~al.}(2025{\natexlab{b}}){Janulewicz}, {Webb}, \&
+\bibitem[{{Janulewicz} {et~al.}(2025){Janulewicz}, {Webb}, \&
   {Perreault-Levasseur}}]{Janulewicz2025}
----. 2025{\natexlab{b}}, arXiv e-prints, arXiv:2502.00104.
+{Janulewicz}, P., {Webb}, T.~M.~A., \& {Perreault-Levasseur}, L. 2025, arXiv
+  e-prints, arXiv:2502.00104.
 \newblock \doarXiv{2502.00104}
 
 \bibitem[{{Kodama} \& {Arimoto}(1997)}]{Kodama1997}
@@ -89,6 +85,11 @@
 {Laves}, M.-H., {Ihler}, S., {Kortmann}, K.-P., \& {Ortmaier}, T. 2019, arXiv
   e-prints, arXiv:1909.13550.
 \newblock \doarXiv{1909.13550}
+
+\bibitem[{{Manrique} {et~al.}(2022){Manrique}, {Guennou}, {Sarron},
+  {et~al.}}]{Manrique2022ICL}
+{Manrique}, A., {Guennou}, L., {Sarron}, F., {et~al.} 2022, \mnras, 514, 3082,
+  \dodoi{10.1093/mnras/stac1340}
 
 \bibitem[{{Rykoff} {et~al.}(2014){Rykoff}, {Rozo}, {Busha},
   {et~al.}}]{Rykoff2014redMaPPer}
