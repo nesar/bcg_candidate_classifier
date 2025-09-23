@@ -126,7 +126,7 @@ Figure~\ref{fig:architecture} presents the complete machine learning pipeline, i
 \begin{scope}[xshift=40mm, yshift=-70mm]  % set well below row-1 to avoid overlap
   % Fusion
   \node[nn, text width=3.65cm] (Fusion) at (0, 2.2)
-    {\textbf{Feature Fusion}\\StandardScaler\\$\mathbf{f}_i \in \mathbb{R}^{38-58}$};
+    {\textbf{Feature Fusion}\\StandardScaler\\$\mathbf{f}_i \in \mathbb{R}^{40}$};
 
   % Classifier with correct architecture
   \node[nn, text width=3.65cm] (CLS) [below=\vsep of Fusion]
@@ -376,7 +376,7 @@ The complete feature vector structure is as follows:
 \item \textbf{Core morphological features}: 30 dimensions
 \item \textbf{RGB color features (PCA-reduced)}: 8 dimensions (when enabled)
 \item \textbf{Auxiliary features}: 2 dimensions (redshift $z$, stellar mass indicator $\Delta m^*_z$; when available)
-\item \textbf{Total dimensionality}: 30-40 dimensions depending on configuration
+\item \textbf{Total dimensionality}: 40 dimensions (30 morphological + 8 color + 2 auxiliary when all features enabled)
 \end{itemize}
 
 The 30-dimensional core feature set includes: intensity statistics (5), central-peripheral analysis (3), gradient features (3), position features (3), shape/symmetry features (3), and multi-scale context features (13 from three radial scales). Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units, with $z$-score normalization: $f_{\text{norm}} = (f - \mu_{\text{train}})/\sigma_{\text{train}}$.
@@ -576,10 +576,10 @@ j^* = \argmin_j \|(x_j, y_j) - (x_{\text{true}}, y_{\text{true}})\|_2
 
 \textbf{Training Configuration}: Models are trained with the following hyperparameters derived from systematic optimization:
 \begin{itemize}
-\item \textbf{Optimizer}: Adam with learning rate $\eta = 10^{-4}$, weight decay $\lambda = 10^{-4}$
+\item \textbf{Optimizer}: Adam with learning rate $\eta = 10^{-4}$ (enhanced\_full\_run.py default) or $\eta = 10^{-3}$ (train.py default), weight decay $\lambda = 10^{-4}$
 \item \textbf{Learning rate scheduler}: ReduceLROnPlateau with patience=5, factor=0.5
 \item \textbf{Batch size}: 16 (optimized for GPU memory and convergence stability)
-\item \textbf{Training epochs}: 32-50 with early stopping based on validation performance
+\item \textbf{Training epochs}: 50-64 with early stopping based on validation performance (enhanced\_full\_run.py defaults to 64, train.py defaults to 50)
 \item \textbf{Dropout rate}: $\rho = 0.2$ applied between all hidden layers
 \end{itemize}
 
@@ -592,7 +592,7 @@ When available, RedMapper BCG probabilities inform training through weighted los
 
 \section{Implementation Details}
 
-The system is implemented in Python using PyTorch 1.9+ for neural network components, with comprehensive integration of modern machine learning and astronomical analysis libraries including scikit-learn, AstroPy, NumPy, and SHAP. The modular architecture enables flexible deployment across different observational scenarios and computational environments, with full support for both CPU and GPU acceleration.
+The system is implemented in Python using PyTorch 1.9+ for neural network components, with comprehensive integration of modern machine learning and astronomical analysis libraries including scikit-learn, AstroPy, NumPy, and SHAP. The modular architecture enables flexible deployment across different observational scenarios and computational environments, with full support for both CPU and GPU acceleration. For HPC deployment, the framework includes optimized threading configurations (NUMEXPR\_MAX\_THREADS=128, OMP\_NUM\_THREADS=1, MKL\_NUM\_THREADS=1) to prevent conflicts and ensure stable execution on cluster computing systems.
 
 \subsection{Configuration Management and Hyperparameters}
 
@@ -609,10 +609,10 @@ The framework employs comprehensive configuration management enabling reproducib
 
 \textbf{Training Hyperparameters}:
 \begin{itemize}
-\item \textbf{Learning Rate}: $\eta = 10^{-4}$ with ReduceLROnPlateau scheduling
+\item \textbf{Learning Rate}: $\eta = 10^{-4}$ (enhanced\_full\_run.py) or $\eta = 10^{-3}$ (train.py) with ReduceLROnPlateau scheduling
 \item \textbf{Weight Decay}: $\lambda = 10^{-4}$ for L2 regularization
 \item \textbf{Batch Size}: 16 (GPU memory optimized)
-\item \textbf{Training Epochs}: 32-50 with early stopping (patience=10)
+\item \textbf{Training Epochs}: 50-64 with early stopping (patience=10)
 \item \textbf{Validation Split}: 20\% of training data for hyperparameter optimization
 \end{itemize}
 
