@@ -10,8 +10,7 @@ __author__ = "BCG Analysis Framework"
 
 from .feature_importance import (
     FeatureImportanceAnalyzer,
-    SHAPAnalyzer,
-    PermutationImportanceAnalyzer
+    SHAPAnalyzer
 )
 
 from .importance_plots import (
@@ -23,8 +22,7 @@ from .importance_plots import (
 
 __all__ = [
     'FeatureImportanceAnalyzer',
-    'SHAPAnalyzer', 
-    'PermutationImportanceAnalyzer',
+    'SHAPAnalyzer',
     'ImportancePlotter',
     'create_shap_summary_plot',
     'create_feature_ranking_plot', 

@@ -66,6 +66,7 @@ class PyTorchModelWrapper(BaseEstimator, ClassifierMixin):
     
     def score(self, X, y):
         """Return accuracy score."""
+        from sklearn.metrics import accuracy_score
         return accuracy_score(y, self.predict(X))
 
 
@@ -113,7 +114,7 @@ class FeatureImportanceAnalyzer:
         
         Args:
             X: Input features (numpy array or torch tensor)
-            y: True labels (optional, for permutation importance)
+            y: True labels (optional)
             methods: List of methods to use ['shap', 'gradient']
             n_repeats: Number of permutation repeats
             random_state: Random state for reproducibility
@@ -128,7 +129,6 @@ class FeatureImportanceAnalyzer:
             X_np = X.cpu().numpy()
         else:
             X_np = X
-        
         
         # SHAP analysis
         if 'shap' in methods and SHAP_AVAILABLE:

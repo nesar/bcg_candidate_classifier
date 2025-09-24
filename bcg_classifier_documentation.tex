@@ -23,7 +23,7 @@
 \affiliation{High Energy Physics Image Marker Project}
 
 \begin{abstract}
-We present a comprehensive machine learning framework for automated Brightest Cluster Galaxy (BCG) identification that integrates uncertainty quantification, explainable AI, and multi-modal feature analysis for large-scale astronomical surveys. Our approach employs three complementary architectures: (1) deterministic classification for baseline performance, (2) probabilistic models with Monte Carlo dropout and temperature scaling for calibrated uncertainty estimates \citep{Laves2019WellCalibratedMU,Gal2016MCDropout}, and (3) ensemble methods for robust predictions across diverse cluster environments. The system incorporates RGB color features specifically designed for red-sequence detection, addressing the critical contamination problem where bright white objects (stars, QSOs) receive spuriously high BCG probabilities in traditional grayscale-based approaches. Key innovations include SHAP-based feature importance analysis \citep{Dainotti2025InterpretableAI} that provides physical interpretation of model predictions, comprehensive uncertainty quantification enabling detection-threshold classification, and flexible integration of DES photometric priors \citep{Rykoff2016DES} alongside automatic candidate detection. The framework processes multi-scale BCG datasets (2.2' and 3.8' angular scales) with optional auxiliary features including photometric redshift and stellar mass indicators. Systematic evaluation demonstrates rank-based performance metrics, with explainable AI analysis revealing the relative importance of morphological, contextual, color, and auxiliary features for BCG identification. This interpretable, uncertainty-aware approach provides calibrated confidence estimates essential for scientific decision-making in modern survey astronomy, enabling seamless integration with existing astronomical pipelines while maintaining full traceability of model predictions.
+We present a comprehensive machine learning framework for automated Brightest Cluster Galaxy (BCG) identification that integrates uncertainty quantification, explainable AI, and multi-modal feature analysis for large-scale astronomical surveys. Our approach employs three complementary architectures: (1) deterministic classification for baseline performance, (2) probabilistic models with Monte Carlo dropout and temperature scaling for calibrated uncertainty estimates \citep{Laves2019WellCalibratedMU,Gal2016MCDropout}, and (3) ensemble methods for robust predictions across diverse cluster environments. The system incorporates RGB color features specifically designed for red-sequence detection, addressing the critical contamination problem where bright white objects (stars, QSOs) receive spuriously high BCG probabilities in traditional grayscale-based approaches. Key innovations include SHAP-based feature importance analysis \citep{Lieu2025InterpretableAI} that provides physical interpretation of model predictions, comprehensive uncertainty quantification enabling detection-threshold classification, and flexible integration of DES photometric priors \citep{Rykoff2016DES} alongside automatic candidate detection. The framework processes multi-scale BCG datasets (2.2' and 3.8' angular scales) with optional auxiliary features including photometric redshift and stellar mass indicators. Systematic evaluation demonstrates rank-based performance metrics, with explainable AI analysis revealing the relative importance of morphological, contextual, color, and auxiliary features for BCG identification. This interpretable, uncertainty-aware approach provides calibrated confidence estimates essential for scientific decision-making in modern survey astronomy, enabling seamless integration with existing astronomical pipelines while maintaining full traceability of model predictions.
 \end{abstract}
 
 \keywords{methods: data analysis --- galaxies: clusters: general --- techniques: image processing --- methods: statistical}
@@ -44,7 +44,7 @@ The paradigm shifted dramatically with the advent of deep learning approaches in
 
 \subsection{Contemporary Challenges and Hybrid Approaches}
 
-Recent work in BCG detection reflects this methodological evolution. \citet{Janulewicz2025} demonstrated that neural networks can achieve $R^2 \approx 0.94$ accuracy in automated BCG identification using purely data-driven coordinate regression approaches on simulated cluster data, while \citet{Chen2024sOPTICS} developed the sOPTICS algorithm combining modified density-based clustering with machine learning techniques for improved cluster detection. \citet{Manrique2022ICL} explored machine learning approaches for simultaneous BCG and intracluster light identification in simulated galaxy clusters, demonstrating the potential for multi-component analysis.
+Recent work in BCG detection reflects this methodological evolution. \citet{Janulewicz2025} demonstrated that neural networks can achieve $R^2 \approx 0.94$ accuracy in automated BCG identification using purely data-driven coordinate regression approaches on simulated cluster data, while \citet{Ma2024sOPTICS} developed the sOPTICS algorithm combining modified density-based clustering with machine learning techniques for improved cluster detection. \citet{Manrique2022ICL} explored machine learning approaches for simultaneous BCG and intracluster light identification in simulated galaxy clusters, demonstrating the potential for multi-component analysis.
 
 However, purely data-driven approaches face significant challenges in astronomical contexts. Deep learning models often lack interpretability crucial for scientific validation, require extensive training data that may not be available for rare astronomical objects, and can struggle with domain adaptation across different surveys or instruments. Furthermore, the physical understanding embedded in traditional parametric features remains valuable for incorporating known astrophysical relationships.
 
@@ -506,7 +506,7 @@ A critical innovation in our framework is the integration of explainable artific
 
 \subsubsection{SHAP-Based Feature Attribution}
 
-We implement SHapley Additive exPlanations (SHAP) analysis \citep{Dainotti2025InterpretableAI} using the DeepExplainer method specifically designed for neural networks to quantify the contribution of each feature to individual predictions. For a given prediction $f(\mathbf{x})$, SHAP values $\phi_i$ satisfy:
+We implement SHapley Additive exPlanations (SHAP) analysis \citep{Lieu2025InterpretableAI} using the DeepExplainer method specifically designed for neural networks to quantify the contribution of each feature to individual predictions. For a given prediction $f(\mathbf{x})$, SHAP values $\phi_i$ satisfy:
 \begin{equation}
 f(\mathbf{x}) = \phi_0 + \sum_{i=1}^{M} \phi_i
 \end{equation}
@@ -727,7 +727,7 @@ A key advancement in our framework is the implementation of principled uncertain
 
 \subsection{Explainable AI and Feature Importance Analysis}
 
-Our framework incorporates comprehensive explainable AI capabilities through SHAP (SHapley Additive exPlanations) analysis \citep{Dainotti2025InterpretableAI}, providing crucial scientific interpretability:
+Our framework incorporates comprehensive explainable AI capabilities through SHAP (SHapley Additive exPlanations) analysis \citep{Lieu2025InterpretableAI}, providing crucial scientific interpretability:
 
 \textbf{Individual Prediction Explanations}: SHAP waterfall plots reveal which features contribute most strongly to each individual BCG prediction, enabling validation of model reasoning against astronomical expectations.
 
@@ -769,7 +769,7 @@ The framework supports flexible candidate selection strategies:
 
 \textbf{DES Prior Integration}: Integration with Dark Energy Survey photometric catalogs leverages established astronomical pipelines while maintaining the flexibility to apply machine learning enhancements. The \texttt{DESpriorBCGCandidateDataset} class enables seamless loading of pre-computed candidate catalogs.
 
-\textbf{RedMapper Supervision}: RedMapper BCG probabilities inform training through loss weighting while being explicitly excluded from inference features, ensuring scientific integrity and preventing data leakage \citep{Rykoff2014redMaPPer,Cooper2025DESI}.
+\textbf{RedMapper Supervision}: RedMapper BCG probabilities inform training through loss weighting while being explicitly excluded from inference features, ensuring scientific integrity and preventing data leakage \citep{Rykoff2014redMaPPer,Myles2025DESI}.
 
 \subsection{Evaluation Metrics and Validation}
 
@@ -813,13 +813,13 @@ We have presented a state-of-the-art machine learning framework for automated BC
 
 \textbf{Uncertainty-Aware Predictions}: Our implementation of Monte Carlo dropout \citep{Gal2016MCDropout} and temperature scaling \citep{Laves2019WellCalibratedMU} provides calibrated probability estimates essential for scientific decision-making. The detection-threshold classification capability enables seamless integration with automated survey pipelines while maintaining quantified confidence levels.
 
-\textbf{Scientific Interpretability}: The integration of SHAP-based explainable AI \citep{Dainotti2025InterpretableAI} addresses a critical gap in astronomical machine learning by providing physical interpretation of model predictions. This capability is essential for scientific validation and enables astronomers to understand and trust automated classification results.
+\textbf{Scientific Interpretability}: The integration of SHAP-based explainable AI \citep{Lieu2025InterpretableAI} addresses a critical gap in astronomical machine learning by providing physical interpretation of model predictions. This capability is essential for scientific validation and enables astronomers to understand and trust automated classification results.
 
 \textbf{Color Feature Innovation}: Our RGB color feature extraction system solves the fundamental contamination problem where bright white objects (stars, QSOs) receive spuriously high BCG probabilities in grayscale-based approaches. The red-sequence detection capabilities, combined with spatial color analysis and PCA dimensionality reduction, enable robust discrimination between genuine cluster galaxies and contaminant sources.
 
 \textbf{Multi-Scale Flexibility}: The framework's support for both 2.2' and 3.8' angular scale BCG datasets, combined with flexible integration of auxiliary astronomical measurements (redshift, stellar mass indicators), provides adaptability across diverse observational scenarios and survey configurations.
 
-\textbf{Prior Integration}: Seamless integration with established astronomical data products, including DES photometric catalogs \citep{Rykoff2016DES} and RedMapper cluster finders \citep{Cooper2025DESI}, bridges traditional observational astronomy with modern machine learning while maintaining scientific integrity through proper separation of training supervision and inference features.
+\textbf{Prior Integration}: Seamless integration with established astronomical data products, including DES photometric catalogs \citep{Rykoff2016DES} and RedMapper cluster finders \citep{Myles2025DESI}, bridges traditional observational astronomy with modern machine learning while maintaining scientific integrity through proper separation of training supervision and inference features.
 
 \subsection{Scientific Impact and Applications}
 
@@ -837,7 +837,7 @@ Our approach complements and extends recent developments in automated BCG identi
 
 \subsection{Future Directions}
 
-\textbf{Large-Scale Survey Deployment}: The framework is well-positioned for deployment on upcoming large-scale surveys, including LSST \citep{Grandis2025LSST} and continued DES operations, where the combination of uncertainty quantification and explainable AI will be essential for managing the massive data volumes and maintaining scientific quality. The modular design enables integration with existing astronomical software ecosystems, supporting both research applications and operational survey pipelines through standardized APIs and configurable parameters.
+\textbf{Large-Scale Survey Deployment}: The framework is well-positioned for deployment on upcoming large-scale surveys, including LSST \citep{Payerne2025LSST} and continued DES operations, where the combination of uncertainty quantification and explainable AI will be essential for managing the massive data volumes and maintaining scientific quality. The modular design enables integration with existing astronomical software ecosystems, supporting both research applications and operational survey pipelines through standardized APIs and configurable parameters.
 
 \textbf{Multi-Wavelength Extension}: Future development could extend the color feature extraction to incorporate additional photometric bands beyond RGB (such as $gri$ or $ugriz$ filter systems), potentially improving red-sequence detection precision and enabling application to surveys with different instrumental configurations. Integration with infrared data from surveys like WISE could provide enhanced stellar mass estimates and further discrimination against quasar contamination.
 
