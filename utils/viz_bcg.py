@@ -3,6 +3,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def get_bcg_probability_at_target(target, candidates, probabilities, max_distance=10.0):
+    """
+    Find the BCG probability at or near the true BCG location.
+    
+    Args:
+        target: True BCG coordinates [x, y]
+        candidates: List of candidate coordinates
+        probabilities: List of probabilities for each candidate
+        max_distance: Maximum distance to consider a candidate as matching the target
+        
+    Returns:
+        BCG probability at target location, or None if no nearby candidate found
+    """
+    if len(candidates) == 0 or len(probabilities) == 0:
+        return None
+        
+    candidates_array = np.array(candidates)
+    distances = np.sqrt(np.sum((candidates_array - target)**2, axis=1))
+    
+    # Find closest candidate
+    closest_idx = np.argmin(distances)
+    closest_distance = distances[closest_idx]
+    
+    # Return probability if candidate is close enough to target
+    if closest_distance <= max_distance:
+        return probabilities[closest_idx]
+    
+    return None
+
+
 def show_BCG(image, BCG, sample_idx=None, save_path=None):
     """
     Display image with BCG location marked.
@@ -153,9 +183,16 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                        label='Predicted BCG')
         
         # Always plot true BCG location as yellow circle (transparent with edges only)
+        # Get BCG probability at true BCG location if available
+        true_bcg_label = 'True BCG'
+        if use_uq and len(probabilities) > 0 and len(candidates) > 0:
+            bcg_prob = get_bcg_probability_at_target(target, candidates, probabilities)
+            if bcg_prob is not None:
+                true_bcg_label = f'True BCG (p={bcg_prob:.3f})'
+        
         plt.scatter(target[0], target[1], marker='o', s=950, 
                    facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
-                   label='True BCG')
+                   label=true_bcg_label)
         
         # Add title with information including cluster name
         cluster_name = 'Unknown'
@@ -409,9 +446,16 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=5, sa
                         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
         
         # Always plot true BCG location as blue dashed circle (same as successful cases)
+        # Get BCG probability at true BCG location if available
+        true_bcg_label = 'True BCG'
+        if use_uq and len(probabilities) > 0 and len(candidates) > 0:
+            bcg_prob = get_bcg_probability_at_target(target, candidates, probabilities)
+            if bcg_prob is not None:
+                true_bcg_label = f'True BCG (p={bcg_prob:.3f})'
+        
         plt.scatter(target[0], target[1], marker='o', s=950, 
                    facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
-                   label='True BCG')
+                   label=true_bcg_label)
         
         # Add title with failure information and cluster name
         cluster_name = 'Unknown'
