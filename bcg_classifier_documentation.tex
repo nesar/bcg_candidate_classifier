@@ -452,11 +452,11 @@ These convolution responses capture channel-specific morphological characteristi
 
 The system first extracts a comprehensive 54-dimensional raw color feature space consisting of:
 \begin{itemize}
-\item \textbf{Basic color statistics}: 9 features (RGB means, standard deviations, and relative intensities)
-\item \textbf{Color ratio features}: 7 features (approximating photometric indices like r-g, r-i colors)
-\item \textbf{Spatial color variation}: 3 features (measuring spatial color uniformity)
-\item \textbf{Color gradient features}: 8 features (including cross-channel gradient correlations)
-\item \textbf{Convolution-based features}: 27 features (3 kernels × 3 channels × 3 response statistics)
+\item \textbf{Basic color statistics}: 9 features (3 RGB means + 3 RGB standard deviations + 3 relative channel intensities)
+\item \textbf{Color ratio features}: 7 features (R/G ratio, normalized (R-G)/(R+G), R/B ratio, normalized (R-B)/(R+B), G/B ratio, color magnitude, red-sequence score)
+\item \textbf{Spatial color variation}: 3 features (R/G spatial variation, R/B spatial variation, central-peripheral R/G difference)
+\item \textbf{Color gradient features}: 8 features (6 channel-wise gradient statistics: mean and std for R,G,B channels + 2 cross-channel gradient correlations: R-G and R-B)
+\item \textbf{Convolution-based features}: 27 features (3 kernels × 3 channels × 3 response statistics: mean, std, max absolute response)
 \end{itemize}
 
 This 54-dimensional space is then reduced via Principal Component Analysis to **8 principal components** that capture the most informative chromatic patterns. The final color information feature group therefore contains 8 PCA-reduced color features, not the raw 54-dimensional space, ensuring computational efficiency while preserving essential chromatic discrimination power for BCG identification and stellar contamination rejection.
