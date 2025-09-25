@@ -23,7 +23,7 @@
 \affiliation{High Energy Physics Image Marker Project}
 
 \begin{abstract}
-We present a comprehensive machine learning framework for automated Brightest Cluster Galaxy (BCG) identification that integrates uncertainty quantification, explainable AI, and multi-modal feature analysis for large-scale astronomical surveys. Our approach employs three complementary architectures: (1) deterministic classification for baseline performance, (2) probabilistic models with Monte Carlo dropout and temperature scaling for calibrated uncertainty estimates \citep{Laves2019WellCalibratedMU,Gal2016MCDropout}, and (3) ensemble methods for robust predictions across diverse cluster environments. The system incorporates RGB color features specifically designed for red-sequence detection, addressing the critical contamination problem where bright white objects (stars, QSOs) receive spuriously high BCG probabilities in traditional grayscale-based approaches. Key innovations include SHAP-based feature importance analysis \citep{Lieu2025InterpretableAI} that provides physical interpretation of model predictions, comprehensive uncertainty quantification enabling detection-threshold classification, and flexible integration of DES photometric priors \citep{Rykoff2016DES} alongside automatic candidate detection. The framework processes multi-scale BCG datasets (2.2' and 3.8' angular scales) with optional auxiliary features including photometric redshift and stellar mass indicators. Systematic evaluation demonstrates rank-based performance metrics, with explainable AI analysis revealing the relative importance of morphological, contextual, color, and auxiliary features for BCG identification. This interpretable, uncertainty-aware approach provides calibrated confidence estimates essential for scientific decision-making in modern survey astronomy, enabling seamless integration with existing astronomical pipelines while maintaining full traceability of model predictions.
+We present a comprehensive machine learning framework for automated Brightest Cluster Galaxy (BCG) identification that integrates uncertainty quantification, explainable AI, and multi-modal feature analysis for large-scale astronomical surveys. Our approach employs three complementary architectures: (1) deterministic classification for baseline performance, (2) probabilistic models with Monte Carlo dropout and temperature scaling for calibrated uncertainty estimates \citep{Laves2019WellCalibratedMU,Gal2016MCDropout}, and (3) ensemble methods for robust predictions across diverse cluster environments. The system incorporates RGB color features specifically designed for red-sequence detection, addressing the critical contamination problem where bright white objects (stars, QSOs) receive spuriously high BCG probabilities in traditional grayscale-based approaches. Key innovations include SHAP-based feature importance analysis that provides physical interpretation of model predictions, comprehensive uncertainty quantification enabling detection-threshold classification, and flexible integration of DES photometric priors \citep{Rykoff2016DES} alongside automatic candidate detection. The framework processes multi-scale BCG datasets (2.2' and 3.8' angular scales) with optional auxiliary features including photometric redshift and stellar mass indicators. Systematic evaluation demonstrates rank-based performance metrics, with explainable AI analysis revealing the relative importance of morphological, contextual, color, and auxiliary features for BCG identification. This interpretable, uncertainty-aware approach provides calibrated confidence estimates essential for scientific decision-making in modern survey astronomy, enabling seamless integration with existing astronomical pipelines while maintaining full traceability of model predictions.
 \end{abstract}
 
 \keywords{methods: data analysis --- galaxies: clusters: general --- techniques: image processing --- methods: statistical}
@@ -44,7 +44,7 @@ The paradigm shifted dramatically with the advent of deep learning approaches in
 
 \subsection{Contemporary Challenges and Hybrid Approaches}
 
-Recent work in BCG detection reflects this methodological evolution. \citet{Janulewicz2025} demonstrated that neural networks can achieve $R^2 \approx 0.94$ accuracy in automated BCG identification using purely data-driven coordinate regression approaches on simulated cluster data, while \citet{Ma2024sOPTICS} developed the sOPTICS algorithm combining modified density-based clustering with machine learning techniques for improved cluster detection. \citet{Manrique2022ICL} explored machine learning approaches for simultaneous BCG and intracluster light identification in simulated galaxy clusters, demonstrating the potential for multi-component analysis.
+Recent work in BCG detection reflects this methodological evolution, with neural networks demonstrating high accuracy in automated BCG identification using purely data-driven coordinate regression approaches on simulated cluster data, while other approaches have developed clustering algorithms combining density-based methods with machine learning techniques for improved cluster detection. Machine learning approaches for simultaneous BCG and intracluster light identification in simulated galaxy clusters have shown potential for multi-component analysis.
 
 However, purely data-driven approaches face significant challenges in astronomical contexts. Deep learning models often lack interpretability crucial for scientific validation, require extensive training data that may not be available for rare astronomical objects, and can struggle with domain adaptation across different surveys or instruments. Furthermore, the physical understanding embedded in traditional parametric features remains valuable for incorporating known astrophysical relationships.
 
@@ -293,37 +293,33 @@ This hybrid approach combines the reliability of established astronomical pipeli
 
 \subsection{Feature Extraction}
 
-For each candidate location $(x_i, y_i)$, we extract comprehensive feature vectors combining local morphological information with global contextual constraints. Our feature extraction methodology draws inspiration from traditional galaxy morphology analysis \citep{Conselice2003} while incorporating domain-specific adaptations for BCG identification in cluster environments.
+For each candidate location $(x_i, y_i)$, we extract comprehensive feature vectors following the sensitivity analysis classification scheme of Luminosity Profile, Morphology, and Color features. Our feature extraction methodology draws inspiration from traditional galaxy morphology analysis \citep{Conselice2003} while incorporating domain-specific adaptations for BCG identification in cluster environments. Fixed-size square patches $\mathbf{P}_i \in \mathbb{R}^{64 \times 64 \times C}$ are extracted around each candidate location, providing local characterization essential for BCG discrimination.
 
-\subsubsection{Patch-Based Morphological Features}
+\subsubsection{Luminosity Profile Features}
 
-Fixed-size square patches $\mathbf{P}_i \in \mathbb{R}^{64 \times 64 \times C}$ are extracted around each candidate location, providing local morphological characterization essential for BCG discrimination. The 64×64 pixel patch size ensures adequate spatial coverage while maintaining computational efficiency for large-scale processing.
+The luminosity profile feature group captures the surface brightness and luminosity distribution within the candidate patch, representing fundamental properties of the light distribution that are crucial for identifying the brightest cluster galaxies. These features are extracted from 64×64 pixel patches that ensure adequate spatial coverage while maintaining computational efficiency.
 
-\textbf{Intensity Distribution Statistics}: The foundation of our patch-based features consists of fundamental intensity moments that characterize the brightness distribution within each candidate region. Following established practices in astronomical photometry \citep{Bertin1996}, we compute:
+\textbf{Intensity Distribution Statistics}: The foundation of our luminosity profile features consists of fundamental intensity moments that characterize the brightness distribution within each candidate region. Following established practices in astronomical photometry \citep{Bertin1996}, we compute:
 \begin{align}
 \mu_I &= \frac{1}{N} \sum_{p \in \mathbf{P}_i} I(p) \\
 \sigma_I &= \sqrt{\frac{1}{N-1} \sum_{p \in \mathbf{P}_i} [I(p) - \mu_I]^2} \\
 \text{skew}_I &= \frac{1}{N} \sum_{p \in \mathbf{P}_i} \left(\frac{I(p) - \mu_I}{\sigma_I}\right)^3
 \end{align}
-where $N$ is the number of pixels in the patch. Additional statistics include maximum, minimum, and median intensities, providing robust characterization of the local brightness distribution.
+where $N$ is the number of pixels in the patch. Additional statistics include maximum, minimum, and median intensities, providing robust characterization of the local brightness distribution. These six fundamental parameters ($\mu_I$, $\sigma_I$, $I_{\max}$, $I_{\min}$, $I_{\text{median}}$, $\text{skew}_I$) capture the essential characteristics of the surface brightness profile within each candidate patch.
 
-\textbf{Concentration Analysis}: Adapting the concentration parameter from the CAS system \citep{Conselice2003}, we implement a simplified concentration measure based on central versus peripheral intensity distributions. The central region consists of a circular area with radius $r_{\text{central}} = \text{patch\_size}/8$ (default: 8 pixels for 64×64 patches) centered on the candidate, while the peripheral region encompasses the remaining patch area:
+\subsubsection{Morphology Features}
+
+The morphology feature group encompasses galaxy shape, structural parameters, spatial context, and environmental characteristics that distinguish BCGs from other cluster members. This comprehensive set includes both local morphological properties and contextual information crucial for BCG identification within cluster environments.
+
+\textbf{Central Concentration Analysis}: Adapting the concentration parameter from the CAS system \citep{Conselice2003}, we implement a simplified concentration measure based on central versus peripheral intensity distributions. The central region consists of a circular area with radius $r_{\text{central}} = \text{patch\_size}/8$ (default: 8 pixels for 64×64 patches) centered on the candidate, while the peripheral region encompasses the remaining patch area:
 \begin{align}
 \mu_I^{\text{central}} &= \frac{1}{N_{\text{central}}} \sum_{(i,j) \in \text{central}} I(i,j) \\
 \mu_I^{\text{peripheral}} &= \frac{1}{N_{\text{peripheral}}} \sum_{(i,j) \in \text{peripheral}} I(i,j) \\
 C_{\text{log}} &= \log(\mu_I^{\text{central}} + \epsilon) - \log(\mu_I^{\text{peripheral}} + \epsilon)
 \end{align}
-where $\epsilon = 10^{-8}$ prevents division by zero, and the logarithmic formulation provides robust discrimination between centrally concentrated sources (typical of BCGs with de Vaucouleurs profiles) and more diffuse or irregular objects. This measure exploits the characteristic steep central light profiles of massive elliptical galaxies that dominate cluster cores.
+where $\epsilon = 10^{-3}$ prevents division by zero, and the logarithmic formulation provides robust discrimination between centrally concentrated sources (typical of BCGs with de Vaucouleurs profiles) and more diffuse or irregular objects. This measure exploits the characteristic steep central light profiles of massive elliptical galaxies that dominate cluster cores.
 
-\textbf{Gradient and Edge Analysis}: Surface brightness gradients provide crucial information about galaxy morphology and structural properties. We compute gradient magnitude fields using finite differences:
-\begin{align}
-G_x(i,j) &= \frac{\partial I}{\partial x} \approx I(i+1,j) - I(i-1,j) \\
-G_y(i,j) &= \frac{\partial I}{\partial y} \approx I(i,j+1) - I(i,j-1) \\
-|\mathbf{G}|(i,j) &= \sqrt{G_x(i,j)^2 + G_y(i,j)^2}
-\end{align}
-Statistical measures of the gradient magnitude field (mean, standard deviation, maximum) characterize edge strength and morphological complexity, enabling discrimination between smooth elliptical profiles typical of BCGs and more irregular morphologies.
-
-\textbf{Geometric Moments and Shape Analysis}: We compute intensity-weighted geometric moments to quantify morphological asymmetry and structural properties, following established practices in quantitative morphology \citep{Hambleton2011}. For a patch with intensity distribution $I(x,y)$ and total intensity $I_{\text{total}}$, we calculate:
+\textbf{Shape and Structural Analysis}: We compute intensity-weighted geometric moments to quantify morphological asymmetry and structural properties, following established practices in quantitative morphology \citep{Hambleton2011}. For a patch with intensity distribution $I(x,y)$ and total intensity $I_{\text{total}}$, we calculate:
 \begin{align}
 \bar{x} &= \frac{\sum_{i,j} x_{i,j} I(i,j)}{I_{\text{total}}}, \quad \bar{y} = \frac{\sum_{i,j} y_{i,j} I(i,j)}{I_{\text{total}}} \\
 \mu_{20} &= \frac{\sum_{i,j} (x_{i,j} - \bar{x})^2 I(i,j)}{I_{\text{total}}} \\
@@ -336,16 +332,22 @@ e = \frac{\sqrt{(\mu_{20} - \mu_{02})^2 + 4\mu_{11}^2}}{\mu_{20} + \mu_{02} + \e
 \end{equation}
 This parameter quantifies departure from circular symmetry, with BCGs typically exhibiting moderate eccentricity values consistent with elliptical morphologies.
 
-\subsubsection{Contextual and Environmental Features}
+\textbf{Surface Brightness Gradient Analysis}: Surface brightness gradients provide crucial information about galaxy morphology and structural properties. We compute gradient magnitude fields using finite differences:
+\begin{align}
+G_x(i,j) &= \frac{\partial I}{\partial x} \approx I(i+1,j) - I(i-1,j) \\
+G_y(i,j) &= \frac{\partial I}{\partial y} \approx I(i,j+1) - I(i,j-1) \\
+|\mathbf{G}|(i,j) &= \sqrt{G_x(i,j)^2 + G_y(i,j)^2}
+\end{align}
+Statistical measures of the gradient magnitude field (mean, standard deviation, maximum) characterize edge strength and morphological complexity, enabling discrimination between smooth elliptical profiles typical of BCGs and more irregular morphologies.
 
-Beyond local morphological analysis, our framework incorporates contextual features that capture environmental information crucial for BCG identification within cluster contexts.
+\textbf{Spatial Position and Environmental Context}: Beyond local morphological analysis, our framework incorporates contextual features that capture environmental information crucial for BCG identification within cluster contexts.
 
 
 \textbf{Directional Intensity Sampling}: We implement directional sampling along four cardinal directions (North, East, South, West) extending outward from each candidate location. For each direction, intensity values are sampled at regular intervals up to half the patch size, providing:
 \begin{equation}
 \mu_{\text{dir}} = \frac{1}{N_{\text{dir}}} \sum_{k=1}^{N_{\text{dir}}} I(x_c + k\Delta x, y_c + k\Delta y)
 \end{equation}
-where $(\Delta x, \Delta y)$ represents the unit direction vector. This approach captures asymmetric features and environmental gradients that may influence BCG identification.
+where $(\Delta x, \Delta y)$ represents the unit direction vector. This approach captures asymmetric features and environmental gradients that may influence BCG identification, contributing four directional features to the morphological characterization.
 
 \textbf{Spatial Position Encoding}: Absolute positions within the image frame are normalized and encoded as features:
 \begin{align}
@@ -353,37 +355,11 @@ x_{\text{rel}} &= \frac{x_i - W/2}{W/2} \in [-1, 1] \\
 y_{\text{rel}} &= \frac{y_i - H/2}{H/2} \in [-1, 1] \\
 r_{\text{center}} &= \sqrt{x_{\text{rel}}^2 + y_{\text{rel}}^2}
 \end{align}
-where $(W, H)$ are image dimensions. This encoding enables the model to learn spatial biases in BCG distribution within the image field of view.
+where $(W, H)$ are image dimensions. This encoding enables the model to learn spatial biases in BCG distribution within the image field of view, contributing three positional features that capture the candidate's location within the cluster field.
 
-\subsubsection{Auxiliary Feature Integration}
+\subsubsection{Color Information Features}
 
-When auxiliary astronomical measurements are available, they are incorporated through concatenation with morphological and contextual features:
-\begin{equation}
-\mathbf{f}_i = [\mathbf{f}_i^{\text{patch}}, \mathbf{f}_i^{\text{context}}, \mathbf{a}]
-\end{equation}
-where $\mathbf{a}$ includes redshift $z$ and stellar mass indicator $\Delta m^*_z$.
-
-\textbf{Redshift Integration}: Photometric redshift estimates provide cosmological distance constraints that inform expected BCG properties and enable redshift-dependent corrections for galaxy evolution. Redshift values are normalized to the typical range $z \in [0.1, 1.2]$ observed in our datasets, with optional redshift filtering applied during dataset creation to focus on specific cosmological epochs. The framework handles variable redshift quality through optional uncertainty weighting when redshift errors are available.
-
-\textbf{Stellar Mass Indicators}: The $\Delta m^*_z$ parameter encodes crucial information about stellar mass relative to the characteristic mass at redshift $z$:
-\begin{equation}
-\Delta m^*_z = m_{\text{observed}} - m^*(z)
-\end{equation}
-where $m^*(z)$ represents the characteristic magnitude corresponding to the break in the galaxy luminosity function at redshift $z$ \citep{Rykoff2016DES}. This parameter provides powerful constraints on BCG candidacy based on established scaling relations, with typical BCG values $\Delta m^*_z < 1.0$ corresponding to stellar masses $M_* > 10^{11.5} M_{\odot}$. The framework supports configurable $\Delta m^*_z$ filtering ranges (typically [-4.0, 2.0]) for quality control and physical consistency validation.
-
-The complete feature vector structure is as follows:
-\begin{itemize}
-\item \textbf{Core morphological features}: 30 dimensions
-\item \textbf{RGB color features (PCA-reduced)}: 8 dimensions (when enabled)
-\item \textbf{Auxiliary features}: 2 dimensions (redshift $z$, stellar mass indicator $\Delta m^*_z$; when available)
-\item \textbf{Total dimensionality}: 40 dimensions (30 morphological + 8 color + 2 auxiliary when all features enabled)
-\end{itemize}
-
-The 30-dimensional core feature set includes: intensity statistics (5), central-peripheral analysis (3), gradient features (3), position features (3), shape/symmetry features (3), and multi-scale context features (13 from three radial scales). Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units, with $z$-score normalization: $f_{\text{norm}} = (f - \mu_{\text{train}})/\sigma_{\text{train}}$.
-
-\subsubsection{RGB Color Feature Extraction for Red-Sequence Detection}
-
-A critical innovation in our framework addresses the fundamental limitation of grayscale-based analysis: the inability to distinguish between red-sequence cluster galaxies and bright white contaminant sources. Traditional approaches converting RGB images to grayscale through luminance weighting (Equation~1) discard essential chromatic information that enables discrimination between genuine BCG candidates and bright stars or quasi-stellar objects (QSOs) that often contaminate photometric catalogs.
+The color information feature group addresses the fundamental limitation of grayscale-based analysis by preserving and analyzing chromatic information essential for red-sequence detection and stellar contamination rejection. This innovation enables discrimination between red-sequence cluster galaxies and bright white contaminant sources that traditional morphological features cannot distinguish.
 
 \textbf{Motivation and Failure Mode Analysis}: Empirical analysis of BCG classification failures reveals a systematic bias toward bright white objects receiving spuriously high BCG probabilities. This occurs because traditional morphological and intensity-based features cannot distinguish between:
 \begin{itemize}
@@ -449,11 +425,23 @@ where $\mathbf{W}_{\text{PCA}} \in \mathbb{R}^{50 \times 8}$ contains the first 
 
 This dimensionality reduction maintains the most informative color information while preventing feature space explosion and ensuring computational tractability for large-scale applications.
 
-\textbf{Integration with Morphological Features}: Color features are concatenated with existing morphological and contextual features through the feature fusion mechanism:
+\subsubsection{Auxiliary Feature Integration}
+
+When auxiliary astronomical measurements are available, they are incorporated as additional features providing cosmological and physical constraints crucial for BCG identification. These features complement the luminosity profile, morphology, and color information by adding direct astrophysical measurements.
+
+\textbf{Redshift Integration}: Photometric redshift estimates provide cosmological distance constraints that inform expected BCG properties and enable redshift-dependent corrections for galaxy evolution. Redshift values are normalized to the typical range $z \in [0.1, 1.2]$ observed in our datasets, with optional redshift filtering applied during dataset creation to focus on specific cosmological epochs.
+
+\textbf{Stellar Mass Indicators}: The $\Delta m^*_z$ parameter encodes crucial information about stellar mass relative to the characteristic mass at redshift $z$:
 \begin{equation}
-\mathbf{f}_i^{\text{complete}} = [\mathbf{f}_i^{\text{morphological}}, \mathbf{f}_i^{\text{contextual}}, \mathbf{f}_i^{\text{color}}, \mathbf{a}_i]
+\Delta m^*_z = m_{\text{observed}} - m^*(z)
 \end{equation}
-The combined feature vector provides comprehensive characterization encompassing both traditional photometric/morphological properties and essential chromatic information for red-sequence identification.
+where $m^*(z)$ represents the characteristic magnitude corresponding to the break in the galaxy luminosity function at redshift $z$ \citep{Rykoff2016DES}. This parameter provides powerful constraints on BCG candidacy based on established scaling relations, with typical BCG values $\Delta m^*_z < 1.0$ corresponding to stellar masses $M_* > 10^{11.5} M_{\odot}$.
+
+\textbf{Feature Vector Structure}: The complete feature vector integrates all feature groups through concatenation:
+\begin{equation}
+\mathbf{f}_i^{\text{complete}} = [\mathbf{f}_i^{\text{luminosity}}, \mathbf{f}_i^{\text{morphology}}, \mathbf{f}_i^{\text{color}}, \mathbf{a}_i]
+\end{equation}
+where $\mathbf{f}_i^{\text{luminosity}}$ contains 6 luminosity profile features, $\mathbf{f}_i^{\text{morphology}}$ contains 18 morphological and contextual features (including concentration), $\mathbf{f}_i^{\text{color}}$ contains 25 color features reduced to 8 PCA components when PCA reduction is enabled, and $\mathbf{a}_i$ contains 2 auxiliary features (when available). The total dimensionality ranges from 26 dimensions (minimal: 24 morphological + 2 auxiliary) to 51 dimensions (6 luminosity + 18 morphological + 25 color + 2 auxiliary) when all feature groups are enabled. Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units.
 
 \subsection{Neural Network Architectures and Uncertainty Quantification}
 
@@ -506,7 +494,7 @@ A critical innovation in our framework is the integration of explainable artific
 
 \subsubsection{SHAP-Based Feature Attribution}
 
-We implement SHapley Additive exPlanations (SHAP) analysis \citep{Lieu2025InterpretableAI} using the DeepExplainer method specifically designed for neural networks to quantify the contribution of each feature to individual predictions. For a given prediction $f(\mathbf{x})$, SHAP values $\phi_i$ satisfy:
+We implement SHapley Additive exPlanations (SHAP) analysis using the DeepExplainer method specifically designed for neural networks to quantify the contribution of each feature to individual predictions. For a given prediction $f(\mathbf{x})$, SHAP values $\phi_i$ satisfy:
 \begin{equation}
 f(\mathbf{x}) = \phi_0 + \sum_{i=1}^{M} \phi_i
 \end{equation}
@@ -727,7 +715,7 @@ A key advancement in our framework is the implementation of principled uncertain
 
 \subsection{Explainable AI and Feature Importance Analysis}
 
-Our framework incorporates comprehensive explainable AI capabilities through SHAP (SHapley Additive exPlanations) analysis \citep{Lieu2025InterpretableAI}, providing crucial scientific interpretability:
+Our framework incorporates comprehensive explainable AI capabilities through SHAP (SHapley Additive exPlanations) analysis, providing crucial scientific interpretability:
 
 \textbf{Individual Prediction Explanations}: SHAP waterfall plots reveal which features contribute most strongly to each individual BCG prediction, enabling validation of model reasoning against astronomical expectations.
 
@@ -769,7 +757,7 @@ The framework supports flexible candidate selection strategies:
 
 \textbf{DES Prior Integration}: Integration with Dark Energy Survey photometric catalogs leverages established astronomical pipelines while maintaining the flexibility to apply machine learning enhancements. The \texttt{DESpriorBCGCandidateDataset} class enables seamless loading of pre-computed candidate catalogs.
 
-\textbf{RedMapper Supervision}: RedMapper BCG probabilities inform training through loss weighting while being explicitly excluded from inference features, ensuring scientific integrity and preventing data leakage \citep{Rykoff2014redMaPPer,Myles2025DESI}.
+\textbf{RedMapper Supervision}: RedMapper BCG probabilities inform training through loss weighting while being explicitly excluded from inference features, ensuring scientific integrity and preventing data leakage \citep{Rykoff2014redMaPPer}.
 
 \subsection{Evaluation Metrics and Validation}
 
@@ -813,13 +801,13 @@ We have presented a state-of-the-art machine learning framework for automated BC
 
 \textbf{Uncertainty-Aware Predictions}: Our implementation of Monte Carlo dropout \citep{Gal2016MCDropout} and temperature scaling \citep{Laves2019WellCalibratedMU} provides calibrated probability estimates essential for scientific decision-making. The detection-threshold classification capability enables seamless integration with automated survey pipelines while maintaining quantified confidence levels.
 
-\textbf{Scientific Interpretability}: The integration of SHAP-based explainable AI \citep{Lieu2025InterpretableAI} addresses a critical gap in astronomical machine learning by providing physical interpretation of model predictions. This capability is essential for scientific validation and enables astronomers to understand and trust automated classification results.
+\textbf{Scientific Interpretability}: The integration of SHAP-based explainable AI addresses a critical gap in astronomical machine learning by providing physical interpretation of model predictions. This capability is essential for scientific validation and enables astronomers to understand and trust automated classification results.
 
 \textbf{Color Feature Innovation}: Our RGB color feature extraction system solves the fundamental contamination problem where bright white objects (stars, QSOs) receive spuriously high BCG probabilities in grayscale-based approaches. The red-sequence detection capabilities, combined with spatial color analysis and PCA dimensionality reduction, enable robust discrimination between genuine cluster galaxies and contaminant sources.
 
 \textbf{Multi-Scale Flexibility}: The framework's support for both 2.2' and 3.8' angular scale BCG datasets, combined with flexible integration of auxiliary astronomical measurements (redshift, stellar mass indicators), provides adaptability across diverse observational scenarios and survey configurations.
 
-\textbf{Prior Integration}: Seamless integration with established astronomical data products, including DES photometric catalogs \citep{Rykoff2016DES} and RedMapper cluster finders \citep{Myles2025DESI}, bridges traditional observational astronomy with modern machine learning while maintaining scientific integrity through proper separation of training supervision and inference features.
+\textbf{Prior Integration}: Seamless integration with established astronomical data products, including DES photometric catalogs \citep{Rykoff2016DES} and RedMapper cluster finders, bridges traditional observational astronomy with modern machine learning while maintaining scientific integrity through proper separation of training supervision and inference features.
 
 \subsection{Scientific Impact and Applications}
 
@@ -833,11 +821,11 @@ The framework addresses critical needs in modern survey astronomy by providing:
 
 \subsection{Comparison with Recent Work}
 
-Our approach complements and extends recent developments in automated BCG identification. While \citet{Janulewicz2025} achieved $R^2 \approx 0.94$ on simulations using purely data-driven coordinate regression neural networks, our framework provides additional capabilities crucial for scientific applications: calibrated uncertainty quantification, explainable predictions through SHAP analysis, systematic validation against physical expectations, and robust handling of observational contamination through color feature extraction. The integration of established priors \citep{Rykoff2014redMaPPer} with modern machine learning techniques provides a pathway for systematic validation and cross-comparison with existing astronomical catalogs, while maintaining scientific integrity through proper separation of training supervision and inference features.
+Our approach complements recent developments in automated BCG identification by providing capabilities crucial for scientific applications: calibrated uncertainty quantification, explainable predictions through SHAP analysis, systematic validation against physical expectations, and robust handling of observational contamination through color feature extraction. The integration of established priors \citep{Rykoff2014redMaPPer} with modern machine learning techniques provides a pathway for systematic validation and cross-comparison with existing astronomical catalogs, while maintaining scientific integrity through proper separation of training supervision and inference features.
 
 \subsection{Future Directions}
 
-\textbf{Large-Scale Survey Deployment}: The framework is well-positioned for deployment on upcoming large-scale surveys, including LSST \citep{Payerne2025LSST} and continued DES operations, where the combination of uncertainty quantification and explainable AI will be essential for managing the massive data volumes and maintaining scientific quality. The modular design enables integration with existing astronomical software ecosystems, supporting both research applications and operational survey pipelines through standardized APIs and configurable parameters.
+\textbf{Large-Scale Survey Deployment}: The framework is well-positioned for deployment on upcoming large-scale surveys, including LSST and continued DES operations, where the combination of uncertainty quantification and explainable AI will be essential for managing the massive data volumes and maintaining scientific quality. The modular design enables integration with existing astronomical software ecosystems, supporting both research applications and operational survey pipelines through standardized APIs and configurable parameters.
 
 \textbf{Multi-Wavelength Extension}: Future development could extend the color feature extraction to incorporate additional photometric bands beyond RGB (such as $gri$ or $ugriz$ filter systems), potentially improving red-sequence detection precision and enabling application to surveys with different instrumental configurations. Integration with infrared data from surveys like WISE could provide enhanced stellar mass estimates and further discrimination against quasar contamination.
 

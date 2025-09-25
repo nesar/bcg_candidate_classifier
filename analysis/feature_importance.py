@@ -431,19 +431,20 @@ class FeatureGroupAnalyzer:
 def create_default_feature_groups():
     """
     Create default feature groups for BCG classification.
+    Follows the sensitivity analysis classification scheme: Luminosity profile, Morphology, Color.
     """
     return {
-        'morphological': [
+        'luminosity_profile': [
             'patch_mean', 'patch_std', 'patch_max', 'patch_min', 'patch_median',
-            'patch_skew', 'concentration', 'eccentricity', 'gradient_mean', 
-            'gradient_std', 'gradient_max'
+            'patch_skew'
         ],
-        'contextual': [
+        'morphology': [
+            'concentration', 'eccentricity', 'gradient_mean', 'gradient_std', 'gradient_max',
             'x_rel', 'y_rel', 'r_center', 'brightness_rank', 'candidate_density',
             'background_level', 'north_intensity', 'east_intensity', 
             'south_intensity', 'west_intensity'
         ],
-        'color': [
+        'color_information': [
             'rg_ratio', 'rb_ratio', 'color_magnitude', 'red_sequence_score',
             'rg_ratio_std', 'rb_ratio_std', 'color_correlation_rg', 'color_correlation_rb'
         ] + [f'color_pca_{i}' for i in range(8)],  # PCA components

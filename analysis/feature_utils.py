@@ -56,8 +56,8 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
     ]
     feature_names.extend(directional_features)
     
-    # 6. Contextual and environmental features
-    contextual_features = [
+    # 6. Morphological context features (position and environment)
+    morphological_context_features = [
         'x_relative',           # normalized x position
         'y_relative',           # normalized y position  
         'r_center',             # distance from image center
@@ -65,7 +65,7 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
         'candidate_density',    # local candidate density
         'background_level'      # local background intensity
     ]
-    feature_names.extend(contextual_features)
+    feature_names.extend(morphological_context_features)
     
     # 7. Color features (if enabled)
     if use_color_features:
@@ -115,6 +115,7 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
 def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]:
     """
     Create feature group mapping for analysis.
+    Follows the sensitivity analysis classification scheme: Luminosity profile, Morphology, Color.
     
     Args:
         feature_names: List of feature names
@@ -123,23 +124,24 @@ def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]
         Dictionary mapping group names to feature lists
     """
     groups = {
-        'morphological': [],
-        'contextual': [],
-        'color': [],
+        'luminosity_profile': [],
+        'morphology': [],
+        'color_information': [],
         'auxiliary': []
     }
     
-    # Morphological features
-    morphological_keywords = [
-        'patch_', 'concentration', 'eccentricity', 'gradient', 'moment'
+    # Luminosity profile features (surface brightness)
+    luminosity_keywords = [
+        'patch_mean', 'patch_std', 'patch_max', 'patch_min', 'patch_median', 'patch_skew'
     ]
     
-    # Contextual features  
-    contextual_keywords = [
+    # Morphological features (shape, structure, position, context)
+    morphological_keywords = [
+        'concentration', 'eccentricity', 'gradient', 'moment', 
         'intensity_mean', 'relative', 'center', 'rank', 'density', 'background'
     ]
     
-    # Color features
+    # Color information features
     color_keywords = [
         'ratio', 'color', 'red_sequence', 'pca'
     ]
@@ -153,20 +155,10 @@ def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]
     for feature_name in feature_names:
         classified = False
         
-        # Check morphological
-        for keyword in morphological_keywords:
+        # Check luminosity profile (exact match preferred)
+        for keyword in luminosity_keywords:
             if keyword in feature_name:
-                groups['morphological'].append(feature_name)
-                classified = True
-                break
-        
-        if classified:
-            continue
-            
-        # Check contextual
-        for keyword in contextual_keywords:
-            if keyword in feature_name:
-                groups['contextual'].append(feature_name)
+                groups['luminosity_profile'].append(feature_name)
                 classified = True
                 break
         
@@ -176,7 +168,7 @@ def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]
         # Check color
         for keyword in color_keywords:
             if keyword in feature_name:
-                groups['color'].append(feature_name)
+                groups['color_information'].append(feature_name)
                 classified = True
                 break
         
@@ -190,9 +182,19 @@ def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]
                 classified = True
                 break
         
-        # If not classified, add to morphological as default
+        if classified:
+            continue
+            
+        # Check morphological (includes contextual features)
+        for keyword in morphological_keywords:
+            if keyword in feature_name:
+                groups['morphology'].append(feature_name)
+                classified = True
+                break
+        
+        # If not classified, add to morphology as default
         if not classified:
-            groups['morphological'].append(feature_name)
+            groups['morphology'].append(feature_name)
     
     # Remove empty groups
     groups = {k: v for k, v in groups.items() if v}
@@ -312,7 +314,7 @@ def validate_feature_names(feature_names: List[str], expected_count: Optional[in
     
     # Check for standard feature groups
     groups = get_feature_groups_mapping(feature_names)
-    expected_groups = ['morphological', 'contextual']
+    expected_groups = ['luminosity_profile', 'morphology']
     
     for group in expected_groups:
         if group not in groups or len(groups[group]) == 0:
