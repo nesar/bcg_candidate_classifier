@@ -201,13 +201,8 @@ class PhysicalFeatureInterpreter:
                 'color': '#4ECDC4'
             },
             'color_information': {
-                'description': 'Red-sequence and color properties (25 features: 17 raw + 8 PCA from 54 features)',
-                'technical_features': ['rg_ratio_mean', 'rb_ratio_mean', 'color_magnitude', 'red_sequence_score',
-                                     'rg_ratio_std', 'rb_ratio_std', 'color_gradient_corr_rg', 'color_gradient_corr_rb',
-                                     'color_conv_r_edge', 'color_conv_r_smooth', 'color_conv_r_laplacian',
-                                     'color_conv_g_edge', 'color_conv_g_smooth', 'color_conv_g_laplacian',
-                                     'color_conv_b_edge', 'color_conv_b_smooth', 'color_conv_b_laplacian',
-                                     'color_pca_0', 'color_pca_1', 'color_pca_2', 'color_pca_3', 'color_pca_4',
+                'description': 'Red-sequence and color properties (8 PCA components from 54-dimensional raw color space)',
+                'technical_features': ['color_pca_0', 'color_pca_1', 'color_pca_2', 'color_pca_3', 'color_pca_4',
                                      'color_pca_5', 'color_pca_6', 'color_pca_7'],
                 'combination_method': 'weighted_sum',
                 'color': '#45B7D1'
