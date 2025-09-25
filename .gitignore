@@ -40,3 +40,13 @@ trained_models/*
 
 # Logs
 *.log
+
+# tex files
+*.tex
+*.bib
+*.bbl
+*.log
+*.out
+*.gz
+*.pdf
+*.aux
