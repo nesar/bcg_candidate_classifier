@@ -201,8 +201,13 @@ class PhysicalFeatureInterpreter:
                 'color': '#4ECDC4'
             },
             'color_information': {
-                'description': 'Red-sequence and color properties (8 PCA components from 54 raw features)',
-                'technical_features': ['color_pca_0', 'color_pca_1', 'color_pca_2', 'color_pca_3', 'color_pca_4',
+                'description': 'Red-sequence and color properties (25 features: 17 raw + 8 PCA from 54 features)',
+                'technical_features': ['rg_ratio_mean', 'rb_ratio_mean', 'color_magnitude', 'red_sequence_score',
+                                     'rg_ratio_std', 'rb_ratio_std', 'color_gradient_corr_rg', 'color_gradient_corr_rb',
+                                     'color_conv_r_edge', 'color_conv_r_smooth', 'color_conv_r_laplacian',
+                                     'color_conv_g_edge', 'color_conv_g_smooth', 'color_conv_g_laplacian',
+                                     'color_conv_b_edge', 'color_conv_b_smooth', 'color_conv_b_laplacian',
+                                     'color_pca_0', 'color_pca_1', 'color_pca_2', 'color_pca_3', 'color_pca_4',
                                      'color_pca_5', 'color_pca_6', 'color_pca_7'],
                 'combination_method': 'weighted_sum',
                 'color': '#45B7D1'
@@ -429,29 +434,30 @@ class PhysicalFeatureInterpreter:
             except (ValueError, IndexError):
                 return actual_feature == template_feature
         
-        # Handle color convolution features
+        # Handle color convolution features - exact match only
         if template_feature.startswith('color_conv_') and actual_feature.startswith('color_conv_'):
-            return True
+            return actual_feature == template_feature
         
-        # Handle color gradient features  
+        # Handle color gradient features - exact match only  
         if template_feature.startswith('color_grad_') and actual_feature.startswith('color_grad_'):
-            return True
+            return actual_feature == template_feature
         
-        # Handle color spatial features
+        # Handle color spatial features - exact match only
         if template_feature.startswith('color_spatial_') and actual_feature.startswith('color_spatial_'):
-            return True
+            return actual_feature == template_feature
         
-        # Handle general color feature prefixes
-        if template_feature.endswith('_') and actual_feature.startswith(template_feature.rstrip('_')):
-            return True
-        
-        # Handle moment extensions
-        if template_feature.startswith('moment_') and actual_feature.startswith('moment_'):
-            return True
-        
-        # Handle context extensions
+        # Handle context features - exact match only, no broad prefix matching
         if template_feature.startswith('context_') and actual_feature.startswith('context_'):
-            return True
+            # Make sure we don't match color context features to morphology
+            if not actual_feature.startswith('color_'):
+                # Exact match required for context features
+                return actual_feature == template_feature
+        
+        # Handle moment extensions - exact match only
+        if template_feature.startswith('moment_') and actual_feature.startswith('moment_'):
+            return actual_feature == template_feature
+        
+        # REMOVED the overly broad general prefix matching rule that was causing issues
         
         return False
     
