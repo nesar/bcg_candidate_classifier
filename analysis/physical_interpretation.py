@@ -181,70 +181,76 @@ class PhysicalFeatureInterpreter:
     def _create_feature_groups(self) -> Dict[str, Dict]:
         """Create physical feature groups from technical features."""
         return {
-            'luminosity_profile': {
-                'description': 'Surface brightness and luminosity distribution',
-                'technical_features': ['patch_mean', 'patch_std', 'patch_median', 'patch_max', 'patch_min'],
+            'intensity_statistics': {
+                'description': 'Surface brightness and luminosity distribution (8 features)',
+                'technical_features': ['patch_mean', 'patch_std', 'patch_median', 'patch_max', 'patch_min',
+                                     'central_mean', 'peripheral_mean', 'concentration_ratio'],
                 'combination_method': 'weighted_sum',
                 'color': '#FF6B6B'
             },
             'morphology': {
-                'description': 'Galaxy shape and structural parameters',
-                'technical_features': ['concentration', 'eccentricity', 'moment_m00', 'moment_m10', 'moment_m01', 
-                                     'moment_m20', 'moment_m11', 'moment_m02', 'asymmetry', 'smoothness'],
+                'description': 'Galaxy shape, structure and environmental context (22 features)',
+                'technical_features': ['gradient_mean', 'gradient_std', 'gradient_max',
+                                     'x_relative', 'y_relative', 'r_center',
+                                     'centroid_offset_x', 'centroid_offset_y', 'eccentricity',
+                                     'context_small_mean', 'context_small_std', 'context_small_pixels',
+                                     'context_medium_mean', 'context_medium_std', 'context_medium_pixels',
+                                     'context_large_mean', 'context_large_std', 'context_large_pixels',
+                                     'context_north_mean', 'context_east_mean', 'context_south_mean', 'context_west_mean'],
                 'combination_method': 'weighted_sum',
                 'color': '#4ECDC4'
             },
             'color_information': {
-                'description': 'Red-sequence and color properties',
+                'description': 'Red-sequence and color properties (8 PCA components from 54 raw features)',
                 'technical_features': ['color_pca_0', 'color_pca_1', 'color_pca_2', 'color_pca_3', 'color_pca_4',
-                                     'color_pca_5', 'color_pca_6', 'color_pca_7', 'color_ratio_rg', 'color_ratio_rb',
-                                     'color_ratio_gb', 'color_variation', 'color_conv_', 'color_grad_', 'color_spatial_'],
+                                     'color_pca_5', 'color_pca_6', 'color_pca_7'],
                 'combination_method': 'weighted_sum',
                 'color': '#45B7D1'
             },
-            'local_environment': {
-                'description': 'Surrounding galaxy environment and context',
-                'technical_features': ['context_mean', 'context_std', 'context_gradient', 'context_density',
-                                     'neighbor_count', 'local_density'],
-                'combination_method': 'weighted_sum',
-                'color': '#96CEB4'
-            },
-            'physical_properties': {
-                'description': 'Cosmological and physical parameters',
-                'technical_features': ['cluster_z', 'delta_mstar_z', 'redshift', 'mass_proxy'],
+            'auxiliary': {
+                'description': 'Cosmological and physical parameters (2 features)',
+                'technical_features': ['redshift_z', 'delta_m_star_z'],
                 'combination_method': 'weighted_sum',
                 'color': '#FECA57'
-            },
-            'candidate_properties': {
-                'description': 'DESprior catalog properties',
-                'technical_features': ['delta_mstar', 'starflag', 'mag_auto_g', 'mag_auto_r', 'mag_auto_i'],
-                'combination_method': 'weighted_sum',
-                'color': '#FF9FF3'
             }
         }
     
     def _create_feature_mappings(self) -> Dict[str, str]:
         """Create individual feature name mappings."""
         return {
-            # Luminosity/brightness
+            # Intensity statistics (8 features)
             'patch_mean': 'Mean Surface Brightness',
             'patch_std': 'Brightness Variability',
             'patch_median': 'Median Luminosity',
             'patch_max': 'Peak Brightness',
             'patch_min': 'Background Level',
-            
-            # Morphology
-            'concentration': 'Light Concentration',
+            'central_mean': 'Central Region Brightness',
+            'peripheral_mean': 'Peripheral Region Brightness',
             'concentration_ratio': 'Central Light Concentration Ratio',
+            
+            # Morphology (22 features)
+            'gradient_mean': 'Mean Edge Strength',
+            'gradient_std': 'Edge Structure Variability',
+            'gradient_max': 'Maximum Edge Response',
+            'x_relative': 'Normalized X Position',
+            'y_relative': 'Normalized Y Position',
+            'r_center': 'Distance from Image Center',
+            'centroid_offset_x': 'Light Centroid Offset X',
+            'centroid_offset_y': 'Light Centroid Offset Y',
             'eccentricity': 'Galaxy Ellipticity',
-            'asymmetry': 'Structural Asymmetry',
-            'smoothness': 'Surface Smoothness',
-            'moment_m00': 'Total Flux (0th moment)',
-            'moment_m10': 'X-centroid (1st x-moment)',
-            'moment_m01': 'Y-centroid (1st y-moment)',
-            'moment_m20': 'X-spread (2nd x-moment)',
-            'moment_m11': 'XY-correlation (mixed 2nd moment)',
-            'moment_m02': 'Y-spread (2nd y-moment)',
+            'context_small_mean': 'Local Environment Brightness',
+            'context_small_std': 'Local Environment Variability',
+            'context_small_pixels': 'Local Environment Size',
+            'context_medium_mean': 'Intermediate Environment Brightness',
+            'context_medium_std': 'Intermediate Environment Variability',
+            'context_medium_pixels': 'Intermediate Environment Size',
+            'context_large_mean': 'Extended Environment Brightness',
+            'context_large_std': 'Extended Environment Variability',
+            'context_large_pixels': 'Extended Environment Size',
+            'context_north_mean': 'Northern Environment Brightness',
+            'context_east_mean': 'Eastern Environment Brightness',
+            'context_south_mean': 'Southern Environment Brightness',
+            'context_west_mean': 'Western Environment Brightness',
             
             # Color PCA Components - each represents different color aspects
             'color_pca_0': 'Red-Sequence Color (PC1)',
@@ -270,11 +276,9 @@ class PhysicalFeatureInterpreter:
             'neighbor_count': 'Nearby Galaxy Count',
             'local_density': 'Cluster Core Density',
             
-            # Physical
-            'cluster_z': 'Cluster Redshift',
-            'delta_mstar_z': 'Stellar Mass Evolution',
-            'redshift': 'Cosmological Redshift',
-            'mass_proxy': 'Galaxy Mass Indicator',
+            # Auxiliary features (2 features)
+            'redshift_z': 'Photometric Redshift',
+            'delta_m_star_z': 'Stellar Mass Indicator',
             
             # DESprior
             'delta_mstar': 'Stellar Mass Excess',

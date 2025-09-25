@@ -295,21 +295,20 @@ This hybrid approach combines the reliability of established astronomical pipeli
 
 For each candidate location $(x_i, y_i)$, we extract comprehensive feature vectors following the sensitivity analysis classification scheme of Luminosity Profile, Morphology, and Color features. Our feature extraction methodology draws inspiration from traditional galaxy morphology analysis \citep{Conselice2003} while incorporating domain-specific adaptations for BCG identification in cluster environments. Fixed-size square patches $\mathbf{P}_i \in \mathbb{R}^{64 \times 64 \times C}$ are extracted around each candidate location, providing local characterization essential for BCG discrimination.
 
-\subsubsection{Luminosity Profile Features}
+\subsubsection{Intensity Statistics Features}
 
-The luminosity profile feature group captures the surface brightness and luminosity distribution within the candidate patch, representing fundamental properties of the light distribution that are crucial for identifying the brightest cluster galaxies. These features are extracted from 64×64 pixel patches that ensure adequate spatial coverage while maintaining computational efficiency.
+The intensity statistics feature group captures the fundamental brightness distribution properties within each candidate patch, representing the foundation for identifying the brightest objects in cluster environments. These features are extracted from 64×64 pixel patches that ensure adequate spatial coverage while maintaining computational efficiency.
 
-\textbf{Intensity Distribution Statistics}: The foundation of our luminosity profile features consists of fundamental intensity moments that characterize the brightness distribution within each candidate region. Following established practices in astronomical photometry \citep{Bertin1996}, we compute:
+\textbf{Intensity Distribution Statistics}: The foundation of our intensity analysis consists of five fundamental statistical measures that characterize the brightness distribution within each candidate region. Following established practices in astronomical photometry \citep{Bertin1996}, we compute:
 \begin{align}
 \mu_I &= \frac{1}{N} \sum_{p \in \mathbf{P}_i} I(p) \\
-\sigma_I &= \sqrt{\frac{1}{N-1} \sum_{p \in \mathbf{P}_i} [I(p) - \mu_I]^2} \\
-\text{skew}_I &= \frac{1}{N} \sum_{p \in \mathbf{P}_i} \left(\frac{I(p) - \mu_I}{\sigma_I}\right)^3
+\sigma_I &= \sqrt{\frac{1}{N-1} \sum_{p \in \mathbf{P}_i} [I(p) - \mu_I]^2}
 \end{align}
-where $N$ is the number of pixels in the patch. Additional statistics include maximum, minimum, and median intensities, providing robust characterization of the local brightness distribution. These six fundamental parameters ($\mu_I$, $\sigma_I$, $I_{\max}$, $I_{\min}$, $I_{\text{median}}$, $\text{skew}_I$) capture the essential characteristics of the surface brightness profile within each candidate patch.
+where $N$ is the number of pixels in the patch. Additional statistics include maximum, minimum, and median intensities, providing robust characterization of the local brightness distribution. These five fundamental parameters ($\mu_I$, $\sigma_I$, $I_{\max}$, $I_{\min}$, $I_{\text{median}}$) capture the essential characteristics of the surface brightness profile within each candidate patch, enabling discrimination between bright central galaxies and fainter cluster members.
 
 \subsubsection{Morphology Features}
 
-The morphology feature group encompasses galaxy shape, structural parameters, spatial context, and environmental characteristics that distinguish BCGs from other cluster members. This comprehensive set includes both local morphological properties and contextual information crucial for BCG identification within cluster environments.
+The morphology feature group encompasses galaxy shape, structural parameters, spatial context, and environmental characteristics that distinguish BCGs from other cluster members. This comprehensive set includes 29 features total: 16 patch-based morphological properties and 13 contextual environmental features crucial for BCG identification within cluster environments.
 
 \textbf{Central Concentration Analysis}: Adapting the concentration parameter from the CAS system \citep{Conselice2003}, we implement a simplified concentration measure based on central versus peripheral intensity distributions. The central region consists of a circular area with radius $r_{\text{central}} = \text{patch\_size}/8$ (default: 8 pixels for 64×64 patches) centered on the candidate, while the peripheral region encompasses the remaining patch area:
 \begin{align}
@@ -356,6 +355,25 @@ y_{\text{rel}} &= \frac{y_i - H/2}{H/2} \in [-1, 1] \\
 r_{\text{center}} &= \sqrt{x_{\text{rel}}^2 + y_{\text{rel}}^2}
 \end{align}
 where $(W, H)$ are image dimensions. This encoding enables the model to learn spatial biases in BCG distribution within the image field of view, contributing three positional features that capture the candidate's location within the cluster field.
+
+\textbf{Morphological Feature Summary}: The complete morphological feature extraction yields 29 features organized into two categories:
+
+\textbf{Patch-Based Features (16 total)}:
+\begin{itemize}
+\item Central vs peripheral intensity analysis: 3 features (central mean, peripheral mean, concentration ratio)
+\item Gradient analysis: 3 features (mean, std, max gradient magnitude)
+\item Spatial position encoding: 3 features (relative x, y, distance from center)
+\item Shape and symmetry: 3 features (centroid offsets x/y, eccentricity measure)
+\item Directional intensity sampling: 4 features (mean intensity in N, E, S, W directions)
+\end{itemize}
+
+\textbf{Contextual Environmental Features (13 total)}:
+\begin{itemize}
+\item Multi-scale context analysis: 9 features (3 radii × 3 measurements each: mean intensity, std intensity, pixel count)
+\item Directional environmental sampling: 4 features (intensity sampling in 4 cardinal directions beyond patch boundaries)
+\end{itemize}
+
+This comprehensive morphological analysis captures both local galaxy structure and environmental context essential for distinguishing BCGs within cluster environments.
 
 \subsubsection{Color Information Features}
 
@@ -421,7 +439,7 @@ The PCA transformation is fitted during training using color features from all t
 \begin{equation}
 \mathbf{f}_{\text{color}}^{\text{reduced}} = \mathbf{W}_{\text{PCA}}^T (\mathbf{f}_{\text{color}}^{\text{raw}} - \boldsymbol{\mu}_{\text{color}})
 \end{equation}
-where $\mathbf{W}_{\text{PCA}} \in \mathbb{R}^{50 \times 8}$ contains the first 8 principal components and $\boldsymbol{\mu}_{\text{color}}$ is the mean color feature vector.
+where $\mathbf{W}_{\text{PCA}} \in \mathbb{R}^{54 \times 8}$ contains the first 8 principal components and $\boldsymbol{\mu}_{\text{color}}$ is the mean color feature vector.
 
 This dimensionality reduction maintains the most informative color information while preventing feature space explosion and ensuring computational tractability for large-scale applications.
 
@@ -439,9 +457,9 @@ where $m^*(z)$ represents the characteristic magnitude corresponding to the brea
 
 \textbf{Feature Vector Structure}: The complete feature vector integrates all feature groups through concatenation:
 \begin{equation}
-\mathbf{f}_i^{\text{complete}} = [\mathbf{f}_i^{\text{luminosity}}, \mathbf{f}_i^{\text{morphology}}, \mathbf{f}_i^{\text{color}}, \mathbf{a}_i]
+\mathbf{f}_i^{\text{complete}} = [\mathbf{f}_i^{\text{intensity}}, \mathbf{f}_i^{\text{morphology}}, \mathbf{f}_i^{\text{color}}, \mathbf{a}_i]
 \end{equation}
-where $\mathbf{f}_i^{\text{luminosity}}$ contains 6 luminosity profile features, $\mathbf{f}_i^{\text{morphology}}$ contains 18 morphological and contextual features (including concentration), $\mathbf{f}_i^{\text{color}}$ contains 25 color features reduced to 8 PCA components when PCA reduction is enabled, and $\mathbf{a}_i$ contains 2 auxiliary features (when available). The total dimensionality ranges from 26 dimensions (minimal: 24 morphological + 2 auxiliary) to 51 dimensions (6 luminosity + 18 morphological + 25 color + 2 auxiliary) when all feature groups are enabled. Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units.
+where $\mathbf{f}_i^{\text{intensity}}$ contains 8 intensity statistics features (5 basic + 3 concentration), $\mathbf{f}_i^{\text{morphology}}$ contains 22 morphological and contextual features (6 shape/position + 16 environmental), $\mathbf{f}_i^{\text{color}}$ contains 54 raw color features reduced to 8 PCA components when PCA reduction is enabled, and $\mathbf{a}_i$ contains 2 auxiliary features (when available). The total dimensionality ranges from 32 dimensions (minimal: 30 morphological + 2 auxiliary) to 40 dimensions (8 intensity + 22 morphological + 8 color PCA + 2 auxiliary) when all feature groups are enabled. Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units.
 
 \subsection{Neural Network Architectures and Uncertainty Quantification}
 
@@ -452,7 +470,7 @@ Our framework implements a probabilistic neural network architecture specificall
 \textbf{Network Architecture}: The probabilistic classifier implements a fully-connected multi-layer perceptron (MLP) with the following architecture:
 
 \begin{itemize}
-\item \textbf{Input Layer}: Variable feature dimension $d \in [32, 51]$ depending on enabled features (morphological: 18, color: 8 PCA components, luminosity: 6, auxiliary: 2)
+\item \textbf{Input Layer}: Variable feature dimension $d \in [30, 40]$ depending on enabled features (intensity: 8, morphological: 22, color: 8 PCA components, auxiliary: 2)
 \item \textbf{Hidden Layer 1}: Linear transformation $\mathbb{R}^{d} \rightarrow \mathbb{R}^{128}$ followed by ReLU activation and dropout ($\rho = 0.2$)
 \item \textbf{Hidden Layer 2}: Linear transformation $\mathbb{R}^{128} \rightarrow \mathbb{R}^{64}$ followed by ReLU activation and dropout ($\rho = 0.2$)
 \item \textbf{Hidden Layer 3}: Linear transformation $\mathbb{R}^{64} \rightarrow \mathbb{R}^{32}$ followed by ReLU activation and dropout ($\rho = 0.2$)
@@ -465,7 +483,7 @@ f_{\theta}(\mathbf{x}) = \mathbf{W}_4 \cdot \text{dropout}(\text{ReLU}(\mathbf{W
 \end{equation}
 where $\mathbf{W}_i$ and $\mathbf{b}_i$ represent the weights and biases of layer $i$, and dropout is applied during both training and inference (for uncertainty quantification).
 
-\textbf{Parameter Count}: For typical feature dimensionality ($d = 32$), the network contains approximately 4,161 trainable parameters: $(32 \times 128 + 128) + (128 \times 64 + 64) + (64 \times 32 + 32) + (32 \times 1 + 1) = 4,161$ parameters, plus one additional temperature parameter $\tau$ for calibration.
+\textbf{Parameter Count}: For typical feature dimensionality ($d = 40$), the network contains approximately 5,185 trainable parameters: $(40 \times 128 + 128) + (128 \times 64 + 64) + (64 \times 32 + 32) + (32 \times 1 + 1) = 5,185$ parameters, plus one additional temperature parameter $\tau$ for calibration.
 
 The uncertainty-aware architecture extends this base model with principled uncertainty quantification through two complementary techniques:
 
@@ -700,7 +718,7 @@ The framework employs comprehensive configuration management enabling reproducib
 
 Our framework implements a probabilistic neural network architecture specifically optimized for BCG identification with comprehensive uncertainty quantification:
 
-\textbf{Probabilistic Classifier (\texttt{BCGProbabilisticClassifier})}: The primary architecture employs a multi-layer perceptron with hidden dimensions $[128, 64, 32]$ and ReLU activation functions, enhanced with uncertainty quantification capabilities through Monte Carlo dropout \citep{Gal2016MCDropout} and temperature scaling \citep{Laves2019WellCalibratedMU}. Training utilizes MarginRankingLoss with margin=0.5 for ranking-based optimization, where true BCG candidates are encouraged to score higher than all other candidates within each image. The model provides calibrated probability estimates with epistemic uncertainty quantification through 10 MC dropout samples during inference, enabling detection-threshold classification where candidates with probabilities exceeding configurable thresholds ($\theta_{\text{det}} = 0.5$ default) are classified as "detections" rather than relative rankings. This architecture contains approximately 4,097 parameters for typical feature dimensionality and utilizes Adam optimization with learning rate $10^{-4}$ and weight decay $10^{-4}$, achieving robust performance for BCG identification with principled uncertainty estimates essential for scientific applications.
+\textbf{Probabilistic Classifier (\texttt{BCGProbabilisticClassifier})}: The primary architecture employs a multi-layer perceptron with hidden dimensions $[128, 64, 32]$ and ReLU activation functions, enhanced with uncertainty quantification capabilities through Monte Carlo dropout \citep{Gal2016MCDropout} and temperature scaling \citep{Laves2019WellCalibratedMU}. Training utilizes MarginRankingLoss with margin=0.5 for ranking-based optimization, where true BCG candidates are encouraged to score higher than all other candidates within each image. The model provides calibrated probability estimates with epistemic uncertainty quantification through 10 MC dropout samples during inference, enabling detection-threshold classification where candidates with probabilities exceeding configurable thresholds ($\theta_{\text{det}} = 0.5$ default) are classified as "detections" rather than relative rankings. This architecture contains approximately 5,185 parameters for typical feature dimensionality (40 features) and utilizes Adam optimization with learning rate $10^{-4}$ and weight decay $10^{-4}$, achieving robust performance for BCG identification with principled uncertainty estimates essential for scientific applications.
 
 \subsection{Production Deployment Configuration}
 
@@ -710,7 +728,7 @@ The operational deployment employs a standardized configuration optimized for BC
 
 \textbf{Candidate Selection Strategy}: The system employs DES photometric prior candidates rather than automatic local maxima detection, leveraging pre-computed candidate catalogs from established astronomical pipelines. DES prior candidates undergo additional filtering based on stellar mass indicators, with candidate selection restricted to $\Delta m^*_z \in [-3.5, 0.0]$ to ensure focus on massive galaxy populations. RedMapper BCG probabilities inform training supervision through weighted loss functions while being explicitly excluded from inference features to maintain scientific integrity.
 
-\textbf{Enhanced Feature Integration}: The deployment incorporates RGB color features for red-sequence detection, addressing systematic contamination from bright white sources (stars, QSOs) that traditional grayscale approaches cannot distinguish. Color feature extraction includes red-sequence indicators, spatial color variation analysis, and PCA dimensionality reduction to 8 components, providing robust discrimination between cluster galaxies and contaminant sources. The complete feature vector integrates morphological characteristics (18 features), color information (8 PCA components), luminosity profile statistics (6 features), and auxiliary measurements (2 features) for comprehensive BCG characterization.
+\textbf{Enhanced Feature Integration}: The deployment incorporates RGB color features for red-sequence detection, addressing systematic contamination from bright white sources (stars, QSOs) that traditional grayscale approaches cannot distinguish. Color feature extraction includes red-sequence indicators, spatial color variation analysis, and PCA dimensionality reduction to 8 components, providing robust discrimination between cluster galaxies and contaminant sources. The complete feature vector integrates intensity statistics (8 features), morphological characteristics (22 features), color information (8 PCA components), and auxiliary measurements (2 features) for comprehensive BCG characterization, totaling 40 features when all components are enabled.
 
 \textbf{Training Configuration}: Model training employs 64 epochs with batch size 16 and learning rate $10^{-4}$, optimized for convergence stability and computational efficiency on HPC systems. Feature extraction utilizes 64×64 pixel patches providing optimal balance between spatial context and processing efficiency. The probabilistic architecture enables uncertainty quantification with detection threshold $\theta_{\text{det}} = 0.5$, allowing threshold-based classification essential for automated survey pipelines.
 

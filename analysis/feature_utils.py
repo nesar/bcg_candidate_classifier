@@ -24,50 +24,60 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
     """
     feature_names = []
     
-    # 1. Patch-based morphological features (intensity statistics)
+    # 1. Intensity statistics (5 features)
     intensity_features = [
-        'patch_mean', 'patch_std', 'patch_max', 'patch_min', 'patch_median', 'patch_skew'
+        'patch_mean', 'patch_std', 'patch_max', 'patch_min', 'patch_median'
     ]
     feature_names.extend(intensity_features)
     
-    # 2. Concentration and shape features
-    shape_features = [
-        'concentration_ratio',  # central vs peripheral intensity
-        'eccentricity'          # departure from circular symmetry
+    # 2. Central vs peripheral analysis (3 features)
+    central_peripheral_features = [
+        'central_mean',         # central region intensity
+        'peripheral_mean',      # peripheral region intensity  
+        'concentration_ratio'   # central vs peripheral ratio
     ]
-    feature_names.extend(shape_features)
+    feature_names.extend(central_peripheral_features)
     
-    # 3. Gradient and edge features
+    # 3. Gradient features (3 features)
     gradient_features = [
         'gradient_mean', 'gradient_std', 'gradient_max'
     ]
     feature_names.extend(gradient_features)
     
-    # 4. Geometric moments and morphological features
-    moment_features = [
-        'moment_m20', 'moment_m02', 'moment_m11'
-    ]
-    feature_names.extend(moment_features)
-    
-    # 5. Directional intensity sampling (4 directions)
-    directional_features = [
-        'north_intensity_mean', 'east_intensity_mean', 
-        'south_intensity_mean', 'west_intensity_mean'
-    ]
-    feature_names.extend(directional_features)
-    
-    # 6. Morphological context features (position and environment)
-    morphological_context_features = [
+    # 4. Position features (3 features)
+    position_features = [
         'x_relative',           # normalized x position
         'y_relative',           # normalized y position  
-        'r_center',             # distance from image center
-        'brightness_rank',      # rank among candidates
-        'candidate_density',    # local candidate density
-        'background_level'      # local background intensity
+        'r_center'              # distance from image center
     ]
-    feature_names.extend(morphological_context_features)
+    feature_names.extend(position_features)
     
-    # 7. Color features (if enabled)
+    # 5. Shape/symmetry features (3 features)
+    shape_features = [
+        'centroid_offset_x',    # centroid offset x
+        'centroid_offset_y',    # centroid offset y
+        'eccentricity'          # departure from circular symmetry
+    ]
+    feature_names.extend(shape_features)
+    
+    # 6. Multi-scale context features (9 features)
+    context_multiscale_features = []
+    for scale in ['small', 'medium', 'large']:  # 3 radii
+        context_multiscale_features.extend([
+            f'context_{scale}_mean',      # mean intensity
+            f'context_{scale}_std',       # std intensity  
+            f'context_{scale}_pixels'     # number of pixels
+        ])
+    feature_names.extend(context_multiscale_features)
+    
+    # 7. Directional context features (4 features)
+    directional_context_features = [
+        'context_north_mean', 'context_east_mean', 
+        'context_south_mean', 'context_west_mean'
+    ]
+    feature_names.extend(directional_context_features)
+    
+    # 8. Color features (if enabled)
     if use_color_features:
         # Basic color ratios
         color_ratio_features = [
@@ -101,7 +111,7 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
         pca_features = [f'color_pca_{i}' for i in range(color_pca_components)]
         feature_names.extend(pca_features)
     
-    # 8. Auxiliary astronomical features (if enabled)
+    # 9. Auxiliary astronomical features (if enabled)
     if use_auxiliary_features:
         auxiliary_features = [
             'redshift_z',           # photometric redshift
@@ -115,7 +125,7 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
 def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]:
     """
     Create feature group mapping for analysis.
-    Follows the sensitivity analysis classification scheme: Luminosity profile, Morphology, Color.
+    Follows the updated classification scheme: Intensity Statistics, Morphology, Color Information, Auxiliary.
     
     Args:
         feature_names: List of feature names
@@ -124,21 +134,21 @@ def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]
         Dictionary mapping group names to feature lists
     """
     groups = {
-        'luminosity_profile': [],
+        'intensity_statistics': [],
         'morphology': [],
         'color_information': [],
         'auxiliary': []
     }
     
-    # Luminosity profile features (surface brightness)
-    luminosity_keywords = [
-        'patch_mean', 'patch_std', 'patch_max', 'patch_min', 'patch_median', 'patch_skew'
+    # Intensity statistics features (surface brightness)
+    intensity_keywords = [
+        'patch_mean', 'patch_std', 'patch_max', 'patch_min', 'patch_median',
+        'central_mean', 'peripheral_mean', 'concentration_ratio'
     ]
     
     # Morphological features (shape, structure, position, context)
     morphological_keywords = [
-        'concentration', 'eccentricity', 'gradient', 'moment', 
-        'intensity_mean', 'relative', 'center', 'rank', 'density', 'background'
+        'gradient', 'relative', 'center', 'centroid', 'eccentricity', 'context_'
     ]
     
     # Color information features
@@ -155,10 +165,10 @@ def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]
     for feature_name in feature_names:
         classified = False
         
-        # Check luminosity profile (exact match preferred)
-        for keyword in luminosity_keywords:
+        # Check intensity statistics (exact match preferred)
+        for keyword in intensity_keywords:
             if keyword in feature_name:
-                groups['luminosity_profile'].append(feature_name)
+                groups['intensity_statistics'].append(feature_name)
                 classified = True
                 break
         
