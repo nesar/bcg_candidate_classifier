@@ -344,14 +344,29 @@ G_y(i,j) &= \frac{\partial I}{\partial y} \approx I(i,j+1) - I(i,j-1) \\
 \end{align}
 Statistical measures of the gradient magnitude field (mean, standard deviation, maximum) characterize edge strength and morphological complexity, enabling discrimination between smooth elliptical profiles typical of BCGs and more irregular morphologies.
 
-\textbf{Spatial Position and Environmental Context}: Beyond local morphological analysis, our framework incorporates contextual features that capture environmental information crucial for BCG identification within cluster contexts.
+\textbf{Multi-Scale Environmental Context Analysis}: A critical innovation in our morphological feature extraction is the systematic analysis of environmental context at multiple spatial scales. Unlike traditional patch-based approaches that analyze only local galaxy properties, our method samples the broader cluster environment to capture the hierarchical structure that distinguishes BCGs from other cluster members.
 
+We implement multi-scale environmental analysis by examining circular regions at three distinct spatial scales centered on each candidate:
+\begin{align}
+r_{\text{small}} &= 32\text{ pixels (local environment)} \\
+r_{\text{medium}} &= 64\text{ pixels (intermediate environment)} \\
+r_{\text{large}} &= 128\text{ pixels (extended environment)}
+\end{align}
 
-\textbf{Directional Intensity Sampling}: We implement directional sampling along four cardinal directions (North, East, South, West) extending outward from each candidate location. For each direction, intensity values are sampled at regular intervals up to half the patch size, providing:
+For each circular region $C_r$ of radius $r$, we extract environmental characteristics:
+\begin{align}
+\mu_{\text{env}}^{(r)} &= \frac{1}{N_r} \sum_{(x,y) \in C_r} I(x,y) \quad \text{(environmental brightness)} \\
+\sigma_{\text{env}}^{(r)} &= \sqrt{\frac{1}{N_r-1} \sum_{(x,y) \in C_r} [I(x,y) - \mu_{\text{env}}^{(r)}]^2} \quad \text{(environmental variability)} \\
+N_r &= |\{(x,y) : (x-x_c)^2 + (y-y_c)^2 \leq r^2\}| \quad \text{(environmental size)}
+\end{align}
+
+This multi-scale approach yields 9 environmental features (3 scales × 3 measurements) that capture the cluster environment's brightness distribution, structural variability, and spatial extent at different scales. BCGs, as central cluster galaxies, typically exhibit systematically different environmental signatures compared to peripheral cluster members or field galaxies.
+
+\textbf{Directional Environmental Sampling}: Beyond radial multi-scale analysis, we implement directional environmental sampling along cardinal directions (North, East, South, West) to capture asymmetric cluster structures and environmental gradients. For each direction, we sample intensities extending outward from the candidate:
 \begin{equation}
 \mu_{\text{dir}} = \frac{1}{N_{\text{dir}}} \sum_{k=1}^{N_{\text{dir}}} I(x_c + k\Delta x, y_c + k\Delta y)
 \end{equation}
-where $(\Delta x, \Delta y)$ represents the unit direction vector. This approach captures asymmetric features and environmental gradients that may influence BCG identification, contributing four directional features to the morphological characterization.
+where $(\Delta x, \Delta y)$ represents the unit direction vector and sampling extends to $k_{\max} = 32$ pixels. This directional analysis contributes four additional features that capture environmental anisotropy and density gradients characteristic of cluster cores where BCGs preferentially reside.
 
 \textbf{Spatial Position Encoding}: Absolute positions within the image frame are normalized and encoded as features:
 \begin{align}
@@ -360,6 +375,7 @@ y_{\text{rel}} &= \frac{y_i - H/2}{H/2} \in [-1, 1] \\
 r_{\text{center}} &= \sqrt{x_{\text{rel}}^2 + y_{\text{rel}}^2}
 \end{align}
 where $(W, H)$ are image dimensions. This encoding enables the model to learn spatial biases in BCG distribution within the image field of view, contributing three positional features that capture the candidate's location within the cluster field.
+
 
 \textbf{Morphological Feature Summary}: The complete morphological feature extraction yields 22 features organized as follows:
 
