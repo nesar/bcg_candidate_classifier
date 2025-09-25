@@ -442,10 +442,11 @@ High correlations between color channel gradients indicate coherent morphologica
 \begin{align}
 K_{\text{edge}} &= \begin{pmatrix} -1 & -1 & -1 \\ -1 & 8 & -1 \\ -1 & -1 & -1 \end{pmatrix}, \quad 
 K_{\text{smooth}} = \frac{1}{16}\begin{pmatrix} 1 & 2 & 1 \\ 2 & 4 & 2 \\ 1 & 2 & 1 \end{pmatrix} \\
+K_{\text{Laplacian}} &= \begin{pmatrix} 0 & -1 & 0 \\ -1 & 4 & -1 \\ 0 & -1 & 0 \end{pmatrix} \\
 F_{c,k} &= \text{mean}(|I_c * K_k|) \nonumber \\
 &\quad c \in \{R,G,B\}, \; k \in \{\text{edge}, \text{smooth}, \text{Laplacian}\}
 \end{align}
-These convolution responses capture channel-specific morphological characteristics that complement global color statistics.
+These convolution responses capture channel-specific morphological characteristics that complement global color statistics. The edge kernel detects sharp transitions, the smoothing kernel emphasizes low-frequency variations, and the Laplacian kernel enhances fine-scale structure and texture patterns within each color channel.
 
 \textbf{Color Feature Summary}: The complete color information feature extraction generates 25 individual measurements per candidate, organized into three categories:
 
