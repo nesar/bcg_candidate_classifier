@@ -299,24 +299,29 @@ For each candidate location $(x_i, y_i)$, we extract comprehensive feature vecto
 
 The intensity statistics feature group captures the fundamental brightness distribution properties within each candidate patch, representing the foundation for identifying the brightest objects in cluster environments. These features are extracted from 64×64 pixel patches that ensure adequate spatial coverage while maintaining computational efficiency.
 
-\textbf{Intensity Distribution Statistics}: The foundation of our intensity analysis consists of five fundamental statistical measures that characterize the brightness distribution within each candidate region. Following established practices in astronomical photometry \citep{Bertin1996}, we compute:
+\textbf{Intensity Distribution Statistics}: The foundation of our intensity analysis consists of eight statistical measures that comprehensively characterize the brightness distribution within each candidate region. Following established practices in astronomical photometry \citep{Bertin1996}, we compute:
+
+\textbf{Basic Statistical Moments (5 features)}:
 \begin{align}
 \mu_I &= \frac{1}{N} \sum_{p \in \mathbf{P}_i} I(p) \\
 \sigma_I &= \sqrt{\frac{1}{N-1} \sum_{p \in \mathbf{P}_i} [I(p) - \mu_I]^2}
 \end{align}
-where $N$ is the number of pixels in the patch. Additional statistics include maximum, minimum, and median intensities, providing robust characterization of the local brightness distribution. These five fundamental parameters ($\mu_I$, $\sigma_I$, $I_{\max}$, $I_{\min}$, $I_{\text{median}}$) capture the essential characteristics of the surface brightness profile within each candidate patch, enabling discrimination between bright central galaxies and fainter cluster members.
+where $N$ is the number of pixels in the patch. Additional statistics include maximum, minimum, and median intensities ($I_{\max}$, $I_{\min}$, $I_{\text{median}}$), providing robust characterization of the local brightness distribution.
 
-\subsubsection{Morphology Features}
-
-The morphology feature group encompasses galaxy shape, structural parameters, spatial context, and environmental characteristics that distinguish BCGs from other cluster members. This comprehensive set includes 29 features total: 16 patch-based morphological properties and 13 contextual environmental features crucial for BCG identification within cluster environments.
-
-\textbf{Central Concentration Analysis}: Adapting the concentration parameter from the CAS system \citep{Conselice2003}, we implement a simplified concentration measure based on central versus peripheral intensity distributions. The central region consists of a circular area with radius $r_{\text{central}} = \text{patch\_size}/8$ (default: 8 pixels for 64×64 patches) centered on the candidate, while the peripheral region encompasses the remaining patch area:
+\textbf{Central vs Peripheral Analysis (3 features)}: Building on concentration analysis methodologies \citep{Conselice2003}, we implement spatial brightness analysis by partitioning each patch into central and peripheral regions. The central region consists of a circular area with radius $r_{\text{central}} = \text{patch\_size}/8$ (8 pixels for 64×64 patches), while the peripheral region encompasses the remaining patch area:
 \begin{align}
 \mu_I^{\text{central}} &= \frac{1}{N_{\text{central}}} \sum_{(i,j) \in \text{central}} I(i,j) \\
 \mu_I^{\text{peripheral}} &= \frac{1}{N_{\text{peripheral}}} \sum_{(i,j) \in \text{peripheral}} I(i,j) \\
-C_{\text{log}} &= \log(\mu_I^{\text{central}} + \epsilon) - \log(\mu_I^{\text{peripheral}} + \epsilon)
+C_{\text{ratio}} &= \frac{\mu_I^{\text{central}}}{\mu_I^{\text{peripheral}} + \epsilon}
 \end{align}
-where $\epsilon = 10^{-3}$ prevents division by zero, and the logarithmic formulation provides robust discrimination between centrally concentrated sources (typical of BCGs with de Vaucouleurs profiles) and more diffuse or irregular objects. This measure exploits the characteristic steep central light profiles of massive elliptical galaxies that dominate cluster cores.
+where $\epsilon = 10^{-3}$ prevents division by zero. This concentration ratio effectively discriminates between centrally concentrated BCGs and more diffuse cluster members.
+
+These eight intensity statistics features ($\mu_I$, $\sigma_I$, $I_{\max}$, $I_{\min}$, $I_{\text{median}}$, $\mu_I^{\text{central}}$, $\mu_I^{\text{peripheral}}$, $C_{\text{ratio}}$) provide comprehensive characterization of surface brightness properties essential for BCG identification.
+
+\subsubsection{Morphology Features}
+
+The morphology feature group encompasses galaxy shape, structural parameters, spatial context, and environmental characteristics that distinguish BCGs from other cluster members. This comprehensive set includes 22 features total, capturing both local galaxy structure and environmental context crucial for BCG identification within cluster environments.
+
 
 \textbf{Shape and Structural Analysis}: We compute intensity-weighted geometric moments to quantify morphological asymmetry and structural properties, following established practices in quantitative morphology \citep{Hambleton2011}. For a patch with intensity distribution $I(x,y)$ and total intensity $I_{\text{total}}$, we calculate:
 \begin{align}
@@ -356,21 +361,14 @@ r_{\text{center}} &= \sqrt{x_{\text{rel}}^2 + y_{\text{rel}}^2}
 \end{align}
 where $(W, H)$ are image dimensions. This encoding enables the model to learn spatial biases in BCG distribution within the image field of view, contributing three positional features that capture the candidate's location within the cluster field.
 
-\textbf{Morphological Feature Summary}: The complete morphological feature extraction yields 29 features organized into two categories:
+\textbf{Morphological Feature Summary}: The complete morphological feature extraction yields 22 features organized as follows:
 
-\textbf{Patch-Based Features (16 total)}:
 \begin{itemize}
-\item Central vs peripheral intensity analysis: 3 features (central mean, peripheral mean, concentration ratio)
-\item Gradient analysis: 3 features (mean, std, max gradient magnitude)
-\item Spatial position encoding: 3 features (relative x, y, distance from center)
-\item Shape and symmetry: 3 features (centroid offsets x/y, eccentricity measure)
-\item Directional intensity sampling: 4 features (mean intensity in N, E, S, W directions)
-\end{itemize}
-
-\textbf{Contextual Environmental Features (13 total)}:
-\begin{itemize}
-\item Multi-scale context analysis: 9 features (3 radii × 3 measurements each: mean intensity, std intensity, pixel count)
-\item Directional environmental sampling: 4 features (intensity sampling in 4 cardinal directions beyond patch boundaries)
+\item \textbf{Gradient analysis}: 3 features (mean, std, max gradient magnitude)
+\item \textbf{Spatial position encoding}: 3 features (relative x, y, distance from center)
+\item \textbf{Shape and symmetry}: 3 features (centroid offsets x/y, eccentricity measure)
+\item \textbf{Multi-scale context analysis}: 9 features (3 radii × 3 measurements each: mean intensity, std intensity, pixel count)
+\item \textbf{Directional context sampling}: 4 features (mean intensity in N, E, S, W directions from candidate location)
 \end{itemize}
 
 This comprehensive morphological analysis captures both local galaxy structure and environmental context essential for distinguishing BCGs within cluster environments.
@@ -433,15 +431,21 @@ F_{c,k} &= \text{mean}(|I_c * K_k|) \nonumber \\
 \end{align}
 These convolution responses capture channel-specific morphological characteristics that complement global color statistics.
 
-\textbf{Principal Component Analysis for Dimensionality Reduction}: The complete color feature extraction generates 54 individual measurements per candidate (9 basic color features + 7 color ratios + 3 spatial color features + 8 color gradient features + 27 convolution-based features). To maintain computational efficiency while preserving essential chromatic information, we implement Principal Component Analysis (PCA) with retention of the first 8 principal components, typically capturing 85-95\% of the total variance depending on the color diversity of the training set.
+\textbf{Color Feature Summary}: The complete color information feature extraction generates 25 individual measurements per candidate, organized into three categories:
 
-The PCA transformation is fitted during training using color features from all training candidates:
+\begin{itemize}
+\item \textbf{Basic color analysis}: 8 features including color ratios (R/G, R/B), color magnitude, red-sequence scoring, spatial color variations, and color gradient correlations
+\item \textbf{Convolution-based features}: 9 features from applying edge detection, smoothing, and Laplacian filters to each RGB channel (3 channels × 3 kernels)
+\item \textbf{PCA-reduced features}: 8 principal components derived from a larger 54-dimensional raw color feature space, capturing the most informative chromatic patterns while maintaining computational efficiency
+\end{itemize}
+
+The PCA transformation is fitted during training using the expanded color features from all training candidates:
 \begin{equation}
-\mathbf{f}_{\text{color}}^{\text{reduced}} = \mathbf{W}_{\text{PCA}}^T (\mathbf{f}_{\text{color}}^{\text{raw}} - \boldsymbol{\mu}_{\text{color}})
+\mathbf{f}_{\text{color}}^{\text{PCA}} = \mathbf{W}_{\text{PCA}}^T (\mathbf{f}_{\text{color}}^{\text{raw}} - \boldsymbol{\mu}_{\text{color}})
 \end{equation}
-where $\mathbf{W}_{\text{PCA}} \in \mathbb{R}^{54 \times 8}$ contains the first 8 principal components and $\boldsymbol{\mu}_{\text{color}}$ is the mean color feature vector.
+where $\mathbf{W}_{\text{PCA}} \in \mathbb{R}^{54 \times 8}$ contains the first 8 principal components and $\boldsymbol{\mu}_{\text{color}}$ is the mean color feature vector. The 8 PCA components typically capture 85-95\% of the total color variance.
 
-This dimensionality reduction maintains the most informative color information while preventing feature space explosion and ensuring computational tractability for large-scale applications.
+This combination of direct color measurements, convolution responses, and PCA-reduced features provides comprehensive chromatic characterization totaling 25 color information features essential for BCG discrimination and stellar contamination rejection.
 
 \subsubsection{Auxiliary Feature Integration}
 
@@ -459,7 +463,7 @@ where $m^*(z)$ represents the characteristic magnitude corresponding to the brea
 \begin{equation}
 \mathbf{f}_i^{\text{complete}} = [\mathbf{f}_i^{\text{intensity}}, \mathbf{f}_i^{\text{morphology}}, \mathbf{f}_i^{\text{color}}, \mathbf{a}_i]
 \end{equation}
-where $\mathbf{f}_i^{\text{intensity}}$ contains 8 intensity statistics features (5 basic + 3 concentration), $\mathbf{f}_i^{\text{morphology}}$ contains 22 morphological and contextual features (6 shape/position + 16 environmental), $\mathbf{f}_i^{\text{color}}$ contains 54 raw color features reduced to 8 PCA components when PCA reduction is enabled, and $\mathbf{a}_i$ contains 2 auxiliary features (when available). The total dimensionality ranges from 32 dimensions (minimal: 30 morphological + 2 auxiliary) to 40 dimensions (8 intensity + 22 morphological + 8 color PCA + 2 auxiliary) when all feature groups are enabled. Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units.
+where $\mathbf{f}_i^{\text{intensity}}$ contains 8 intensity statistics features, $\mathbf{f}_i^{\text{morphology}}$ contains 22 morphological and contextual features, $\mathbf{f}_i^{\text{color}}$ contains 25 color information features (8 basic color + 9 convolution + 8 PCA components), and $\mathbf{a}_i$ contains 2 auxiliary features (when available). The total dimensionality is 57 dimensions (8 intensity + 22 morphology + 25 color + 2 auxiliary) when all feature groups are enabled. Features are standardized using \texttt{sklearn.preprocessing.StandardScaler} fitted on training data to ensure equal contribution across different scales and units.
 
 \subsection{Neural Network Architectures and Uncertainty Quantification}
 
@@ -470,7 +474,7 @@ Our framework implements a probabilistic neural network architecture specificall
 \textbf{Network Architecture}: The probabilistic classifier implements a fully-connected multi-layer perceptron (MLP) with the following architecture:
 
 \begin{itemize}
-\item \textbf{Input Layer}: Variable feature dimension $d \in [30, 40]$ depending on enabled features (intensity: 8, morphological: 22, color: 8 PCA components, auxiliary: 2)
+\item \textbf{Input Layer}: Feature dimension $d = 57$ when all feature groups are enabled (intensity: 8, morphological: 22, color: 25, auxiliary: 2)
 \item \textbf{Hidden Layer 1}: Linear transformation $\mathbb{R}^{d} \rightarrow \mathbb{R}^{128}$ followed by ReLU activation and dropout ($\rho = 0.2$)
 \item \textbf{Hidden Layer 2}: Linear transformation $\mathbb{R}^{128} \rightarrow \mathbb{R}^{64}$ followed by ReLU activation and dropout ($\rho = 0.2$)
 \item \textbf{Hidden Layer 3}: Linear transformation $\mathbb{R}^{64} \rightarrow \mathbb{R}^{32}$ followed by ReLU activation and dropout ($\rho = 0.2$)
@@ -522,7 +526,7 @@ We implement SHapley Additive exPlanations (SHAP) analysis using the DeepExplain
 \begin{equation}
 f(\mathbf{x}) = \phi_0 + \sum_{i=1}^{M} \phi_i
 \end{equation}
-where $\phi_0$ is the baseline prediction (expected value over the training dataset), $M$ is the number of features (30-40 depending on configuration), and $\phi_i$ represents the marginal contribution of feature $i$ to the prediction. The DeepExplainer leverages deep learning-specific attribution methods, providing more accurate feature importance estimates for neural networks compared to model-agnostic approaches.
+where $\phi_0$ is the baseline prediction (expected value over the training dataset), $M$ is the number of features (57 when all feature groups are enabled), and $\phi_i$ represents the marginal contribution of feature $i$ to the prediction. The DeepExplainer leverages deep learning-specific attribution methods, providing more accurate feature importance estimates for neural networks compared to model-agnostic approaches.
 
 \textbf{Individual Prediction Analysis}: SHAP waterfall plots reveal which specific features drive each BCG prediction, enabling validation against astronomical expectations. For genuine BCGs, we expect positive contributions from:
 \begin{itemize}
@@ -657,8 +661,8 @@ The framework employs comprehensive configuration management enabling reproducib
 
 \textbf{Feature Extraction Pipeline}:
 \begin{itemize}
-\item \texttt{utils.candidate\_based\_bcg.extract\_features\_for\_candidates}: 30-dimensional morphological feature extraction with configurable patch sizes (64, 128, 256 pixels)
-\item \texttt{utils.color\_features.ColorFeatureExtractor}: 54-dimensional RGB color analysis with PCA reduction to 8 components
+\item \texttt{utils.candidate\_based\_bcg.extract\_features\_for\_candidates}: 22-dimensional morphological feature extraction with configurable patch sizes (64, 128, 256 pixels)
+\item \texttt{utils.color\_features.ColorFeatureExtractor}: 25-dimensional color feature extraction (8 basic color features + 9 convolution features + 8 PCA components from expanded 54-dimensional raw feature space)
 \item \texttt{utils.feature\_extraction}: Multi-scale radial analysis and directional sampling
 \item \texttt{sklearn.preprocessing.StandardScaler}: $z$-score normalization fitted on training data
 \item Automated feature importance ranking and correlation analysis
