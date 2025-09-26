@@ -55,9 +55,10 @@ from utils.color_features import ColorFeatureExtractor
 class ProbabilisticTrainer(CandidateBasedTrainer):
     """Enhanced trainer for probabilistic models with UQ."""
     
-    def __init__(self, model, device='cpu', feature_scaler=None, use_uq=False):
+    def __init__(self, model, device='cpu', feature_scaler=None, use_uq=False, use_redmapper_weighting=False):
         super().__init__(model, device, feature_scaler)
         self.use_uq = use_uq
+        self.use_redmapper_weighting = use_redmapper_weighting
     
     def evaluate_step(self, batch, criterion):
         """Evaluation step for probabilistic model with ranking loss."""
@@ -116,7 +117,7 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
             return avg_loss.item(), accuracy
     
     def train_step(self, batch, optimizer, criterion):
-        """Training step for probabilistic model with ranking loss for better probability calibration."""
+        """Training step for probabilistic model with ranking loss and optional RedMapper weighting."""
         self.model.train()
         
         features = batch['features'].to(self.device)
@@ -135,6 +136,7 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
         
         # Use ranking loss for better probability calibration
         total_loss = 0
+        total_weight = 0
         correct_predictions = 0
         
         for sample_idx in range(batch_size):
@@ -150,6 +152,16 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
             target_idx = torch.argmax(sample_targets).item()
             target_logit = sample_logits[target_idx]
             
+            # Get RedMapper probability weighting if available
+            sample_weight = 1.0  # Default uniform weighting
+            if self.use_redmapper_weighting and 'redmapper_probs' in batch:
+                # RedMapper probabilities shape: (batch_size,)
+                redmapper_prob = batch['redmapper_probs'][sample_idx].item()
+                # Convert RedMapper probability to loss weight
+                # Higher RedMapper probability = higher confidence = higher weight
+                # Use (redmapper_prob + 0.1) to avoid zero weights and ensure minimum weighting
+                sample_weight = max(0.1, redmapper_prob + 0.1)
+            
             # Create ranking pairs: target should be higher than all others
             other_indices = [i for i in range(len(sample_logits)) if i != target_idx]
             
@@ -164,15 +176,23 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
                     # MarginRankingLoss: input1 should be ranked higher than input2
                     ranking_target = torch.ones(1).to(self.device)  # target_logit > neg_logit
                     loss = criterion(target_logit.unsqueeze(0), neg_logit.unsqueeze(0), ranking_target)
-                    total_loss += loss
+                    
+                    # Apply RedMapper probability weighting
+                    weighted_loss = loss * sample_weight
+                    total_loss += weighted_loss
+                    total_weight += sample_weight
             
             # Check if prediction is correct (highest logit matches target)
             predicted_idx = torch.argmax(sample_logits).item()
             if predicted_idx == target_idx:
                 correct_predictions += 1
         
-        # Average loss over batch
-        avg_loss = total_loss / batch_size if batch_size > 0 else 0
+        # Average loss over batch with proper weighting
+        if total_weight > 0:
+            avg_loss = total_loss / total_weight
+        else:
+            avg_loss = total_loss / batch_size if batch_size > 0 else 0
+        
         accuracy = correct_predictions / batch_size if batch_size > 0 else 0
         
         # Backward pass
@@ -356,7 +376,10 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
     
     # Create trainer
     if args.use_uq:
-        trainer = ProbabilisticTrainer(model, device, feature_scaler, use_uq=True)
+        trainer = ProbabilisticTrainer(model, device, feature_scaler, use_uq=True, 
+                                     use_redmapper_weighting=args.use_redmapper_probs)
+        if args.use_redmapper_probs:
+            print("Training will use RedMapper probability weighting for loss calculation")
     else:
         trainer = CandidateBasedTrainer(model, device, feature_scaler)
     
@@ -536,15 +559,15 @@ def main(args):
             print(f"Delta M* z filter: {args.delta_mstar_z_range}")
         
         # Create train and test datasets using the new BCG data reader
-        # RedMapper probabilities are loaded in the dataset but NOT used as input features
-        # They can be accessed for training supervision, evaluation, or loss weighting
+        # RedMapper probabilities can be loaded for training supervision (weighted loss)
+        # but are NOT used as input features to maintain inference compatibility
         train_dataset, test_dataset = create_bcg_datasets(
             dataset_type=args.bcg_arcmin_type,
             split_ratio=0.8,  # 80% train, 20% test
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
             include_additional_features=args.use_additional_features,
-            include_redmapper_probs=False  # Don't use as input features to match testing
+            include_redmapper_probs=args.use_redmapper_probs  # Load for training supervision if requested
         )
         
         # Split training set into train/val (70% train, 10% val, 20% test total)

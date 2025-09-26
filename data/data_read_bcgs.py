@@ -149,12 +149,12 @@ class BCGDataset(Dataset):
             'delta_mstar_z': delta_mstar_z
         }
         
-        # Add additional features if requested
+        # Add additional features if requested (but NOT RedMapper probs as they're for supervision only)
         additional_features = []
         if self.include_additional_features:
             additional_features.extend([cluster_z, delta_mstar_z])
-        if self.include_redmapper_probs:
-            additional_features.append(bcg_probability)
+        # Note: RedMapper probabilities are NOT added to additional_features 
+        # They are kept separate as 'bcg_probability' for training supervision only
             
         if additional_features:
             result['additional_features'] = np.array(additional_features)

@@ -639,9 +639,17 @@ j^* = \argmin_j \|(x_j, y_j) - (x_{\text{true}}, y_{\text{true}})\|_2
 
 \textbf{Scientific Integrity and Data Leakage Prevention}: A critical design principle of our framework is the careful exclusion of external BCG probability estimates during model inference to maintain scientific validity and enable independent validation.
 
-\textbf{RedMapper Probability Exclusion}: The framework is explicitly designed to exclude RedMapper BCG probabilities \citep{Rykoff2014redMaPPer} from all feature vectors used during inference. While the system includes infrastructure to optionally load RedMapper probabilities for potential training supervision or evaluation purposes, the trained model relies exclusively on the 40-dimensional feature vector (intensity, morphology, color, auxiliary) without access to any RedMapper-derived information during prediction.
+\textbf{RedMapper Probability Integration}: The framework implements sophisticated RedMapper BCG probability integration \citep{Rykoff2014redMaPPer} that maintains scientific integrity while leveraging external validation information. RedMapper probabilities are optionally loaded during training for loss weighting but are explicitly excluded from all feature vectors used during inference.
 
-This design ensures that our BCG predictions remain scientifically independent and can be meaningfully validated against RedMapper results without circular dependency. The approach guarantees that the model learns generalizable patterns in photometric and morphological features rather than reproducing external classification systems.
+During training, when RedMapper probabilities are available, they serve as confidence weights in the loss function. Samples with higher RedMapper BCG probabilities receive increased weight in the ranking loss calculation, effectively incorporating external astronomical expertise into the training process:
+
+\begin{equation}
+\mathcal{L}_{\text{weighted}} = \sum_{i=1}^{N} w_i \cdot \mathcal{L}_{\text{ranking}}^{(i)}
+\end{equation}
+
+where $w_i = \max(0.1, P_{\text{RedMapper}}^{(i)} + 0.1)$ ensures minimum weighting while scaling with RedMapper confidence.
+
+The trained model relies exclusively on the 40-dimensional feature vector (intensity, morphology, color, auxiliary) without access to any RedMapper-derived information during inference. This design ensures that our BCG predictions remain scientifically independent and can be meaningfully validated against RedMapper results without circular dependency, while still benefiting from RedMapper's astronomical expertise during training supervision.
 
 \section{Implementation Details}
 
