@@ -402,18 +402,27 @@ The color information feature group addresses the fundamental limitation of gray
 
 Our color feature extraction system directly addresses this contamination by preserving and analyzing RGB chromatic information that becomes invisible in grayscale conversion.
 
-\textbf{Color Ratio Analysis for Red-Sequence Identification}: The core of our color feature system implements photometric color analysis adapted for RGB imaging data. While lacking the precision of calibrated multi-band photometry, RGB data provides sufficient chromatic information for red-sequence detection when analyzed through appropriate color ratios.
-
-We extract fundamental color measurements that approximate standard photometric indices:
+\textbf{Basic Color Statistics}: The foundation of color analysis begins with fundamental channel-wise statistics that capture the overall chromatic properties of each candidate. We extract 9 basic color features:
 \begin{align}
-\text{R/G ratio} &= \frac{\langle I_R \rangle}{\langle I_G \rangle + \epsilon} \quad \text{(approximates } r-g \text{ color)} \\
-\text{R/B ratio} &= \frac{\langle I_R \rangle}{\langle I_B \rangle + \epsilon} \quad \text{(approximates } r-i \text{ color)} \\
-\text{Color magnitude} &= \frac{\langle\sqrt{(I_R-I_G)^2 + (I_G-I_B)^2 + (I_R-I_B)^2}\rangle}{\langle I_R + I_G + I_B \rangle + \epsilon} \nonumber \\
+\mu_R &= \langle I_R \rangle, \quad \mu_G = \langle I_G \rangle, \quad \mu_B = \langle I_B \rangle \\
+\sigma_R &= \text{std}(I_R), \quad \sigma_G = \text{std}(I_G), \quad \sigma_B = \text{std}(I_B) \\
+f_R &= \frac{\mu_R}{\mu_R + \mu_G + \mu_B + \epsilon}, \quad f_G = \frac{\mu_G}{\mu_R + \mu_G + \mu_B + \epsilon}, \quad f_B = \frac{\mu_B}{\mu_R + \mu_G + \mu_B + \epsilon}
+\end{align}
+where $\langle \cdot \rangle$ denotes spatial averaging over the candidate patch, $\epsilon = 10^{-8}$ prevents division by zero, and the relative intensity fractions $f_R$, $f_G$, $f_B$ characterize the overall color balance of each candidate.
+
+\textbf{Color Ratio Analysis for Red-Sequence Identification}: The core of our color feature system implements comprehensive photometric color analysis adapted for RGB imaging data. We extract 7 color ratio features that approximate standard photometric indices and capture red-sequence characteristics:
+
+\begin{align}
+\text{R/G ratio} &= \frac{\mu_R}{\mu_G + \epsilon} \quad \text{(approximates } r-g \text{ color)} \\
+\text{R/G normalized} &= \frac{\mu_R - \mu_G}{\mu_R + \mu_G + \epsilon} \quad \text{(normalized R-G difference)} \\
+\text{R/B ratio} &= \frac{\mu_R}{\mu_B + \epsilon} \quad \text{(approximates } r-i \text{ color)} \\
+\text{R/B normalized} &= \frac{\mu_R - \mu_B}{\mu_R + \mu_B + \epsilon} \quad \text{(normalized R-B difference)} \\
+\text{G/B ratio} &= \frac{\mu_G}{\mu_B + \epsilon} \quad \text{(green-blue color information)} \\
+\text{Color magnitude} &= \frac{\langle\sqrt{(I_R-I_G)^2 + (I_G-I_B)^2 + (I_R-I_B)^2}\rangle}{\mu_R + \mu_G + \mu_B + \epsilon} \nonumber \\
 &\quad \text{(departure from achromatic colors)}
 \end{align}
-where $\langle \cdot \rangle$ denotes spatial averaging over the candidate patch and $\epsilon = 10^{-8}$ prevents division by zero.
 
-The color magnitude parameter quantifies departure from achromatic (white) colors, with higher values indicating more chromatic objects. This measure effectively discriminates between colored galaxies and white stellar sources.
+The normalized color differences provide robust measures that are less sensitive to overall brightness variations, while the direct ratios capture traditional color indices. The color magnitude parameter quantifies departure from achromatic (white) colors, effectively discriminating between colored galaxies and white stellar sources.
 
 \textbf{Red-Sequence Scoring}: We implement a red-sequence indicator specifically designed to identify objects with colors consistent with evolved stellar populations characteristic of BCGs:
 \begin{equation}
@@ -421,14 +430,16 @@ S_{\text{red}} = \frac{\langle I_R - 0.5(I_G + I_B) \rangle}{\langle I_R + I_G +
 \end{equation}
 This score achieves maximum values for objects with enhanced red channel intensity relative to green and blue components, characteristic of red-sequence galaxies with prominent 4000~Å breaks and minimal ongoing star formation \citep{Kodama1997,Gladders2000}.
 
-\textbf{Spatial Color Variation Analysis}: Beyond global color properties, our system analyzes spatial color variation within each candidate patch to distinguish genuine extended sources from point-like contaminants. We compute color uniformity measures:
-\begin{align}
-\sigma_{R/G} &= \text{std}\left(\frac{I_R(x,y)}{I_G(x,y) + \epsilon}\right) \\
-\sigma_{R/B} &= \text{std}\left(\frac{I_R(x,y)}{I_B(x,y) + \epsilon}\right)
-\end{align}
-where the standard deviation is computed over all pixels within the candidate patch.
+\textbf{Spatial Color Variation Analysis}: Beyond global color properties, our system analyzes spatial color variation within each candidate patch to distinguish genuine extended sources from point-like contaminants. We extract 3 spatial color features that capture color uniformity and radial color gradients:
 
-Extended galaxies typically exhibit gradual color gradients due to stellar population variations with radius, while point sources (stars) show color variations dominated by noise and PSF effects. This spatial color analysis provides additional discrimination power beyond global color measurements.
+\begin{align}
+\sigma_{R/G} &= \text{std}\left(\frac{I_R(x,y)}{I_G(x,y) + \epsilon}\right) \quad \text{(R/G spatial variation)} \\
+\sigma_{R/B} &= \text{std}\left(\frac{I_R(x,y)}{I_B(x,y) + \epsilon}\right) \quad \text{(R/B spatial variation)} \\
+\Delta_{c-p} &= \frac{\mu_R^{\text{central}}}{\mu_G^{\text{central}} + \epsilon} - \frac{\mu_R^{\text{peripheral}}}{\mu_G^{\text{peripheral}} + \epsilon} \quad \text{(central-peripheral color difference)}
+\end{align}
+where the spatial standard deviations are computed over all pixels within the candidate patch, and the central-peripheral difference compares R/G ratios between a central circular region (radius $\sim$patch\_size/8) and the surrounding peripheral area.
+
+Extended galaxies typically exhibit systematic color gradients due to stellar population variations with radius, while point sources (stars) show color variations dominated by noise and PSF effects. The central-peripheral color difference specifically captures radial color gradients characteristic of early-type galaxies where redder central regions reflect older stellar populations.
 
 \textbf{Color Gradient Analysis}: We implement color gradient analysis to capture structural information unavailable in intensity-based morphological features:
 \begin{align}
@@ -626,7 +637,11 @@ j^* = \argmin_j \|(x_j, y_j) - (x_{\text{true}}, y_{\text{true}})\|_2
 \mathcal{L}_{\text{ranking}} = \max(0, \text{margin} - (s_{\text{true}} - s_{\text{other}}))
 \end{equation}
 
-When available, RedMapper BCG probabilities inform training through weighted loss functions while being explicitly excluded from inference features to prevent data leakage \citep{Rykoff2014redMaPPer}. This approach maintains scientific integrity by using external probability estimates for supervision without creating circular dependencies in the inference pipeline.
+\textbf{Scientific Integrity and Data Leakage Prevention}: A critical design principle of our framework is the careful exclusion of external BCG probability estimates during model inference to maintain scientific validity and enable independent validation.
+
+\textbf{RedMapper Probability Exclusion}: The framework is explicitly designed to exclude RedMapper BCG probabilities \citep{Rykoff2014redMaPPer} from all feature vectors used during inference. While the system includes infrastructure to optionally load RedMapper probabilities for potential training supervision or evaluation purposes, the trained model relies exclusively on the 40-dimensional feature vector (intensity, morphology, color, auxiliary) without access to any RedMapper-derived information during prediction.
+
+This design ensures that our BCG predictions remain scientifically independent and can be meaningfully validated against RedMapper results without circular dependency. The approach guarantees that the model learns generalizable patterns in photometric and morphological features rather than reproducing external classification systems.
 
 \section{Implementation Details}
 
