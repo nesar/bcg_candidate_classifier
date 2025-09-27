@@ -3,11 +3,10 @@ Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: bcg_classifier_documentation.aux
 The style file: aasjournal.bst
 Database file #1: bcg_classifier_references.bib
-Warning--I didn't find a database entry for "Rykoff2016"
 Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
 You've used 14 entries,
             3168 wiz_defined-function locations,
-            775 strings with 7355 characters,
+            773 strings with 7335 characters,
 and the built_in function-call counts, 6136 in all, are:
 = -- 551
 > -- 392
@@ -46,4 +45,3 @@ warning$ -- 0
 while$ -- 56
 width$ -- 0
 write$ -- 163
-(There was 1 warning)
