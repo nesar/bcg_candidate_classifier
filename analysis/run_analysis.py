@@ -510,6 +510,13 @@ class BCGAnalysisRunner:
         except Exception as e:
             print(f"✗ Failed to generate physical summary table: {e}")
         
+        # Generate CSV data for local plotting (shap_physical_importance and shap_physical_breakdown)
+        try:
+            self._save_physical_plot_data(physical_results, output_dir / 'csv_reports')
+            print("✓ Physical plot data CSV files saved for local plotting")
+        except Exception as e:
+            print(f"✗ Failed to save physical plot data CSV files: {e}")
+        
         # Generate physical interpretation for individual samples
         try:
             print(f"DEBUG: Attempting to generate physical individual analysis...")
@@ -813,6 +820,58 @@ class BCGAnalysisRunner:
         # Save report
         with open(output_dir / 'analysis_summary.txt', 'w') as f:
             f.write('\n'.join(report_lines))
+    
+    def _save_physical_plot_data(self, physical_results, csv_dir):
+        """Save physical plot data as CSV files for local plotting."""
+        import pandas as pd
+        
+        # Only save for SHAP method (most commonly used)
+        if 'shap' not in physical_results:
+            print("Warning: No SHAP results found, skipping physical plot data CSV generation")
+            return
+        
+        shap_results = physical_results['shap']
+        group_details = shap_results['group_details']
+        
+        # 1. Save data for shap_physical_importance.png
+        importance_data = []
+        for group_name, details in group_details.items():
+            importance_data.append({
+                'group_name': group_name,
+                'group_title': group_name.replace('_', ' ').title(),
+                'total_importance': details['total_importance'],
+                'average_importance': details['average_importance'],
+                'feature_count': details['feature_count'],
+                'description': details['description'],
+                'color': details['color']
+            })
+        
+        # Sort by importance for plotting
+        importance_data.sort(key=lambda x: x['total_importance'], reverse=True)
+        importance_df = pd.DataFrame(importance_data)
+        importance_df.to_csv(csv_dir / 'shap_physical_importance_data.csv', index=False)
+        
+        # 2. Save data for shap_physical_breakdown.png
+        breakdown_data = []
+        for group_name, details in group_details.items():
+            for feature_name, feature_importance in details['contributing_features']:
+                # Map to physical name
+                physical_name = self.physical_interpreter.map_feature_names([feature_name])[0]
+                breakdown_data.append({
+                    'group_name': group_name,
+                    'group_title': group_name.replace('_', ' ').title(),
+                    'group_description': details['description'],
+                    'group_color': details['color'],
+                    'technical_feature_name': feature_name,
+                    'physical_feature_name': physical_name,
+                    'importance': feature_importance
+                })
+        
+        breakdown_df = pd.DataFrame(breakdown_data)
+        breakdown_df.to_csv(csv_dir / 'shap_physical_breakdown_data.csv', index=False)
+        
+        print(f"✓ Saved shap_physical_importance_data.csv with {len(importance_data)} groups")
+        print(f"✓ Saved shap_physical_breakdown_data.csv with {len(breakdown_data)} features")
     
     def run_complete_analysis(self):
         """Run complete feature importance analysis pipeline."""
