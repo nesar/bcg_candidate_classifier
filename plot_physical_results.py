@@ -170,17 +170,12 @@ def plot_physical_breakdown(csv_path, output_path=None):
 
 def main():
     """Main function to process command line arguments and generate plots."""
-    if len(sys.argv) < 2:
-        print("Usage: python plot_physical_results.py <path_to_csv_reports_directory>")
-        print("\nExample:")
-        print("  python plot_physical_results.py ./trained_models/candidate_classifier_color_uq_run_20250926_225200/feature_importance_analysis/csv_reports/")
-        sys.exit(1)
-    
-    csv_dir = Path(sys.argv[1])
-    
-    if not csv_dir.exists():
-        print(f"Error: Directory does not exist: {csv_dir}")
-        sys.exit(1)
+    # Determine working directory - flexible approach
+    if len(sys.argv) > 1:
+        csv_dir = Path(sys.argv[1])
+    else:
+        # Default to current directory (useful when running from csv_reports/)
+        csv_dir = Path('.')
     
     # Check for required CSV files
     importance_csv = csv_dir / 'shap_physical_importance_data.csv'
@@ -188,21 +183,42 @@ def main():
     
     if not importance_csv.exists():
         print(f"Error: Required file not found: {importance_csv}")
+        print(f"Current directory: {Path.cwd()}")
+        print(f"Looking in: {csv_dir.absolute()}")
+        if csv_dir.exists():
+            print("Available CSV files:")
+            csv_files = list(csv_dir.glob('*.csv'))
+            if csv_files:
+                for f in csv_files:
+                    print(f"  {f.name}")
+            else:
+                print("  No CSV files found")
+        print("\nUsage examples:")
+        print("  python plot_physical_results.py                    # Use current directory")
+        print("  python plot_physical_results.py csv_reports/       # Specify directory")
+        print("  python plot_physical_results.py /full/path/to/csv/ # Full path")
         sys.exit(1)
     
     if not breakdown_csv.exists():
         print(f"Error: Required file not found: {breakdown_csv}")
         sys.exit(1)
     
-    print(f"Found CSV files in: {csv_dir}")
-    print(f"  - {importance_csv.name}")
-    print(f"  - {breakdown_csv.name}")
+    print(f"Found CSV files in: {csv_dir.absolute()}")
+    print(f"  ✓ {importance_csv.name}")
+    print(f"  ✓ {breakdown_csv.name}")
     
-    # Create output directory for plots
-    output_dir = csv_dir.parent / 'local_plots'
-    output_dir.mkdir(exist_ok=True)
+    # Determine output directory
+    if csv_dir.name == 'csv_reports':
+        # If we're in csv_reports/, save plots there
+        output_dir = csv_dir
+        print(f"\nSaving plots directly to csv_reports directory")
+    else:
+        # Otherwise create a local_plots subdirectory
+        output_dir = csv_dir / 'local_plots'
+        output_dir.mkdir(exist_ok=True)
+        print(f"\nSaving plots to: {output_dir}")
     
-    print(f"\nGenerating plots...")
+    print(f"Generating plots...")
     
     # Generate physical importance plot
     try:
@@ -222,8 +238,7 @@ def main():
         import traceback
         traceback.print_exc()
     
-    print(f"\nPlots saved to: {output_dir}")
-    print("Done!")
+    print(f"\nDone!")
 
 
 if __name__ == "__main__":
