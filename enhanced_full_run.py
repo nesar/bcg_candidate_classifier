@@ -132,7 +132,7 @@ def main():
     # RedMapper probabilities option  
     print("\nRedMapper BCG Probabilities:")
     print("These can be used for training supervision (loss weighting, evaluation) but")
-    print("will NOT be used as input features during testing (to avoid cheating).")
+    print("will NOT be used as input features during testing.")
     use_redmapper_probs_input = input("Include RedMapper BCG probabilities for training supervision? (Y/n): ").strip().lower()
     if use_redmapper_probs_input == "":
         use_redmapper_probs_input = "y"  # Default to Y
