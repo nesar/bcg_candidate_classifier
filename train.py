@@ -496,11 +496,65 @@ def save_model(model, feature_scaler, output_dir, name, color_extractor=None):
 
 
 def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_dir):
-    """Plot and save training curves."""
+    """Plot and save training curves as separate plots and save CSV data."""
+    import pandas as pd
+    
+    epochs = range(1, len(train_losses) + 1)
+    
+    # Save training data as CSV
+    training_data = pd.DataFrame({
+        'epoch': epochs,
+        'train_loss': train_losses,
+        'val_loss': val_losses,
+        'train_accuracy': train_accs,
+        'val_accuracy': val_accs
+    })
+    csv_path = os.path.join(output_dir, 'training_data.csv')
+    training_data.to_csv(csv_path, index=False)
+    print(f"Training data saved to: {csv_path}")
+    
+    # Plot 1: Loss curves
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, train_losses, 'b-', label='Training Loss', linewidth=2)
+    plt.plot(epochs, val_losses, 'r-', label='Validation Loss', linewidth=2)
+    plt.xlabel('Epoch', fontsize=12)
+    plt.ylabel('Loss', fontsize=12)
+    plt.title('Training and Validation Loss', fontsize=14, fontweight='bold')
+    plt.legend(fontsize=12)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    loss_plot_path = os.path.join(output_dir, 'training_loss_curves.png')
+    plt.savefig(loss_plot_path, dpi=300, bbox_inches='tight')
+    print(f"Loss curves saved to: {loss_plot_path}")
+    
+    if plt.get_backend() != 'Agg':  # Only show if display is available
+        plt.show()
+    plt.close()
+    
+    # Plot 2: Accuracy curves
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, train_accs, 'b-', label='Training Accuracy', linewidth=2)
+    plt.plot(epochs, val_accs, 'r-', label='Validation Accuracy', linewidth=2)
+    plt.xlabel('Epoch', fontsize=12)
+    plt.ylabel('Accuracy', fontsize=12)
+    plt.title('Training and Validation Accuracy', fontsize=14, fontweight='bold')
+    plt.legend(fontsize=12)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    acc_plot_path = os.path.join(output_dir, 'training_accuracy_curves.png')
+    plt.savefig(acc_plot_path, dpi=300, bbox_inches='tight')
+    print(f"Accuracy curves saved to: {acc_plot_path}")
+    
+    if plt.get_backend() != 'Agg':  # Only show if display is available
+        plt.show()
+    plt.close()
+    
+    # Also create the combined plot for backward compatibility
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
     
     # Loss curves
-    epochs = range(1, len(train_losses) + 1)
     ax1.plot(epochs, train_losses, 'b-', label='Training Loss')
     ax1.plot(epochs, val_losses, 'r-', label='Validation Loss')
     ax1.set_xlabel('Epoch')
@@ -519,13 +573,12 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     ax2.grid(True)
     
     plt.tight_layout()
-    plot_path = os.path.join(output_dir, 'training_curves.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    combined_plot_path = os.path.join(output_dir, 'training_curves.png')
+    plt.savefig(combined_plot_path, dpi=300, bbox_inches='tight')
+    print(f"Combined training curves saved to: {combined_plot_path}")
     
     if plt.get_backend() != 'Agg':  # Only show if display is available
         plt.show()
-    
-    print(f"Training curves saved to: {plot_path}")
     plt.close()
 
 

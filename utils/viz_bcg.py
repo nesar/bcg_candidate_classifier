@@ -53,7 +53,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         metadata_list: List of metadata dictionaries for each image (for cluster names)
     """
     if indices is None:
-        indices = range(min(5, len(images)))
+        indices = range(min(10, len(images)))
     
     for i, idx in enumerate(indices):
         if idx >= len(images):
@@ -169,23 +169,10 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
             cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
         
-        title = f'Candidate-Based BCG Prediction - Sample {idx+1}'
-        if phase:
-            title = f'{phase} - Sample {idx+1}'
+        # Show only cluster name in title
+        title = f'{cluster_name}'
         
-        # Add cluster name as second line
-        cluster_line = f'{cluster_name}'
-        subtitle = f'Distance: {distance:.1f} px | Candidates: {len(candidates)}'
-        if use_uq and len(probabilities) > 0:
-            max_prob = np.max(probabilities)
-            n_detections = np.sum(probabilities >= detection_threshold)
-            subtitle += f' | Max Prob: {max_prob:.3f} | Detections: {n_detections} (≥{detection_threshold:.2f})'
-        elif len(scores) > 0:
-            max_score = np.max(scores)
-            avg_score = np.mean(scores)
-            subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
-        
-        plt.title(f'{title}\n{cluster_line}\n{subtitle}', fontsize=12)
+        plt.title(title, fontsize=12)
         plt.legend(loc='upper right', bbox_to_anchor=(1, 1))
         plt.axis('off')
         
