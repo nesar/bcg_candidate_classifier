@@ -48,5 +48,6 @@ trained_models/*
 *.log
 *.out
 *.gz
+*.blg
 *.pdf
 *.aux
