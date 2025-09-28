@@ -244,12 +244,12 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
 def show_enhanced_predictions(images, targets, predictions, all_candidates_list, 
                             all_scores_list, all_probabilities_list=None,
                             indices=None, save_dir=None, phase=None, use_uq=False,
-                            metadata_list=None, detection_threshold=0.5):
+                            metadata_list=None, detection_threshold=0.5, dataset_type="bcg_2p2arcmin"):
     """Enhanced visualization with probability information, adaptive candidate display, and probability labels."""
-    from utils.viz_bcg import show_predictions_with_candidates
+    from utils.viz_bcg import show_predictions_with_candidates_enhanced
     
     # Use the enhanced visualization function from viz_bcg
-    show_predictions_with_candidates(
+    show_predictions_with_candidates_enhanced(
         images=images,
         targets=targets, 
         predictions=predictions,
@@ -261,7 +261,8 @@ def show_enhanced_predictions(images, targets, predictions, all_candidates_list,
         probabilities_list=all_probabilities_list,
         detection_threshold=detection_threshold,
         use_uq=use_uq,
-        metadata_list=metadata_list
+        metadata_list=metadata_list,
+        dataset_type=dataset_type
     )
 
 
@@ -1122,7 +1123,8 @@ def main(args):
                     phase=phase_name,
                     use_uq=args.use_uq,
                     metadata_list=sample_metadata_list,
-                    detection_threshold=args.detection_threshold
+                    detection_threshold=args.detection_threshold,
+                    dataset_type=args.dataset_type
                 )
         
         else:
