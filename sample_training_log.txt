@@ -1,0 +1,204 @@
+============================================================
+ENHANCED BCG CLASSIFIER TRAINING
+============================================================
+Dataset: bcg_3p8arcmin
+Images: /lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/
+Truth table: /lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_with_coordinates.csv
+Epochs: 64
+Batch size: 16
+Learning rate: 0.0001
+Output directory: ./trained_models/candidate_classifier_color_uq_run_20250926_225200
+Uncertainty quantification: threshold=0.5
+
+Loading dataset...
+Using BCG dataset: 3p8arcmin
+Redshift filter: (0.2, 1.0)
+Delta M* z filter: (-3.5, 0.0)
+Loading BCG data from: clean matched dataset
+Loaded 2018 valid BCG entries from 2018 total entries
+Applied redshift filter [0.2, 1.0]: 1921 entries remaining (filtered out 97)
+Applied delta_mstar_z filter [-3.5, 0.0]: 1921 entries remaining (filtered out 0)
+Created train dataset with 1536 samples
+Created test dataset with 385 samples
+BCG Dataset split: Train=1344, Val=192, Test=385
+
+Creating candidate-based datasets...
+Using DESprior candidates...
+Initializing color feature extractor...
+Loading DESprior data from: clean matched dataset
+Loaded 2018 valid BCG entries from 2018 total entries
+Applied redshift filter [0.2, 1.0]: 1921 entries remaining (filtered out 97)
+Applied delta_mstar_z filter [-3.5, 0.0]: 1921 entries remaining (filtered out 0)
+Applied candidate delta_mstar filter [-3.5, 0.0]: 34046 candidates remaining (filtered out 324)
+Loaded DESprior candidates for 1921 images
+Total DESprior candidates: 37345
+Average candidates per image: 19.4
+Preparing DESprior BCG candidate samples from 1921 images...
+Created 1921 DESprior BCG candidate samples
+Skipped 0 images (no valid candidates)
+Average candidates per image: 19.4
+Filtered out 0 candidates outside image bounds
+True BCG distance to nearest DESprior candidate:
+  Mean: 0.0 pixels
+  Median: 0.0 pixels
+  Max: 0.0 pixels
+Candidate datasets: Train=1680, Val=241
+
+Starting enhanced training...
+Setting up enhanced candidate-based training...
+Feature dimension: 86
+Fitting feature scaler...
+Fitting PCA for color features...
+Warning: No color features extracted for PCA fitting, color features may not work properly
+Creating probabilistic classifier with uncertainty quantification...
+Using device: cuda
+Training will use RedMapper probability weighting for loss calculation
+
+Starting training for 64 epochs...
+Epoch   1 | Train Loss: 0.3657 | Train Acc: 0.305 | Val Loss: 0.1837 | Val Acc: 0.504
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.504
+Epoch   2 | Train Loss: 0.1582 | Train Acc: 0.419 | Val Loss: 0.0830 | Val Acc: 0.602
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.602
+Epoch   3 | Train Loss: 0.0994 | Train Acc: 0.537 | Val Loss: 0.0568 | Val Acc: 0.688
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.688
+Epoch   4 | Train Loss: 0.0722 | Train Acc: 0.613 | Val Loss: 0.0452 | Val Acc: 0.730
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.730
+Epoch   5 | Train Loss: 0.0571 | Train Acc: 0.637 | Val Loss: 0.0391 | Val Acc: 0.758
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.758
+Epoch   6 | Train Loss: 0.0555 | Train Acc: 0.667 | Val Loss: 0.0364 | Val Acc: 0.773
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.773
+Epoch   7 | Train Loss: 0.0491 | Train Acc: 0.680 | Val Loss: 0.0354 | Val Acc: 0.754
+Epoch   8 | Train Loss: 0.0478 | Train Acc: 0.694 | Val Loss: 0.0338 | Val Acc: 0.777
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.777
+Epoch   9 | Train Loss: 0.0445 | Train Acc: 0.696 | Val Loss: 0.0328 | Val Acc: 0.781
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.781
+Epoch  10 | Train Loss: 0.0444 | Train Acc: 0.717 | Val Loss: 0.0314 | Val Acc: 0.781
+Epoch  11 | Train Loss: 0.0425 | Train Acc: 0.719 | Val Loss: 0.0312 | Val Acc: 0.781
+Epoch  12 | Train Loss: 0.0390 | Train Acc: 0.710 | Val Loss: 0.0307 | Val Acc: 0.781
+Epoch  13 | Train Loss: 0.0341 | Train Acc: 0.717 | Val Loss: 0.0299 | Val Acc: 0.785
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.785
+Epoch  14 | Train Loss: 0.0351 | Train Acc: 0.736 | Val Loss: 0.0290 | Val Acc: 0.789
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.789
+Epoch  15 | Train Loss: 0.0336 | Train Acc: 0.727 | Val Loss: 0.0287 | Val Acc: 0.789
+Epoch  16 | Train Loss: 0.0375 | Train Acc: 0.738 | Val Loss: 0.0287 | Val Acc: 0.793
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.793
+Epoch  17 | Train Loss: 0.0350 | Train Acc: 0.751 | Val Loss: 0.0287 | Val Acc: 0.789
+Epoch  18 | Train Loss: 0.0358 | Train Acc: 0.736 | Val Loss: 0.0284 | Val Acc: 0.793
+Epoch  19 | Train Loss: 0.0334 | Train Acc: 0.749 | Val Loss: 0.0278 | Val Acc: 0.793
+Epoch  20 | Train Loss: 0.0322 | Train Acc: 0.758 | Val Loss: 0.0270 | Val Acc: 0.793
+Epoch  21 | Train Loss: 0.0301 | Train Acc: 0.765 | Val Loss: 0.0263 | Val Acc: 0.801
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.801
+Epoch  22 | Train Loss: 0.0297 | Train Acc: 0.754 | Val Loss: 0.0258 | Val Acc: 0.797
+Epoch  23 | Train Loss: 0.0293 | Train Acc: 0.770 | Val Loss: 0.0255 | Val Acc: 0.809
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.809
+Epoch  24 | Train Loss: 0.0266 | Train Acc: 0.765 | Val Loss: 0.0259 | Val Acc: 0.805
+Epoch  25 | Train Loss: 0.0284 | Train Acc: 0.768 | Val Loss: 0.0256 | Val Acc: 0.801
+Epoch  26 | Train Loss: 0.0270 | Train Acc: 0.749 | Val Loss: 0.0248 | Val Acc: 0.812
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.812
+Epoch  27 | Train Loss: 0.0290 | Train Acc: 0.763 | Val Loss: 0.0248 | Val Acc: 0.805
+Epoch  28 | Train Loss: 0.0267 | Train Acc: 0.767 | Val Loss: 0.0252 | Val Acc: 0.816
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.816
+Epoch  29 | Train Loss: 0.0241 | Train Acc: 0.770 | Val Loss: 0.0249 | Val Acc: 0.820
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.820
+Epoch  30 | Train Loss: 0.0267 | Train Acc: 0.774 | Val Loss: 0.0239 | Val Acc: 0.816
+Epoch  31 | Train Loss: 0.0279 | Train Acc: 0.776 | Val Loss: 0.0253 | Val Acc: 0.816
+Epoch  32 | Train Loss: 0.0272 | Train Acc: 0.780 | Val Loss: 0.0249 | Val Acc: 0.812
+Epoch  33 | Train Loss: 0.0251 | Train Acc: 0.786 | Val Loss: 0.0244 | Val Acc: 0.816
+Epoch  34 | Train Loss: 0.0242 | Train Acc: 0.777 | Val Loss: 0.0240 | Val Acc: 0.820
+Epoch  35 | Train Loss: 0.0268 | Train Acc: 0.777 | Val Loss: 0.0247 | Val Acc: 0.816
+Epoch  36 | Train Loss: 0.0259 | Train Acc: 0.785 | Val Loss: 0.0238 | Val Acc: 0.820
+Epoch  37 | Train Loss: 0.0254 | Train Acc: 0.775 | Val Loss: 0.0240 | Val Acc: 0.816
+Epoch  38 | Train Loss: 0.0253 | Train Acc: 0.780 | Val Loss: 0.0228 | Val Acc: 0.824
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.824
+Epoch  39 | Train Loss: 0.0257 | Train Acc: 0.777 | Val Loss: 0.0224 | Val Acc: 0.828
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/best_probabilistic_classifier_scaler.pkl
+New best model saved with validation accuracy: 0.828
+Epoch  40 | Train Loss: 0.0241 | Train Acc: 0.779 | Val Loss: 0.0225 | Val Acc: 0.828
+Epoch  41 | Train Loss: 0.0231 | Train Acc: 0.798 | Val Loss: 0.0224 | Val Acc: 0.820
+Epoch  42 | Train Loss: 0.0242 | Train Acc: 0.787 | Val Loss: 0.0226 | Val Acc: 0.820
+Epoch  43 | Train Loss: 0.0243 | Train Acc: 0.792 | Val Loss: 0.0226 | Val Acc: 0.820
+Epoch  44 | Train Loss: 0.0232 | Train Acc: 0.780 | Val Loss: 0.0224 | Val Acc: 0.824
+Epoch  45 | Train Loss: 0.0215 | Train Acc: 0.795 | Val Loss: 0.0220 | Val Acc: 0.824
+Epoch  46 | Train Loss: 0.0238 | Train Acc: 0.795 | Val Loss: 0.0222 | Val Acc: 0.828
+Epoch  47 | Train Loss: 0.0224 | Train Acc: 0.793 | Val Loss: 0.0230 | Val Acc: 0.828
+Epoch  48 | Train Loss: 0.0211 | Train Acc: 0.795 | Val Loss: 0.0228 | Val Acc: 0.824
+Epoch  49 | Train Loss: 0.0208 | Train Acc: 0.779 | Val Loss: 0.0230 | Val Acc: 0.820
+Epoch  50 | Train Loss: 0.0246 | Train Acc: 0.789 | Val Loss: 0.0233 | Val Acc: 0.820
+Epoch 00051: reducing learning rate of group 0 to 5.0000e-05.
+Epoch  51 | Train Loss: 0.0218 | Train Acc: 0.802 | Val Loss: 0.0242 | Val Acc: 0.820
+Epoch  52 | Train Loss: 0.0225 | Train Acc: 0.794 | Val Loss: 0.0233 | Val Acc: 0.820
+Epoch  53 | Train Loss: 0.0218 | Train Acc: 0.790 | Val Loss: 0.0234 | Val Acc: 0.816
+Epoch  54 | Train Loss: 0.0218 | Train Acc: 0.795 | Val Loss: 0.0233 | Val Acc: 0.820
+Epoch  55 | Train Loss: 0.0211 | Train Acc: 0.801 | Val Loss: 0.0231 | Val Acc: 0.820
+Epoch  56 | Train Loss: 0.0223 | Train Acc: 0.806 | Val Loss: 0.0235 | Val Acc: 0.820
+Epoch 00057: reducing learning rate of group 0 to 2.5000e-05.
+Epoch  57 | Train Loss: 0.0212 | Train Acc: 0.798 | Val Loss: 0.0232 | Val Acc: 0.824
+Epoch  58 | Train Loss: 0.0213 | Train Acc: 0.793 | Val Loss: 0.0233 | Val Acc: 0.820
+Epoch  59 | Train Loss: 0.0221 | Train Acc: 0.799 | Val Loss: 0.0229 | Val Acc: 0.820
+Epoch  60 | Train Loss: 0.0207 | Train Acc: 0.804 | Val Loss: 0.0231 | Val Acc: 0.820
+Epoch  61 | Train Loss: 0.0235 | Train Acc: 0.790 | Val Loss: 0.0234 | Val Acc: 0.820
+Epoch  62 | Train Loss: 0.0191 | Train Acc: 0.818 | Val Loss: 0.0235 | Val Acc: 0.820
+Epoch 00063: reducing learning rate of group 0 to 1.2500e-05.
+Epoch  63 | Train Loss: 0.0199 | Train Acc: 0.804 | Val Loss: 0.0235 | Val Acc: 0.820
+Epoch  64 | Train Loss: 0.0222 | Train Acc: 0.798 | Val Loss: 0.0235 | Val Acc: 0.820
+Color extractor saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/final_probabilistic_classifier_color_extractor.pkl
+Model saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/final_probabilistic_classifier.pth
+Scaler saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/final_probabilistic_classifier_scaler.pkl
+Training curves saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200/training_curves.png
+
+Training completed!
+Best validation accuracy: 0.828
+Models saved to: ./trained_models/candidate_classifier_color_uq_run_20250926_225200
