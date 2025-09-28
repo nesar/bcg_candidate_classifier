@@ -246,9 +246,26 @@ def show_enhanced_predictions(images, targets, predictions, all_candidates_list,
                             indices=None, save_dir=None, phase=None, use_uq=False,
                             metadata_list=None, detection_threshold=0.5, dataset_type="bcg_2p2arcmin"):
     """Enhanced visualization with probability information, adaptive candidate display, and probability labels."""
-    from utils.viz_bcg import show_predictions_with_candidates_enhanced
+    from utils.viz_bcg import show_predictions_with_candidates, show_predictions_with_candidates_enhanced
     
-    # Use the enhanced visualization function from viz_bcg
+    # Use both original and enhanced visualization functions
+    # First create original plots
+    show_predictions_with_candidates(
+        images=images,
+        targets=targets, 
+        predictions=predictions,
+        all_candidates_list=all_candidates_list,
+        candidate_scores_list=all_scores_list,
+        indices=indices,
+        save_dir=save_dir,
+        phase=phase,
+        probabilities_list=all_probabilities_list,
+        detection_threshold=detection_threshold,
+        use_uq=use_uq,
+        metadata_list=metadata_list
+    )
+    
+    # Then create enhanced plots in physical_images subdirectory
     show_predictions_with_candidates_enhanced(
         images=images,
         targets=targets, 
@@ -483,6 +500,11 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     prob_cols = [col for col in row.index if 'prob' in col.lower()]
                     if prob_cols:
                         metadata['bcg_prob'] = row[prob_cols[0]]
+                    # Extract RA/Dec for coordinate system
+                    if 'BCG RA' in row:
+                        metadata['bcg_ra'] = row['BCG RA']
+                    if 'BCG Dec' in row:
+                        metadata['bcg_dec'] = row['BCG Dec']
         
         # Extract additional features if using BCG data
         additional_features = None

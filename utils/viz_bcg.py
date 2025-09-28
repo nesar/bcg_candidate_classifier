@@ -512,14 +512,26 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         
         ax.imshow(display_image)
         
-        # Enhanced UQ visualization with more candidates
+        # Enhanced UQ visualization with detection threshold filtering
         if use_uq and len(probabilities) > 0 and len(candidates) > 0:
-            # Show more candidates for better visualization
-            max_candidates = 10  # Increased from 5
-            n_candidates_to_show = min(max_candidates, len(candidates))
+            # First filter candidates by detection threshold
+            above_threshold_mask = probabilities >= detection_threshold
+            above_threshold_indices = np.where(above_threshold_mask)[0]
             
-            # Get top candidates by probability
-            top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
+            if len(above_threshold_indices) > 0:
+                # Only show candidates above threshold, up to 10 max
+                max_candidates = 10
+                n_candidates_to_show = min(max_candidates, len(above_threshold_indices))
+                
+                # Get top candidates by probability from those above threshold
+                above_threshold_probs = probabilities[above_threshold_indices]
+                sorted_indices = np.argsort(above_threshold_probs)[-n_candidates_to_show:][::-1]
+                top_indices = above_threshold_indices[sorted_indices]
+            else:
+                # If no candidates above threshold, show top 3 regardless
+                max_candidates = 3
+                n_candidates_to_show = min(max_candidates, len(candidates))
+                top_indices = np.argsort(probabilities)[-n_candidates_to_show:][::-1]
             colors = ["#FF0000", "#ff7b00", "#ff9900", "#ffe100", "#b7ff00", 
                      "#90ee90", "#87ceeb", "#dda0dd", "#f0e68c", "#ffa07a"]  # More colors for 10 ranks
             
@@ -595,45 +607,91 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                weight='bold', verticalalignment='top', horizontalalignment='left',
                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
         
-        # Set proper axis labels and ticks in arcmin
-        ax.set_xlabel("Position (arcmin)", fontsize=12)
-        ax.set_ylabel("Position (arcmin)", fontsize=12)
+        # Set proper axis labels and ticks in RA/Dec or relative coordinates
+        # Get RA/Dec center coordinates if available
+        center_ra = None
+        center_dec = None
+        if metadata_list and len(metadata_list) > 0 and metadata_list[0]:
+            center_ra = metadata_list[0].get('bcg_ra')
+            center_dec = metadata_list[0].get('bcg_dec')
         
-        # Create arcmin/arcsec tick labels
+        if center_ra is not None and center_dec is not None:
+            ax.set_xlabel("RA", fontsize=12)
+            ax.set_ylabel("Dec", fontsize=12)
+            use_radec = True
+        else:
+            ax.set_xlabel("Relative Position", fontsize=12)
+            ax.set_ylabel("Relative Position", fontsize=12) 
+            use_radec = False
+        
+        # Create coordinate tick labels
         # Center coordinates at image center
         center_pixel = 256  # 512/2
         
-        # Create tick positions in pixels
-        pixel_ticks = np.linspace(0, 512, 6)  # 6 ticks from 0 to 512
+        # Create tick positions in pixels - use 5 ticks instead of 6
+        pixel_ticks = np.linspace(0, 512, 5)  # 5 ticks from 0 to 512
         # Convert to arcmin coordinates (centered)
-        arcmin_ticks = (pixel_ticks - center_pixel) * arcmin_per_pixel
+        arcmin_offsets = (pixel_ticks - center_pixel) * arcmin_per_pixel
         
-        def format_arcmin_arcsec(arcmin_value):
-            """Convert decimal arcmin to arcmin'arcsec" format"""
-            abs_arcmin = abs(arcmin_value)
-            sign = '-' if arcmin_value < 0 else ''
-            
-            # Get integer arcmin and fractional part
-            arcmin_int = int(abs_arcmin)
-            arcmin_frac = abs_arcmin - arcmin_int
-            
-            # Convert fractional arcmin to arcsec (1 arcmin = 60 arcsec)
-            arcsec = arcmin_frac * 60
-            
-            # Format based on magnitude
-            if abs_arcmin < 0.1:  # Less than 6 arcsec, show only arcsec
-                return f'{sign}{arcsec:.0f}"'
-            elif arcmin_int == 0:  # Less than 1 arcmin, show only arcsec
-                return f'{sign}{arcsec:.0f}"'
-            elif arcsec < 1:  # Exactly on arcmin boundary
-                return f'{sign}{arcmin_int}\''
-            else:  # Show both arcmin and arcsec
-                return f'{sign}{arcmin_int}\'{arcsec:.0f}"'
+        def format_coordinate(offset_arcmin, center_coord, is_ra=False):
+            """Format coordinate as absolute RA/Dec or relative offset"""
+            if use_radec and center_coord is not None:
+                # Convert arcmin offset to degrees and add to center coordinate
+                offset_deg = offset_arcmin / 60.0  # Convert arcmin to degrees
+                if is_ra:
+                    # For RA, account for cos(dec) effect and convert to time
+                    cos_dec = np.cos(np.radians(center_dec)) if center_dec is not None else 1.0
+                    ra_deg = center_coord + offset_deg / cos_dec
+                    # Convert to hours:minutes:seconds
+                    ra_hours = ra_deg / 15.0
+                    hours = int(ra_hours)
+                    minutes = int((ra_hours - hours) * 60)
+                    seconds = ((ra_hours - hours) * 60 - minutes) * 60
+                    return f"{hours:02d}h{minutes:02d}m{seconds:04.1f}s"
+                else:
+                    # For Dec, direct degree conversion
+                    dec_deg = center_coord + offset_deg
+                    sign = '+' if dec_deg >= 0 else '-'
+                    abs_deg = abs(dec_deg)
+                    degrees = int(abs_deg)
+                    arcmin = int((abs_deg - degrees) * 60)
+                    arcsec = ((abs_deg - degrees) * 60 - arcmin) * 60
+                    return f"{sign}{degrees:02d}°{arcmin:02d}'{arcsec:04.1f}\""
+            else:
+                # Use relative arcmin/arcsec format
+                abs_arcmin = abs(offset_arcmin)
+                sign = '-' if offset_arcmin < 0 else ''
+                
+                # Get integer arcmin and fractional part
+                arcmin_int = int(abs_arcmin)
+                arcmin_frac = abs_arcmin - arcmin_int
+                
+                # Convert fractional arcmin to arcsec (1 arcmin = 60 arcsec)
+                arcsec = arcmin_frac * 60
+                
+                # Format based on magnitude
+                if abs_arcmin < 0.1:  # Less than 6 arcsec, show only arcsec
+                    return f'{sign}{arcsec:.0f}"'
+                elif arcmin_int == 0:  # Less than 1 arcmin, show only arcsec
+                    return f'{sign}{arcsec:.0f}"'
+                elif arcsec < 1:  # Exactly on arcmin boundary
+                    return f'{sign}{arcmin_int}\''
+                else:  # Show both arcmin and arcsec
+                    return f'{sign}{arcmin_int}\'{arcsec:.0f}"'
         
         ax.set_xticks(pixel_ticks)
         ax.set_yticks(pixel_ticks)
-        ax.set_xticklabels([format_arcmin_arcsec(tick) for tick in arcmin_ticks], fontsize=10)
-        ax.set_yticklabels([format_arcmin_arcsec(tick) for tick in arcmin_ticks], fontsize=10)
+        
+        # Format tick labels
+        if use_radec:
+            x_labels = [format_coordinate(offset, center_ra, is_ra=True) for offset in arcmin_offsets]
+            y_labels = [format_coordinate(offset, center_dec, is_ra=False) for offset in arcmin_offsets]
+        else:
+            x_labels = [format_coordinate(offset, None) for offset in arcmin_offsets]
+            y_labels = [format_coordinate(offset, None) for offset in arcmin_offsets]
+            
+        ax.set_xticklabels(x_labels, fontsize=10)
+        ax.set_yticklabels(y_labels, fontsize=10)
         
         # Move legend to bottom-left and make it column-wise
         ncol = min(3, len(legend_elements))  # Adaptive column count
