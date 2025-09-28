@@ -51,12 +51,15 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
 
     for b,v in zip(bars,vals):
         ax.text(b.get_width()+0.002, b.get_y()+b.get_height()/2,
-                f"{v:.3f}", va="center", fontsize=11)
+                f"{v:.3f}", va="center", fontsize=18)
 
-    ax.set_xlim(0, max(vals)*1.15)
-    ax.set_xlabel(r"Importance Score", fontsize=16)
+    ax.set_xlim(0, max(vals)*1.19)
+    ax.set_xlabel(r"Importance Score", fontsize=18)
     ax.set_ylabel("")
     ax.grid(False)
+    ax.tick_params(axis='x', labelsize=18)
+    ax.tick_params(axis='y', labelsize=18)
+
     for s in ["top","right","left","bottom"]: ax.spines[s].set_visible(True)
     ax.xaxis.set_ticks_position("both"); ax.yaxis.set_ticks_position("both")
     ax.tick_params(axis="both", which="both", direction="in")
@@ -64,8 +67,8 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
     legend = [Patch(facecolor=group_colors[g], edgecolor="black",
                     label=f"{g} (total={group_totals[g]:.3f})") for g in group_df["Group"]]
     ax.legend(handles=legend, title=r"Groups (Total Importance)",
-              fontsize=12, title_fontsize=13, loc="upper right",
-              bbox_to_anchor=(0.85,0.35), frameon=True)
+              fontsize=18, title_fontsize=18, loc="upper right",
+              bbox_to_anchor=(0.98,0.17), frameon=True)
 
     plt.tight_layout()
     for ext in ["png","pdf"]:
