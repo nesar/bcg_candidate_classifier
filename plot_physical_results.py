@@ -1,245 +1,82 @@
-#!/usr/bin/env python3
-"""
-Local plotting script for SHAP physical importance results.
-
-This script reads the CSV data files generated on HPC and recreates the 
-shap_physical_importance.png and shap_physical_breakdown.png plots locally.
-
-Usage:
-    python plot_physical_results.py <path_to_csv_reports_directory>
-    
-Example:
-    python plot_physical_results.py ./trained_models/candidate_classifier_color_uq_run_20250926_225200/feature_importance_analysis/csv_reports/
-"""
-
-import sys
+import os, sys
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
-from pathlib import Path
+from matplotlib.patches import Patch
 
+def load_csvs(csv_dir):
+    files = [f for f in os.listdir(csv_dir) if f.endswith(".csv")]
+    breakdown_file = [f for f in files if "breakdown" in f.lower()][0]
+    group_file     = [f for f in files if "importance" in f.lower()][0]
+    breakdown_df   = pd.read_csv(os.path.join(csv_dir, breakdown_file))
+    group_df       = pd.read_csv(os.path.join(csv_dir, group_file))
+    return breakdown_df, group_df
 
-def plot_physical_importance(csv_path, output_path=None):
-    """
-    Recreate shap_physical_importance.png from CSV data.
-    
-    Args:
-        csv_path: Path to shap_physical_importance_data.csv
-        output_path: Optional output path for the plot
-    """
-    # Read the data
-    df = pd.read_csv(csv_path)
-    
-    # Extract data for plotting
-    groups = df['group_title'].tolist()
-    importances = df['total_importance'].tolist()
-    colors = df['color'].tolist()
-    descriptions = df['description'].tolist()
-    feature_counts = df['feature_count'].tolist()
-    
-    # Create plot (data is already sorted by importance in CSV)
-    fig, ax = plt.subplots(figsize=(12, 8))
-    
-    bars = ax.barh(range(len(groups)), importances, color=colors, alpha=0.7, edgecolor='black')
-    
-    # Customize plot
-    ax.set_yticks(range(len(groups)))
-    ax.set_yticklabels(groups)
-    ax.set_xlabel('SHAP Importance Score', fontsize=12)
-    ax.set_title('Physical Feature Group Importance (SHAP)', fontsize=14, fontweight='bold')
-    
-    # Add value labels on bars
-    for i, (bar, importance) in enumerate(zip(bars, importances)):
-        width = bar.get_width()
-        ax.text(width + max(importances) * 0.01, bar.get_y() + bar.get_height()/2, 
-               f'{importance:.3f}', ha='left', va='center', fontweight='bold')
-    
-    # Add feature count annotations
-    for i, feature_count in enumerate(feature_counts):
-        ax.text(0.02 * max(importances), i, f'({feature_count} features)', 
-               ha='left', va='center', fontsize=9, style='italic')
-    
+def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
+    # Normalize column names
+    breakdown_df = breakdown_df.rename(columns={
+        "group_title":"Group",
+        "physical_feature_name":"Feature",
+        "importance":"Importance"
+    })
+    group_df = group_df.rename(columns={
+        "group_title":"Group",
+        "total_importance":"Importance"
+    })
+
+    # Color palette
+    if "color" in group_df.columns:
+        group_colors = dict(zip(group_df["Group"], group_df["color"]))
+    else:
+        palette = ["#f48c8c","#7ddad1","#71c5e8","#f4d28c",
+                   "#dda0dd","#90ee90","#ffb347","#87cefa"]
+        group_colors = {g:palette[i%len(palette)] for i,g in enumerate(group_df["Group"])}
+
+    group_totals = dict(zip(group_df["Group"], group_df["Importance"]))
+
+    # Order features
+    order=[]
+    for g in group_df.sort_values("Importance", ascending=False)["Group"]:
+        sub = breakdown_df[breakdown_df["Group"]==g].sort_values("Importance", ascending=True)
+        for f in sub["Feature"]:
+            order.append((g,f))
+
+    labels = ["• "+f for g,f in order]
+    vals   = [breakdown_df[(breakdown_df["Group"]==g)&(breakdown_df["Feature"]==f)]["Importance"].values[0] for g,f in order]
+    cols   = [group_colors[g] for g,f in order]
+
+    # Styling
+    plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
+    fig,ax = plt.subplots(figsize=(12,14))
+    bars = ax.barh(labels, vals, color=cols, edgecolor="black")
+
+    for b,v in zip(bars,vals):
+        ax.text(b.get_width()+0.002, b.get_y()+b.get_height()/2,
+                f"{v:.3f}", va="center", fontsize=11)
+
+    ax.set_xlim(0, max(vals)*1.15)
+    ax.set_xlabel(r"Importance Score", fontsize=16)
+    ax.set_ylabel("")
+    ax.grid(False)
+    for s in ["top","right","left","bottom"]: ax.spines[s].set_visible(True)
+    ax.xaxis.set_ticks_position("both"); ax.yaxis.set_ticks_position("both")
+    ax.tick_params(axis="both", which="both", direction="in")
+
+    legend = [Patch(facecolor=group_colors[g], edgecolor="black",
+                    label=f"{g} (total={group_totals[g]:.3f})") for g in group_df["Group"]]
+    ax.legend(handles=legend, title=r"Groups (Total Importance)",
+              fontsize=12, title_fontsize=13, loc="upper right",
+              bbox_to_anchor=(0.85,0.35), frameon=True)
+
     plt.tight_layout()
-    
-    # Save or display
-    if output_path:
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Saved physical importance plot to: {output_path}")
-    else:
-        plt.show()
-    
-    return fig
-
-
-def plot_physical_breakdown(csv_path, output_path=None):
-    """
-    Recreate shap_physical_breakdown.png from CSV data.
-    
-    Args:
-        csv_path: Path to shap_physical_breakdown_data.csv
-        output_path: Optional output path for the plot
-    """
-    # Read the data
-    df = pd.read_csv(csv_path)
-    
-    # Group by feature group
-    groups = df['group_name'].unique()
-    group_data = {}
-    
-    for group in groups:
-        group_df = df[df['group_name'] == group].copy()
-        # Sort by importance within each group
-        group_df = group_df.sort_values('importance', ascending=False)
-        group_data[group] = group_df
-    
-    # Create subplot for each group with adaptive height
-    n_groups = len(groups)
-    
-    # Calculate adaptive height based on number of features in each group
-    total_height = 0
-    group_heights = []
-    for group in groups:
-        n_features = len(group_data[group])
-        # Minimum 3 inches, then 0.4 inches per feature, with some padding
-        group_height = max(3, n_features * 0.4 + 1.5)
-        group_heights.append(group_height)
-        total_height += group_height
-    
-    fig, axes = plt.subplots(n_groups, 1, figsize=(14, max(total_height, 6)))
-    if n_groups == 1:
-        axes = [axes]
-    
-    for idx, group in enumerate(groups):
-        ax = axes[idx]
-        group_df = group_data[group]
-        
-        # Extract data for this group
-        physical_names = group_df['physical_feature_name'].tolist()
-        importances = group_df['importance'].tolist()
-        group_title = group_df['group_title'].iloc[0]
-        group_description = group_df['group_description'].iloc[0]
-        group_color = group_df['group_color'].iloc[0]
-        
-        if len(physical_names) > 0:
-            # Create horizontal bar plot
-            bars = ax.barh(range(len(physical_names)), importances, 
-                          color=group_color, alpha=0.7, edgecolor='black')
-            
-            # Adjust font size based on number of features
-            n_features = len(physical_names)
-            if n_features > 15:
-                label_fontsize = 8
-                title_fontsize = 10
-            elif n_features > 10:
-                label_fontsize = 9
-                title_fontsize = 11
-            else:
-                label_fontsize = 10
-                title_fontsize = 12
-            
-            ax.set_yticks(range(len(physical_names)))
-            ax.set_yticklabels(physical_names, fontsize=label_fontsize)
-            ax.set_xlabel('Importance Score', fontsize=label_fontsize)
-            ax.set_title(f"{group_title}: {group_description}", 
-                       fontsize=title_fontsize, fontweight='bold')
-            
-            # Add value labels with adaptive font size
-            value_fontsize = max(6, label_fontsize - 2)
-            for bar, importance in zip(bars, importances):
-                width = bar.get_width()
-                ax.text(width + max(importances) * 0.01, bar.get_y() + bar.get_height()/2, 
-                       f'{importance:.3f}', ha='left', va='center', fontsize=value_fontsize)
-        else:
-            ax.text(0.5, 0.5, 'No features found for this group', 
-                   ha='center', va='center', transform=ax.transAxes, fontsize=12)
-            ax.set_title(f"{group_title}: {group_description}", 
-                       fontsize=12, fontweight='bold')
-    
-    # Use better spacing for plots with many subplots
-    plt.tight_layout(pad=2.0, h_pad=3.0)
-    
-    # Save or display
-    if output_path:
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        print(f"Saved physical breakdown plot to: {output_path}")
-    else:
-        plt.show()
-    
-    return fig
-
-
-def main():
-    """Main function to process command line arguments and generate plots."""
-    # Determine working directory - flexible approach
-    if len(sys.argv) > 1:
-        csv_dir = Path(sys.argv[1])
-    else:
-        # Default to current directory (useful when running from csv_reports/)
-        csv_dir = Path('.')
-    
-    # Check for required CSV files
-    importance_csv = csv_dir / 'shap_physical_importance_data.csv'
-    breakdown_csv = csv_dir / 'shap_physical_breakdown_data.csv'
-    
-    if not importance_csv.exists():
-        print(f"Error: Required file not found: {importance_csv}")
-        print(f"Current directory: {Path.cwd()}")
-        print(f"Looking in: {csv_dir.absolute()}")
-        if csv_dir.exists():
-            print("Available CSV files:")
-            csv_files = list(csv_dir.glob('*.csv'))
-            if csv_files:
-                for f in csv_files:
-                    print(f"  {f.name}")
-            else:
-                print("  No CSV files found")
-        print("\nUsage examples:")
-        print("  python plot_physical_results.py                    # Use current directory")
-        print("  python plot_physical_results.py csv_reports/       # Specify directory")
-        print("  python plot_physical_results.py /full/path/to/csv/ # Full path")
-        sys.exit(1)
-    
-    if not breakdown_csv.exists():
-        print(f"Error: Required file not found: {breakdown_csv}")
-        sys.exit(1)
-    
-    print(f"Found CSV files in: {csv_dir.absolute()}")
-    print(f"  ✓ {importance_csv.name}")
-    print(f"  ✓ {breakdown_csv.name}")
-    
-    # Determine output directory
-    if csv_dir.name == 'csv_reports':
-        # If we're in csv_reports/, save plots there
-        output_dir = csv_dir
-        print(f"\nSaving plots directly to csv_reports directory")
-    else:
-        # Otherwise create a local_plots subdirectory
-        output_dir = csv_dir / 'local_plots'
-        output_dir.mkdir(exist_ok=True)
-        print(f"\nSaving plots to: {output_dir}")
-    
-    print(f"Generating plots...")
-    
-    # Generate physical importance plot
-    try:
-        importance_output = output_dir / 'shap_physical_importance.png'
-        plot_physical_importance(importance_csv, importance_output)
-    except Exception as e:
-        print(f"Error generating importance plot: {e}")
-        import traceback
-        traceback.print_exc()
-    
-    # Generate physical breakdown plot
-    try:
-        breakdown_output = output_dir / 'shap_physical_breakdown.png'
-        plot_physical_breakdown(breakdown_csv, breakdown_output)
-    except Exception as e:
-        print(f"Error generating breakdown plot: {e}")
-        import traceback
-        traceback.print_exc()
-    
-    print(f"\nDone!")
-
+    for ext in ["png","pdf"]:
+        plt.savefig(f"{output}.{ext}", dpi=300, bbox_inches="tight")
+    plt.show()
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 2:
+        print("Usage: python plot_physical_results.py <csv_dir>")
+        sys.exit(1)
+
+    csv_dir = sys.argv[1]
+    breakdown_df, group_df = load_csvs(csv_dir)
+    plot_feature_breakdown(breakdown_df, group_df, output=os.path.join(csv_dir, "feature_breakdown_with_group_totals"))
