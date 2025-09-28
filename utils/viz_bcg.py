@@ -215,7 +215,7 @@ def show_predictions(images, targets, predictions, indices=None, save_dir=None, 
         phase: Optional phase indicator for title
     """
     if indices is None:
-        indices = range(min(5, len(images)))
+        indices = range(min(10, len(images)))
     
     for i, idx in enumerate(indices):
         if idx >= len(images):
@@ -284,7 +284,7 @@ def find_failed(targets, predictions, threshold=50):
     return failed_indices
 
 
-def show_failures(images, targets, predictions, threshold=50, max_failures=5, save_dir=None, phase=None, metadata_list=None,
+def show_failures(images, targets, predictions, threshold=50, max_failures=10, save_dir=None, phase=None, metadata_list=None,
                  all_candidates_list=None, candidate_scores_list=None, probabilities_list=None, detection_threshold=0.5, use_uq=False):
     """
     Show worst prediction failures with enhanced candidate visualization.
