@@ -607,22 +607,12 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                weight='bold', verticalalignment='top', horizontalalignment='left',
                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
         
-        # Set proper axis labels and ticks in RA/Dec or relative coordinates
-        # Get RA/Dec center coordinates if available
-        center_ra = None
-        center_dec = None
-        if metadata_list and len(metadata_list) > 0 and metadata_list[0]:
-            center_ra = metadata_list[0].get('bcg_ra')
-            center_dec = metadata_list[0].get('bcg_dec')
-        
-        if center_ra is not None and center_dec is not None:
-            ax.set_xlabel("RA", fontsize=12)
-            ax.set_ylabel("Dec", fontsize=12)
-            use_radec = True
-        else:
-            ax.set_xlabel("Relative Position", fontsize=12)
-            ax.set_ylabel("Relative Position", fontsize=12) 
-            use_radec = False
+        # Set proper axis labels in relative coordinates only
+        # Note: We don't have field center coordinates, only BCG coordinates
+        # So we use relative positioning centered on the image center
+        ax.set_xlabel("Relative Position", fontsize=18)
+        ax.set_ylabel("Relative Position", fontsize=18) 
+        use_radec = False
         
         # Create coordinate tick labels
         # Center coordinates at image center
@@ -633,70 +623,42 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         # Convert to arcmin coordinates (centered)
         arcmin_offsets = (pixel_ticks - center_pixel) * arcmin_per_pixel
         
-        def format_coordinate(offset_arcmin, center_coord, is_ra=False):
-            """Format coordinate as absolute RA/Dec or relative offset"""
-            if use_radec and center_coord is not None:
-                # Convert arcmin offset to degrees and add to center coordinate
-                offset_deg = offset_arcmin / 60.0  # Convert arcmin to degrees
-                if is_ra:
-                    # For RA, account for cos(dec) effect and convert to time
-                    cos_dec = np.cos(np.radians(center_dec)) if center_dec is not None else 1.0
-                    ra_deg = center_coord + offset_deg / cos_dec
-                    # Convert to hours:minutes:seconds
-                    ra_hours = ra_deg / 15.0
-                    hours = int(ra_hours)
-                    minutes = int((ra_hours - hours) * 60)
-                    seconds = ((ra_hours - hours) * 60 - minutes) * 60
-                    return f"{hours:02d}h{minutes:02d}m{seconds:04.1f}s"
-                else:
-                    # For Dec, direct degree conversion
-                    dec_deg = center_coord + offset_deg
-                    sign = '+' if dec_deg >= 0 else '-'
-                    abs_deg = abs(dec_deg)
-                    degrees = int(abs_deg)
-                    arcmin = int((abs_deg - degrees) * 60)
-                    arcsec = ((abs_deg - degrees) * 60 - arcmin) * 60
-                    return f"{sign}{degrees:02d}°{arcmin:02d}'{arcsec:04.1f}\""
-            else:
-                # Use relative arcmin/arcsec format
-                abs_arcmin = abs(offset_arcmin)
-                sign = '-' if offset_arcmin < 0 else ''
-                
-                # Get integer arcmin and fractional part
-                arcmin_int = int(abs_arcmin)
-                arcmin_frac = abs_arcmin - arcmin_int
-                
-                # Convert fractional arcmin to arcsec (1 arcmin = 60 arcsec)
-                arcsec = arcmin_frac * 60
-                
-                # Format based on magnitude
-                if abs_arcmin < 0.1:  # Less than 6 arcsec, show only arcsec
-                    return f'{sign}{arcsec:.0f}"'
-                elif arcmin_int == 0:  # Less than 1 arcmin, show only arcsec
-                    return f'{sign}{arcsec:.0f}"'
-                elif arcsec < 1:  # Exactly on arcmin boundary
-                    return f'{sign}{arcmin_int}\''
-                else:  # Show both arcmin and arcsec
-                    return f'{sign}{arcmin_int}\'{arcsec:.0f}"'
+        def format_relative_coordinate(offset_arcmin):
+            """Format coordinate as relative arcmin'arcsec" offset from image center"""
+            abs_arcmin = abs(offset_arcmin)
+            sign = '-' if offset_arcmin < 0 else ''
+            
+            # Get integer arcmin and fractional part
+            arcmin_int = int(abs_arcmin)
+            arcmin_frac = abs_arcmin - arcmin_int
+            
+            # Convert fractional arcmin to arcsec (1 arcmin = 60 arcsec)
+            arcsec = arcmin_frac * 60
+            
+            # Format based on magnitude
+            if abs_arcmin < 0.1:  # Less than 6 arcsec, show only arcsec
+                return f'{sign}{arcsec:.0f}"'
+            elif arcmin_int == 0:  # Less than 1 arcmin, show only arcsec
+                return f'{sign}{arcsec:.0f}"'
+            elif arcsec < 1:  # Exactly on arcmin boundary
+                return f'{sign}{arcmin_int}\''
+            else:  # Show both arcmin and arcsec
+                return f'{sign}{arcmin_int}\'{arcsec:.0f}"'
         
         ax.set_xticks(pixel_ticks)
         ax.set_yticks(pixel_ticks)
         
-        # Format tick labels
-        if use_radec:
-            x_labels = [format_coordinate(offset, center_ra, is_ra=True) for offset in arcmin_offsets]
-            y_labels = [format_coordinate(offset, center_dec, is_ra=False) for offset in arcmin_offsets]
-        else:
-            x_labels = [format_coordinate(offset, None) for offset in arcmin_offsets]
-            y_labels = [format_coordinate(offset, None) for offset in arcmin_offsets]
+        # Format tick labels as relative coordinates
+        x_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
+        y_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
             
-        ax.set_xticklabels(x_labels, fontsize=10)
-        ax.set_yticklabels(y_labels, fontsize=10)
+        ax.set_xticklabels(x_labels, fontsize=15)
+        ax.set_yticklabels(y_labels, fontsize=15)
         
         # Move legend to bottom-left and make it column-wise
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
-                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=10,
+                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=15,
                  frameon=True, fancybox=True, shadow=True, framealpha=0.8)
         
         # Remove title (cluster name now in corner)
