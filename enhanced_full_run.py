@@ -19,19 +19,68 @@ import sys
 from datetime import datetime
 
 
+# ============================================================================
+# CENTRALIZED PATH CONFIGURATION
+# ============================================================================
+
+class BCGPathConfig:
+    """Centralized configuration for all BCG dataset paths."""
+    
+    def __init__(self):
+        # Base data directory - can be overridden by environment variable
+        self.base_data_dir = os.environ.get(
+            'BCG_DATA_DIR', 
+            '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs'
+        )
+    
+    def get_paths(self, dataset_type):
+        """Get all paths for a given dataset type."""
+        if dataset_type == "2p2arcmin":
+            return {
+                'image_dir': f"{self.base_data_dir}/2p2arcmin/",
+                'bcg_csv_clean': f"{self.base_data_dir}/bcgs_2p2arcmin_clean_matched.csv",
+                'bcg_csv_coords': f"{self.base_data_dir}/bcgs_2p2arcmin_with_coordinates.csv",
+                'desprior_csv_clean': f"{self.base_data_dir}/desprior_candidates_2p2arcmin_clean_matched.csv",
+                'desprior_csv_coords': f"{self.base_data_dir}/desprior_candidates_2p2arcmin_with_coordinates.csv"
+            }
+        elif dataset_type == "3p8arcmin":
+            return {
+                'image_dir': f"{self.base_data_dir}/3p8arcmin/",
+                'bcg_csv_clean': f"{self.base_data_dir}/bcgs_3p8arcmin_clean_matched.csv",
+                'bcg_csv_coords': f"{self.base_data_dir}/bcgs_3p8arcmin_with_coordinates.csv",
+                'desprior_csv_clean': f"{self.base_data_dir}/desprior_candidates_3p8arcmin_clean_matched.csv",
+                'desprior_csv_coords': f"{self.base_data_dir}/desprior_candidates_3p8arcmin_with_coordinates.csv"
+            }
+        else:
+            raise ValueError(f"Unknown dataset type: {dataset_type}")
+    
+    def get_preferred_bcg_csv(self, dataset_type):
+        """Get preferred BCG CSV path (clean version if available, otherwise with_coordinates)."""
+        paths = self.get_paths(dataset_type)
+        if os.path.exists(paths['bcg_csv_clean']):
+            return paths['bcg_csv_clean']
+        else:
+            return paths['bcg_csv_coords']
+    
+    def get_preferred_desprior_csv(self, dataset_type):
+        """Get preferred DESprior CSV path (clean version if available, otherwise with_coordinates)."""
+        paths = self.get_paths(dataset_type)
+        if os.path.exists(paths['desprior_csv_clean']):
+            return paths['desprior_csv_clean']
+        else:
+            return paths['desprior_csv_coords']
+
+# Global path configuration instance
+_path_config = BCGPathConfig()
+
+
 def get_bcg_data_ranges(bcg_arcmin_type):
     """Get the actual min/max ranges from BCG data files."""
     try:
         import pandas as pd
         
-        if bcg_arcmin_type == "2p2arcmin":
-            csv_path = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_clean_matched.csv"
-        else:  # 3p8arcmin
-            csv_path = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_clean_matched.csv"
-        
-        if not os.path.exists(csv_path):
-            # Fall back to non-clean version
-            csv_path = csv_path.replace("_clean_matched.csv", "_with_coordinates.csv")
+        # Use centralized path configuration
+        csv_path = _path_config.get_preferred_bcg_csv(bcg_arcmin_type)
             
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
@@ -93,16 +142,17 @@ def main():
     
     if dataset_choice == "2":
         DATASET_TYPE = "bcg_3p8arcmin" 
-        IMAGE_DIR = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/"
-        TRUTH_TABLE = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_with_coordinates.csv"
         bcg_arcmin_type = "3p8arcmin"
         print(f"\nSelected: BCG 3.8 arcmin dataset")
     else:
         DATASET_TYPE = "bcg_2p2arcmin"
-        IMAGE_DIR = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/"
-        TRUTH_TABLE = "/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv"
         bcg_arcmin_type = "2p2arcmin"
         print(f"\nSelected: BCG 2.2 arcmin dataset")
+    
+    # Get paths from centralized configuration
+    paths = _path_config.get_paths(bcg_arcmin_type)
+    IMAGE_DIR = paths['image_dir']
+    TRUTH_TABLE = _path_config.get_preferred_bcg_csv(bcg_arcmin_type)
     
     # Check if real data exists
     if not os.path.exists(IMAGE_DIR) or not os.path.exists(TRUTH_TABLE):
@@ -430,6 +480,9 @@ def main():
     # Add BCG dataset flags
     train_command += f" --use_bcg_data --bcg_arcmin_type {bcg_arcmin_type}"
     
+    # Add BCG CSV path
+    train_command += f" --bcg_csv_path='{TRUTH_TABLE}'"
+    
     if use_additional_features:
         train_command += " --use_additional_features"
         
@@ -447,6 +500,10 @@ def main():
         
         if candidate_delta_mstar_range:
             train_command += f" --candidate_delta_mstar_range='{candidate_delta_mstar_range}'"
+        
+        # Add DESprior candidate CSV path
+        desprior_csv = _path_config.get_preferred_desprior_csv(bcg_arcmin_type)
+        train_command += f" --desprior_csv_path='{desprior_csv}'"
     
     # Check for GPU
     gpu_available = input("\nUse GPU if available? (Y/n): ").strip().lower()
@@ -533,6 +590,9 @@ def main():
     # Add BCG dataset flags to test command
     test_command += f" --use_bcg_data --bcg_arcmin_type {bcg_arcmin_type}"
     
+    # Add BCG CSV path
+    test_command += f" --bcg_csv_path='{TRUTH_TABLE}'"
+    
     if use_additional_features:
         test_command += " --use_additional_features"
         
@@ -550,6 +610,10 @@ def main():
         
         if candidate_delta_mstar_range:
             test_command += f" --candidate_delta_mstar_range='{candidate_delta_mstar_range}'"
+        
+        # Add DESprior candidate CSV path
+        desprior_csv = _path_config.get_preferred_desprior_csv(bcg_arcmin_type)
+        test_command += f" --desprior_csv_path='{desprior_csv}'"
     
     if not run_command(test_command, f"Testing BCG classifier with {test_script}"):
         print("Testing failed.")

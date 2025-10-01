@@ -168,7 +168,8 @@ class BCGDataset(Dataset):
 # Utility function to create datasets
 def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=42, 
                         z_range=None, delta_mstar_z_range=None, include_additional_features=True,
-                        include_redmapper_probs=False, use_clean_data=True):
+                        include_redmapper_probs=False, use_clean_data=True, 
+                        image_dir=None, csv_path=None):
     """
     Create train/test datasets for BCG data.
     
@@ -181,27 +182,37 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
         include_additional_features: Whether to include redshift and delta_mstar_z as features
         include_redmapper_probs: Whether to include RedMapper BCG probabilities as features
         use_clean_data: Use clean matched datasets for pristine ML training (recommended: True)
+        image_dir: Custom image directory path (optional, uses default if None)
+        csv_path: Custom CSV file path (optional, uses default if None)
         
     Returns:
         train_dataset, test_dataset
     """
     np.random.seed(random_seed)
     
-    # Single scale dataset - use clean matched data by default for pristine ML training
-    if dataset_type == '2p2arcmin':
-        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/'
-        if use_clean_data:
-            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_clean_matched.csv'
+    # Use provided paths or fall back to defaults
+    if image_dir is None or csv_path is None:
+        # Fall back to default paths
+        base_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs'
+        
+        if dataset_type == '2p2arcmin':
+            if image_dir is None:
+                image_dir = f'{base_dir}/2p2arcmin/'
+            if csv_path is None:
+                if use_clean_data:
+                    csv_path = f'{base_dir}/bcgs_2p2arcmin_clean_matched.csv'
+                else:
+                    csv_path = f'{base_dir}/bcgs_2p2arcmin_with_coordinates.csv'
+        elif dataset_type == '3p8arcmin':
+            if image_dir is None:
+                image_dir = f'{base_dir}/3p8arcmin/'
+            if csv_path is None:
+                if use_clean_data:
+                    csv_path = f'{base_dir}/bcgs_3p8arcmin_clean_matched.csv'
+                else:
+                    csv_path = f'{base_dir}/bcgs_3p8arcmin_with_coordinates.csv'
         else:
-            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv'
-    elif dataset_type == '3p8arcmin':
-        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/'
-        if use_clean_data:
-            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_clean_matched.csv'
-        else:
-            csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_with_coordinates.csv'
-    else:
-        raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
+            raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
     
     print(f"Loading BCG data from: {'clean matched' if use_clean_data else 'all available'} dataset")
     df = prepare_bcg_dataframe(csv_path, z_range=z_range, delta_mstar_z_range=delta_mstar_z_range)

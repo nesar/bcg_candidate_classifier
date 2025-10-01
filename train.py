@@ -620,7 +620,9 @@ def main(args):
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
             include_additional_features=args.use_additional_features,
-            include_redmapper_probs=args.use_redmapper_probs  # Load for training supervision if requested
+            include_redmapper_probs=args.use_redmapper_probs,  # Load for training supervision if requested
+            image_dir=args.image_dir,  # Pass the image directory from command line
+            csv_path=args.bcg_csv_path  # Pass custom BCG CSV path if provided
         )
         
         # Split training set into train/val (70% train, 10% val, 20% test total)
@@ -667,7 +669,10 @@ def main(args):
             candidate_delta_mstar_range=args.candidate_delta_mstar_range,
             filter_inside_image=args.filter_inside_image,
             use_color_features=args.use_color_features,
-            color_extractor=color_extractor
+            color_extractor=color_extractor,
+            image_dir=args.image_dir,
+            bcg_csv_path=args.bcg_csv_path,
+            candidates_csv_path=args.desprior_csv_path
         )
         
         # Split the DESprior dataset to match our train/val split ratios
@@ -834,6 +839,12 @@ if __name__ == "__main__":
                        help='Filter DESprior candidates by delta_mstar range as "min,max"')
     parser.add_argument('--filter_inside_image', action='store_true', default=True,
                        help='Filter out DESprior candidates outside image bounds')
+    parser.add_argument('--desprior_csv_path', type=str, default=None,
+                       help='Path to DESprior candidates CSV file')
+    
+    # NEW: BCG dataset path arguments (for overriding defaults)
+    parser.add_argument('--bcg_csv_path', type=str, default=None,
+                       help='Path to BCG CSV file (overrides default path selection)')
     
     # Output arguments
     parser.add_argument('--output_dir', type=str, default='./trained_models',

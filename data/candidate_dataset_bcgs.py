@@ -475,7 +475,8 @@ def create_bcg_candidate_dataset_from_loader(dataset_loader, candidate_params=No
 
 def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_range=None, delta_mstar_z_range=None,
                                                 filter_inside_image=True, candidate_delta_mstar_range=None,
-                                                use_clean_data=True, use_color_features=False, color_extractor=None):
+                                                use_clean_data=True, use_color_features=False, color_extractor=None,
+                                                image_dir=None, bcg_csv_path=None, candidates_csv_path=None):
     """
     Create a DESprior candidate dataset from CSV files.
     
@@ -488,6 +489,9 @@ def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_ran
         use_clean_data: Use clean matched datasets for pristine ML training (recommended: True)
         use_color_features: Whether to extract color features from RGB patches
         color_extractor: ColorFeatureExtractor instance (None creates default)
+        image_dir: Custom image directory path (optional, uses default if None)
+        bcg_csv_path: Custom BCG CSV file path (optional, uses default if None)
+        candidates_csv_path: Custom DESprior candidates CSV file path (optional, uses default if None)
         
     Returns:
         DESpriorBCGCandidateDataset
@@ -495,25 +499,39 @@ def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_ran
     import pandas as pd
     from .data_read_bcgs import prepare_bcg_dataframe, BCGDataset
     
-    # Load BCG data with filtering - use clean matched data by default for pristine ML training
-    if dataset_type == '2p2arcmin':
-        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/'
-        if use_clean_data:
-            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_clean_matched.csv'
-            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
+    # Use provided paths or fall back to defaults
+    if image_dir is None or bcg_csv_path is None or candidates_csv_path is None:
+        # Fall back to default paths
+        base_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs'
+        
+        if dataset_type == '2p2arcmin':
+            if image_dir is None:
+                image_dir = f'{base_dir}/2p2arcmin/'
+            if bcg_csv_path is None:
+                if use_clean_data:
+                    bcg_csv_path = f'{base_dir}/bcgs_2p2arcmin_clean_matched.csv'
+                else:
+                    bcg_csv_path = f'{base_dir}/bcgs_2p2arcmin_with_coordinates.csv'
+            if candidates_csv_path is None:
+                if use_clean_data:
+                    candidates_csv_path = f'{base_dir}/desprior_candidates_2p2arcmin_clean_matched.csv'
+                else:
+                    candidates_csv_path = f'{base_dir}/desprior_candidates_2p2arcmin_with_coordinates.csv'
+        elif dataset_type == '3p8arcmin':
+            if image_dir is None:
+                image_dir = f'{base_dir}/3p8arcmin/'
+            if bcg_csv_path is None:
+                if use_clean_data:
+                    bcg_csv_path = f'{base_dir}/bcgs_3p8arcmin_clean_matched.csv'
+                else:
+                    bcg_csv_path = f'{base_dir}/bcgs_3p8arcmin_with_coordinates.csv'
+            if candidates_csv_path is None:
+                if use_clean_data:
+                    candidates_csv_path = f'{base_dir}/desprior_candidates_3p8arcmin_clean_matched.csv'
+                else:
+                    candidates_csv_path = f'{base_dir}/desprior_candidates_3p8arcmin_with_coordinates.csv'
         else:
-            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv'
-            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_with_coordinates.csv'
-    elif dataset_type == '3p8arcmin':
-        image_dir = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/'
-        if use_clean_data:
-            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_clean_matched.csv'
-            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
-        else:
-            bcg_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_3p8arcmin_with_coordinates.csv'
-            candidates_csv_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_with_coordinates.csv'
-    else:
-        raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
+            raise ValueError(f"Unknown dataset_type: {dataset_type}. Use '2p2arcmin' or '3p8arcmin'")
     
     print(f"Loading DESprior data from: {'clean matched' if use_clean_data else 'all available'} dataset")
     

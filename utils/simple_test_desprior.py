@@ -29,9 +29,12 @@ def test_csv_files():
     """Test that CSV files exist and are readable"""
     print("\nTesting CSV files...")
     
+    # Use environment variable or default path
+    base_dir = os.environ.get('BCG_DATA_DIR', '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs')
+    
     files_to_check = [
-        '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv',
-        '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_with_coordinates.csv'
+        f'{base_dir}/bcgs_2p2arcmin_with_coordinates.csv',
+        f'{base_dir}/desprior_candidates_2p2arcmin_with_coordinates.csv'
     ]
     
     try:
@@ -59,8 +62,11 @@ def test_small_dataset():
         from data.data_read_bcgs import prepare_bcg_dataframe
         
         # Test just the dataframe preparation with heavy filtering to get small dataset
+        base_dir = os.environ.get('BCG_DATA_DIR', '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs')
+        csv_path = f'{base_dir}/bcgs_2p2arcmin_with_coordinates.csv'
+        
         df = prepare_bcg_dataframe(
-            '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_2p2arcmin_with_coordinates.csv',
+            csv_path,
             z_range=(0.5, 0.6),  # Very narrow range
             delta_mstar_z_range=(-2.0, -1.5)  # Very narrow range
         )

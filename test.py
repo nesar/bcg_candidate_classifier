@@ -86,7 +86,7 @@ def calculate_bcg_rank(true_bcg, all_candidates, scores, distance_threshold=10.0
 def predict_bcg_with_probabilities(image, model, feature_scaler=None, 
                                  detection_threshold=0.1, return_all_candidates=False, additional_features=None, 
                                  use_desprior_candidates=False, filename=None, dataset_type=None, 
-                                 use_color_features=False, color_extractor=None, **candidate_kwargs):
+                                 use_color_features=False, color_extractor=None, desprior_csv_path=None, **candidate_kwargs):
     """Predict BCG candidates with calibrated probabilities and uncertainty.
     
     Args:
@@ -101,13 +101,11 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
         # Use DESprior candidates from BCG dataset
         import pandas as pd
         
-        if dataset_type == 'bcg_2p2arcmin':
-            candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
-        else:  # bcg_3p8arcmin
-            candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
+        if desprior_csv_path is None:
+            raise ValueError("desprior_csv_path must be provided when use_desprior_candidates=True")
         
         try:
-            candidates_df = pd.read_csv(candidates_csv)
+            candidates_df = pd.read_csv(desprior_csv_path)
             file_candidates = candidates_df[candidates_df['filename'] == filename]
             
             if len(file_candidates) == 0:
@@ -448,7 +446,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                           original_dataframe=None, dataset_type='SPT3G_1500d',
                           use_uq=False, detection_threshold=0.1,
                           use_desprior_candidates=False, use_color_features=False, 
-                          color_extractor=None):
+                          color_extractor=None, desprior_csv_path=None):
     """Evaluate enhanced model with UQ capabilities."""
     print(f"Evaluating {'probabilistic' if use_uq else 'deterministic'} model on {len(test_dataset)} test images...")
     print("Using rank-based evaluation (top-k candidate success tracking)...")
@@ -544,6 +542,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 dataset_type=dataset_type,
                 use_color_features=use_color_features,
                 color_extractor=color_extractor,
+                desprior_csv_path=desprior_csv_path,
                 **candidate_params
             )
             
@@ -578,13 +577,11 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 from data.data_read_bcgs import BCGDataset
                 
                 # Load DESprior candidates for this specific image/cluster
-                if dataset_type == 'bcg_2p2arcmin':
-                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
-                else:  # bcg_3p8arcmin
-                    candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
+                if desprior_csv_path is None:
+                    raise ValueError("desprior_csv_path must be provided when use_desprior_candidates=True")
                 
                 try:
-                    candidates_df = pd.read_csv(candidates_csv)
+                    candidates_df = pd.read_csv(desprior_csv_path)
                     file_candidates = candidates_df[candidates_df['filename'] == filename]
                     
                     if len(file_candidates) == 0:
@@ -898,7 +895,9 @@ def main(args):
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
             include_additional_features=args.use_additional_features,
-            include_redmapper_probs=False  # Never use RedMapper probs during testing
+            include_redmapper_probs=False,  # Never use RedMapper probs during testing
+            image_dir=args.image_dir,  # Pass the image directory from command line
+            csv_path=args.bcg_csv_path  # Pass custom BCG CSV path if provided
         )
         
         # Use test split for evaluation
@@ -941,12 +940,10 @@ def main(args):
     if args.use_desprior_candidates:
         # For DESprior candidates: extract actual features to get correct dimension
         try:
-            if args.dataset_type == 'bcg_2p2arcmin':
-                candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_2p2arcmin_clean_matched.csv'
-            else:
-                candidates_csv = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/desprior_candidates_3p8arcmin_clean_matched.csv'
+            if args.desprior_csv_path is None:
+                raise ValueError("--desprior_csv_path must be provided when using DESprior candidates")
             
-            candidates_df = pd.read_csv(candidates_csv)
+            candidates_df = pd.read_csv(args.desprior_csv_path)
             first_file = candidates_df['filename'].iloc[0]
             file_candidates = candidates_df[candidates_df['filename'] == first_file]
             
@@ -1050,7 +1047,8 @@ def main(args):
         detection_threshold=args.detection_threshold,
         use_desprior_candidates=args.use_desprior_candidates,
         use_color_features=args.use_color_features,
-        color_extractor=color_extractor
+        color_extractor=color_extractor,
+        desprior_csv_path=args.desprior_csv_path
     )
     
     (predictions, targets, distances, failures, metrics, 
@@ -1448,6 +1446,10 @@ if __name__ == "__main__":
                        help='Use DESprior candidates instead of automatic detection')
     parser.add_argument('--candidate_delta_mstar_range', type=str, default=None,
                        help='Filter DESprior candidates by delta_mstar range as "min,max"')
+    parser.add_argument('--desprior_csv_path', type=str, default=None,
+                       help='Path to DESprior candidates CSV file')
+    parser.add_argument('--bcg_csv_path', type=str, default=None,
+                       help='Path to BCG CSV file (overrides default path selection)')
     
     # Visualization arguments
     parser.add_argument('--show_samples', type=int, default=5,
