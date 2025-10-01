@@ -566,7 +566,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 # Create legend entry
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
                                                 markeredgecolor=color, markersize=12, 
-                                                markeredgewidth=2, label=f'Rank {rank+1} ({prob:.2f})'))
+                                                markeredgewidth=2, linestyle='None',
+                                                label=f'Rank {rank+1} ({prob:.2f})'))
         else:
             # Standard visualization for non-UQ mode
             legend_elements = []
@@ -577,14 +578,14 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                           linewidths=2, alpha=0.7)
                 legend_elements.append(plt.Line2D([0], [0], marker='s', color='w', 
                                                 markeredgecolor='orange', markersize=12, 
-                                                markeredgewidth=2, label='Candidates'))
+                                                markeredgewidth=2, linestyle='None', label='Candidates'))
             
             # Plot selected BCG (prediction) as red circle
             ax.scatter(prediction[0], prediction[1], marker='o', s=400, 
                       facecolors='none', edgecolors='red', linewidths=3, alpha=0.9)
             legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
                                             markeredgecolor='red', markersize=12, 
-                                            markeredgewidth=3, label='Predicted BCG'))
+                                            markeredgewidth=3, linestyle='None', label='Predicted BCG'))
         
         # Always plot true BCG location
         true_bcg_label = 'True BCG'
@@ -598,7 +599,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                   linestyle='dashed')
         legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
                                         markeredgecolor="#59F5ED", markersize=15, 
-                                        markeredgewidth=3, linestyle='dashed', label=true_bcg_label))
+                                        markeredgewidth=3, linestyle='None', label=true_bcg_label))
         
         # Get cluster name for display
         cluster_name = 'Unknown'
