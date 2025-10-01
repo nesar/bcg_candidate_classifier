@@ -22,7 +22,7 @@ def show_BCG(image, BCG, sample_idx=None, save_path=None):
     plt.imshow(image.astype(np.uint8))
     plt.scatter(BCG[0], BCG[1], marker='o', s=300, c='r', 
                 facecolors='none', linewidth=2, label='BCG')
-    plt.legend()
+    plt.legend(fontsize=11)
     
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -173,7 +173,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         title = f'{cluster_name}'
         
         plt.title(title, fontsize=12)
-        plt.legend(loc='upper right', bbox_to_anchor=(1, 1))
+        plt.legend(loc='upper right', bbox_to_anchor=(1, 1), fontsize=11)
         plt.axis('off')
         
         # Save plot
@@ -238,7 +238,7 @@ def show_predictions(images, targets, predictions, indices=None, save_dir=None, 
             title = f'{phase} - Sample {idx+1}'
         
         plt.title(f'{title}\nDistance: {distance:.1f} px', fontsize=12)
-        plt.legend()
+        plt.legend(fontsize=11)
         plt.axis('off')
         
         # Save plot
@@ -438,7 +438,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
             
         plt.title(f'{title}\n{subtitle}', fontsize=12, color='red')
-        plt.legend()
+        plt.legend(fontsize=11)
         plt.axis('off')
         
         # Save plot
@@ -607,12 +607,23 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                weight='bold', verticalalignment='top', horizontalalignment='left',
                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
         
-        # Set proper axis labels in relative coordinates only
-        # Note: We don't have field center coordinates, only BCG coordinates
-        # So we use relative positioning centered on the image center
-        ax.set_xlabel("Relative Position", fontsize=18)
-        ax.set_ylabel("Relative Position", fontsize=18) 
+        # Check if we have RA/Dec coordinates in metadata for proper physical coordinate display
         use_radec = False
+        bcg_ra, bcg_dec = None, None
+        if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
+            bcg_ra = metadata_list[idx].get('bcg_ra')
+            bcg_dec = metadata_list[idx].get('bcg_dec')
+            if bcg_ra is not None and bcg_dec is not None:
+                use_radec = True
+                print(f"Using RA/Dec coordinates: RA={bcg_ra:.6f}, Dec={bcg_dec:.6f}")
+        
+        if use_radec:
+            ax.set_xlabel("RA (deg)", fontsize=18)
+            ax.set_ylabel("Dec (deg)", fontsize=18)
+        else:
+            # Fall back to relative coordinates
+            ax.set_xlabel("Relative Position", fontsize=18)
+            ax.set_ylabel("Relative Position", fontsize=18)
         
         # Create coordinate tick labels
         # Center coordinates at image center
@@ -648,17 +659,41 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ax.set_xticks(pixel_ticks)
         ax.set_yticks(pixel_ticks)
         
-        # Format tick labels as relative coordinates
-        x_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
-        y_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
+        if use_radec and bcg_ra is not None and bcg_dec is not None:
+            # Convert pixel positions to RA/Dec coordinates
+            # Assume BCG is at center of image for coordinate transformation
+            pixel_offsets = pixel_ticks - center_pixel
+            arcmin_offsets_radec = pixel_offsets * arcmin_per_pixel
+            
+            # Convert arcmin offsets to degree offsets (1 arcmin = 1/60 degrees)
+            degree_offsets = arcmin_offsets_radec / 60.0
+            
+            # Calculate RA/Dec values at tick positions
+            # Note: RA decreases with increasing x-pixel (East is left)
+            ra_values = bcg_ra - degree_offsets  # RA decreases towards East
+            dec_values = bcg_dec + degree_offsets  # Dec increases towards North
+            
+            def format_radec_coordinate(coord_deg, coord_type='ra'):
+                """Format RA/Dec coordinate in degrees with proper precision"""
+                if coord_type == 'ra':
+                    return f"{coord_deg:.4f}°"
+                else:  # dec
+                    return f"{coord_deg:.4f}°"
+            
+            x_labels = [format_radec_coordinate(ra, 'ra') for ra in ra_values]
+            y_labels = [format_radec_coordinate(dec, 'dec') for dec in dec_values]
+        else:
+            # Format tick labels as relative coordinates
+            x_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
+            y_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
             
         ax.set_xticklabels(x_labels, fontsize=15)
         ax.set_yticklabels(y_labels, fontsize=15)
         
-        # Move legend to bottom-left and make it column-wise
+        # Move legend to bottom-left and make it column-wise with smaller font
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
-                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=15,
+                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=11,
                  frameon=True, fancybox=True, shadow=True, framealpha=0.8)
         
         # Remove title (cluster name now in corner)
