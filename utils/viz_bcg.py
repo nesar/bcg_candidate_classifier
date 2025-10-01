@@ -561,7 +561,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 # Add probability label
                 ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
                        fontsize=14, color='red', #weight='bold', 
-                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.3))
+                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.2))
                 
                 # Create legend entry
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
@@ -608,8 +608,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         
         # Add cluster name as text in top-left corner with legend-style background
         ax.text(0.02, 0.98, cluster_name, transform=ax.transAxes, fontsize=18, 
-               weight='bold', verticalalignment='top', horizontalalignment='left',
-               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
+               color='red', verticalalignment='top', horizontalalignment='left',
+               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.2))
         
         # Check if we have RA/Dec coordinates in metadata for proper physical coordinate display
         use_radec = False
@@ -697,8 +697,9 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         # Move legend to bottom-left and make it column-wise with smaller font
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
-                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=14,
-                 frameon=True, fancybox=True, shadow=False, framealpha=0.8)
+                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
+                 frameon=True, fancybox=True, shadow=False, framealpha=0.2,
+                 columnspacing=0.5, handletextpad=0.3)
         
         # Remove title (cluster name now in corner)
         # Keep axis visible for coordinate reference
