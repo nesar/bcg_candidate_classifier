@@ -40,7 +40,7 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
         for f in sub["Feature"]:
             order.append((g,f))
 
-    labels = ["• "+f for g,f in order]
+    labels = [f for g,f in order]
     vals   = [breakdown_df[(breakdown_df["Group"]==g)&(breakdown_df["Feature"]==f)]["Importance"].values[0] for g,f in order]
     cols   = [group_colors[g] for g,f in order]
 

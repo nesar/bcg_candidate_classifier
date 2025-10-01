@@ -25,7 +25,7 @@ def show_BCG(image, BCG, sample_idx=None, save_path=None):
     plt.imshow(image.astype(np.uint8))
     plt.scatter(BCG[0], BCG[1], marker='o', s=300, c='r', 
                 facecolors='none', linewidth=2, label='BCG')
-    plt.legend(fontsize=18)
+    plt.legend(fontsize=14)
     
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -176,7 +176,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         title = f'{cluster_name}'
         
         plt.title(title, fontsize=18)
-        plt.legend(loc='upper right', bbox_to_anchor=(1, 1), fontsize=18)
+        plt.legend(loc='upper right', bbox_to_anchor=(1, 1), fontsize=14)
         plt.axis('off')
         
         # Save plot
@@ -241,7 +241,7 @@ def show_predictions(images, targets, predictions, indices=None, save_dir=None, 
             title = f'{phase} - Sample {idx+1}'
         
         plt.title(f'{title}\nDistance: {distance:.1f} px', fontsize=18)
-        plt.legend(fontsize=18)
+        plt.legend(fontsize=14)
         plt.axis('off')
         
         # Save plot
@@ -441,7 +441,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
             
         plt.title(f'{title}\n{subtitle}', fontsize=18, color='red')
-        plt.legend(fontsize=18)
+        plt.legend(fontsize=14)
         plt.axis('off')
         
         # Save plot
@@ -560,8 +560,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 
                 # Add probability label
                 ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                       fontsize=18, color='k', weight='bold', 
-                       bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
+                       fontsize=14, color='red', #weight='bold', 
+                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.3))
                 
                 # Create legend entry
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
@@ -696,8 +696,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         # Move legend to bottom-left and make it column-wise with smaller font
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
-                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=18,
-                 frameon=True, fancybox=True, shadow=True, framealpha=0.8)
+                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=14,
+                 frameon=True, fancybox=True, shadow=False, framealpha=0.8)
         
         # Remove title (cluster name now in corner)
         # Keep axis visible for coordinate reference
