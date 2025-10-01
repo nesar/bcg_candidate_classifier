@@ -2,6 +2,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Set style consistent with plot_physical_results.py
+plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
+
 
 def show_BCG(image, BCG, sample_idx=None, save_path=None):
     """
@@ -22,7 +25,7 @@ def show_BCG(image, BCG, sample_idx=None, save_path=None):
     plt.imshow(image.astype(np.uint8))
     plt.scatter(BCG[0], BCG[1], marker='o', s=300, c='r', 
                 facecolors='none', linewidth=2, label='BCG')
-    plt.legend(fontsize=11)
+    plt.legend(fontsize=18)
     
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -127,7 +130,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                 
                 # Add probability label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=10, color='k', weight='bold', 
+                        fontsize=18, color='k', weight='bold', 
                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
                 
             # Update label for best candidate
@@ -172,8 +175,8 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         # Show only cluster name in title
         title = f'{cluster_name}'
         
-        plt.title(title, fontsize=12)
-        plt.legend(loc='upper right', bbox_to_anchor=(1, 1), fontsize=11)
+        plt.title(title, fontsize=18)
+        plt.legend(loc='upper right', bbox_to_anchor=(1, 1), fontsize=18)
         plt.axis('off')
         
         # Save plot
@@ -237,8 +240,8 @@ def show_predictions(images, targets, predictions, indices=None, save_dir=None, 
         if phase:
             title = f'{phase} - Sample {idx+1}'
         
-        plt.title(f'{title}\nDistance: {distance:.1f} px', fontsize=12)
-        plt.legend(fontsize=11)
+        plt.title(f'{title}\nDistance: {distance:.1f} px', fontsize=18)
+        plt.legend(fontsize=18)
         plt.axis('off')
         
         # Save plot
@@ -371,7 +374,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
                 
                 # Add probability label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=10, color='k', weight='bold', 
+                        fontsize=18, color='k', weight='bold', 
                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
                 
             # Update label for best candidate
@@ -399,7 +402,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             else:
                 # For complete failures, add text indicating no prediction
                 plt.text(0.05, 0.95, 'NO PREDICTION\n(No candidates found)', 
-                        transform=plt.gca().transAxes, fontsize=12, color='red',
+                        transform=plt.gca().transAxes, fontsize=18, color='red',
                         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
         
         # Always plot true BCG location as blue dashed circle (same as successful cases)
@@ -437,8 +440,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             avg_score = np.mean(scores)
             subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
             
-        plt.title(f'{title}\n{subtitle}', fontsize=12, color='red')
-        plt.legend(fontsize=11)
+        plt.title(f'{title}\n{subtitle}', fontsize=18, color='red')
+        plt.legend(fontsize=18)
         plt.axis('off')
         
         # Save plot
@@ -557,7 +560,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 
                 # Add probability label
                 ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                       fontsize=10, color='k', weight='bold', 
+                       fontsize=18, color='k', weight='bold', 
                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
                 
                 # Create legend entry
@@ -603,7 +606,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
         
         # Add cluster name as text in top-left corner with legend-style background
-        ax.text(0.02, 0.98, cluster_name, transform=ax.transAxes, fontsize=14, 
+        ax.text(0.02, 0.98, cluster_name, transform=ax.transAxes, fontsize=18, 
                weight='bold', verticalalignment='top', horizontalalignment='left',
                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
         
@@ -687,13 +690,13 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             x_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
             y_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
             
-        ax.set_xticklabels(x_labels, fontsize=15)
-        ax.set_yticklabels(y_labels, fontsize=15)
+        ax.set_xticklabels(x_labels, fontsize=18)
+        ax.set_yticklabels(y_labels, fontsize=18)
         
         # Move legend to bottom-left and make it column-wise with smaller font
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
-                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=11,
+                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=18,
                  frameon=True, fancybox=True, shadow=True, framealpha=0.8)
         
         # Remove title (cluster name now in corner)

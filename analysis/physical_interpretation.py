@@ -12,6 +12,9 @@ import seaborn as sns
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
+# Set style consistent with plot_physical_results.py
+plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
+
 
 class PhysicalFeatureInterpreter:
     """
@@ -481,8 +484,9 @@ class PhysicalFeatureInterpreter:
         # Customize plot
         ax.set_yticks(range(len(groups)))
         ax.set_yticklabels([group.replace('_', ' ').title() for group in groups])
-        ax.set_xlabel(f'{method.upper()} Importance Score', fontsize=12)
-        ax.set_title(f'Physical Feature Group Importance ({method.upper()})', fontsize=14, fontweight='bold')
+        ax.set_xlabel(f'{method.upper()} Importance Score', fontsize=18)
+        ax.set_title(f'Physical Feature Group Importance ({method.upper()})', fontsize=18, fontweight='bold')
+        ax.tick_params(axis='both', labelsize=18)
         
         # Add value labels on bars
         for i, (bar, importance) in enumerate(zip(bars, importances)):
@@ -495,7 +499,7 @@ class PhysicalFeatureInterpreter:
             description = group_details[group]['description']
             feature_count = group_details[group]['feature_count']
             ax.text(0.02 * max(importances), i, f'({feature_count} features)', 
-                   ha='left', va='center', fontsize=9, style='italic')
+                   ha='left', va='center', fontsize=18, style='italic')
         
         plt.tight_layout()
         
@@ -550,33 +554,28 @@ class PhysicalFeatureInterpreter:
                 
                 # Adjust font size based on number of features
                 n_features = len(physical_names)
-                if n_features > 15:
-                    label_fontsize = 8
-                    title_fontsize = 10
-                elif n_features > 10:
-                    label_fontsize = 9
-                    title_fontsize = 11
-                else:
-                    label_fontsize = 10
-                    title_fontsize = 12
+                # Use consistent fontsize=18 for all cases
+                label_fontsize = 18
+                title_fontsize = 18
                 
                 ax.set_yticks(range(len(physical_names)))
                 ax.set_yticklabels(physical_names, fontsize=label_fontsize)
                 ax.set_xlabel('Importance Score', fontsize=label_fontsize)
+                ax.tick_params(axis='both', labelsize=label_fontsize)
                 ax.set_title(f"{group_name.replace('_', ' ').title()}: {details['description']}", 
                            fontsize=title_fontsize, fontweight='bold')
                 
-                # Add value labels with adaptive font size
-                value_fontsize = max(6, label_fontsize - 2)
+                # Add value labels with consistent font size
+                value_fontsize = 18
                 for bar, importance in zip(bars, importances):
                     width = bar.get_width()
                     ax.text(width + max(importances) * 0.01, bar.get_y() + bar.get_height()/2, 
                            f'{importance:.3f}', ha='left', va='center', fontsize=value_fontsize)
             else:
                 ax.text(0.5, 0.5, 'No features found for this group', 
-                       ha='center', va='center', transform=ax.transAxes, fontsize=12)
+                       ha='center', va='center', transform=ax.transAxes, fontsize=18)
                 ax.set_title(f"{group_name.replace('_', ' ').title()}: {details['description']}", 
-                           fontsize=12, fontweight='bold')
+                           fontsize=18, fontweight='bold')
         
         # Use better spacing for plots with many subplots
         plt.tight_layout(pad=2.0, h_pad=3.0)

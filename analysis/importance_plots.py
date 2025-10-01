@@ -48,7 +48,8 @@ class ImportancePlotter:
         self.style = style
         self.palette = palette
         
-        # Set plotting style
+        # Set plotting style consistent with plot_physical_results.py
+        plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
         plt.style.use('default')
         sns.set_style(self.style)
         sns.set_palette(self.palette)

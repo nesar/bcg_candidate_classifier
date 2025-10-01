@@ -287,6 +287,9 @@ def plot_probability_analysis(all_probabilities_list, all_uncertainties_list,
     if not all_probabilities_list or not any(len(p) > 0 for p in all_probabilities_list):
         return
     
+    # Set style consistent with plot_physical_results.py
+    plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
+    
     # Collect all probabilities and uncertainties
     all_probs = []
     all_uncs = []
@@ -310,48 +313,53 @@ def plot_probability_analysis(all_probabilities_list, all_uncertainties_list,
     
     # Probability distribution
     axes[0, 0].hist(all_probs, bins=30, alpha=0.7, edgecolor='black')
-    axes[0, 0].set_xlabel('BCG Probability')
-    axes[0, 0].set_ylabel('Count')
-    axes[0, 0].set_title('Distribution of All Candidate Probabilities')
+    axes[0, 0].set_xlabel('BCG Probability', fontsize=18)
+    axes[0, 0].set_ylabel('Count', fontsize=18)
+    axes[0, 0].set_title('Distribution of All Candidate Probabilities', fontsize=18)
+    axes[0, 0].tick_params(axis='both', labelsize=18)
     axes[0, 0].grid(True, alpha=0.3)
     
     # Best candidate probabilities
     axes[0, 1].hist(best_probs, bins=20, alpha=0.7, color='orange', edgecolor='black')
-    axes[0, 1].set_xlabel('Best Candidate Probability')
-    axes[0, 1].set_ylabel('Count')
-    axes[0, 1].set_title('Distribution of Best Candidate Probabilities')
+    axes[0, 1].set_xlabel('Best Candidate Probability', fontsize=18)
+    axes[0, 1].set_ylabel('Count', fontsize=18)
+    axes[0, 1].set_title('Distribution of Best Candidate Probabilities', fontsize=18)
+    axes[0, 1].tick_params(axis='both', labelsize=18)
     axes[0, 1].grid(True, alpha=0.3)
     
     # Uncertainty analysis
     if all_uncs:
         axes[1, 0].hist(all_uncs, bins=30, alpha=0.7, color='red', edgecolor='black')
-        axes[1, 0].set_xlabel('Uncertainty')
-        axes[1, 0].set_ylabel('Count')
-        axes[1, 0].set_title('Distribution of All Candidate Uncertainties')
+        axes[1, 0].set_xlabel('Uncertainty', fontsize=18)
+        axes[1, 0].set_ylabel('Count', fontsize=18)
+        axes[1, 0].set_title('Distribution of All Candidate Uncertainties', fontsize=18)
+        axes[1, 0].tick_params(axis='both', labelsize=18)
         axes[1, 0].grid(True, alpha=0.3)
         
         # Probability vs Uncertainty scatter
         if len(best_probs) == len(best_uncs):
             scatter = axes[1, 1].scatter(best_probs, best_uncs, c=distances[:len(best_probs)], 
                                        cmap='viridis', alpha=0.6)
-            axes[1, 1].set_xlabel('Best Candidate Probability')
-            axes[1, 1].set_ylabel('Best Candidate Uncertainty')
-            axes[1, 1].set_title('Probability vs Uncertainty (colored by distance error)')
+            axes[1, 1].set_xlabel('Best Candidate Probability', fontsize=18)
+            axes[1, 1].set_ylabel('Best Candidate Uncertainty', fontsize=18)
+            axes[1, 1].set_title('Probability vs Uncertainty (colored by distance error)', fontsize=18)
+            axes[1, 1].tick_params(axis='both', labelsize=18)
             axes[1, 1].grid(True, alpha=0.3)
             plt.colorbar(scatter, ax=axes[1, 1], label='Distance Error (pixels)')
     else:
         # If no uncertainties, just show probability vs distance
         if len(best_probs) <= len(distances):
             axes[1, 0].scatter(best_probs, distances[:len(best_probs)], alpha=0.6)
-            axes[1, 0].set_xlabel('Best Candidate Probability')
-            axes[1, 0].set_ylabel('Distance Error (pixels)')
-            axes[1, 0].set_title('Probability vs Distance Error')
+            axes[1, 0].set_xlabel('Best Candidate Probability', fontsize=18)
+            axes[1, 0].set_ylabel('Distance Error (pixels)', fontsize=18)
+            axes[1, 0].set_title('Probability vs Distance Error', fontsize=18)
+            axes[1, 0].tick_params(axis='both', labelsize=18)
             axes[1, 0].grid(True, alpha=0.3)
         
         axes[1, 1].text(0.5, 0.5, 'No uncertainty\ninformation available', 
                        ha='center', va='center', transform=axes[1, 1].transAxes,
-                       fontsize=12)
-        axes[1, 1].set_title('Uncertainty Analysis')
+                       fontsize=18)
+        axes[1, 1].set_title('Uncertainty Analysis', fontsize=18)
     
     plt.tight_layout()
     

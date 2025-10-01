@@ -19,6 +19,9 @@ import torch
 import torch.nn.functional as F
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 
+# Set style consistent with plot_physical_results.py
+plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
+
 try:
     import shap
     SHAP_AVAILABLE = True
@@ -373,7 +376,7 @@ class IndividualSampleAnalyzer:
             ax5 = fig.add_subplot(gs[2, :])
             self._plot_similarity_analysis(ax5, explanation['similarity'])
         
-        plt.suptitle('Individual Sample Analysis', fontsize=16, fontweight='bold')
+        plt.suptitle('Individual Sample Analysis', fontsize=18, fontweight='bold')
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')

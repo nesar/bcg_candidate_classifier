@@ -28,6 +28,10 @@ import argparse
 import yaml
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
+# Set style consistent with plot_physical_results.py
+plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
 import torch
 from pathlib import Path
 import pickle
@@ -628,8 +632,9 @@ class BCGAnalysisRunner:
         # Customize plot
         ax.set_yticks(range(len(groups)))
         ax.set_yticklabels([group.replace('_', ' ').title() for group in groups])
-        ax.set_xlabel('SHAP Contribution (Absolute)', fontsize=12)
-        ax.set_title(f'Physical Feature Contributions - Sample {sample_idx}', fontsize=14, fontweight='bold')
+        ax.set_xlabel('SHAP Contribution (Absolute)', fontsize=18)
+        ax.set_title(f'Physical Feature Contributions - Sample {sample_idx}', fontsize=18, fontweight='bold')
+        ax.tick_params(axis='both', labelsize=18)
         
         # Add value labels
         for bar, contribution in zip(bars, contributions):

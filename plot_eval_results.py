@@ -19,18 +19,22 @@ from scipy.stats import pearsonr, spearmanr, ks_2samp, mannwhitneyu
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set style for publication-quality plots  
+# Set style for publication-quality plots consistent with plot_physical_results.py
 plt.rcParams.update({
-    'font.size': 12,
-    'axes.titlesize': 14,
-    'axes.labelsize': 12,
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
-    'legend.fontsize': 10,
-    'figure.titlesize': 16,
-    'figure.figsize': [10, 6],
-    'figure.dpi': 150,  # Reduced for faster processing
-    'savefig.dpi': 150,  # Reduced for faster processing
+    'text.usetex': False,
+    'font.family': 'serif',
+    'mathtext.fontset': 'cm',
+    'axes.linewidth': 1.2,
+    'font.size': 18,
+    'axes.titlesize': 18,
+    'axes.labelsize': 18,
+    'xtick.labelsize': 18,
+    'ytick.labelsize': 18,
+    'legend.fontsize': 18,
+    'figure.titlesize': 18,
+    'figure.figsize': [12, 14],
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
     'savefig.bbox': 'tight'
 })
 plt.ioff()  # Turn off interactive mode

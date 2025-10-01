@@ -24,7 +24,8 @@ import warnings
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
 
-# Set style for publication-quality plots
+# Set style for publication-quality plots consistent with plot_physical_results.py
+plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
 plt.style.use('default')
 sns.set_palette("husl")
 
@@ -67,7 +68,7 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
     
     # Create figure with subplots
     fig, axes = plt.subplots(2, 3, figsize=figsize)
-    fig.suptitle('BCG Candidate Classifier - Diagnostic Analysis', fontsize=16, fontweight='bold')
+    fig.suptitle('BCG Candidate Classifier - Diagnostic Analysis', fontsize=18, fontweight='bold')
     
     # Define distance threshold for "correct" detections (in pixels)
     distance_threshold = 10.0  # pixels
@@ -166,9 +167,10 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
                 ha='center', va='center', transform=ax2.transAxes, fontsize=12)
         ax2.set_title('Distance Error Distribution')
     
-    ax2.set_xlabel('Distance Error (pixels)')
-    ax2.set_ylabel('Density')
-    ax2.legend()
+    ax2.set_xlabel('Distance Error (pixels)', fontsize=18)
+    ax2.set_ylabel('Density', fontsize=18)
+    ax2.tick_params(axis='both', labelsize=18)
+    ax2.legend(fontsize=18)
     ax2.grid(True, alpha=0.3)
     
     # Plot 3: Redshift Dependence (if redshift data available)
@@ -196,9 +198,10 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
             except:
                 pass
         
-        ax3.set_xlabel('Redshift (z)')
-        ax3.set_ylabel('Distance Error (pixels)')
-        ax3.set_title('Distance Error vs Redshift')
+        ax3.set_xlabel('Redshift (z)', fontsize=18)
+        ax3.set_ylabel('Distance Error (pixels)', fontsize=18)
+        ax3.set_title('Distance Error vs Redshift', fontsize=18)
+        ax3.tick_params(axis='both', labelsize=18)
         ax3.grid(True, alpha=0.3)
         
         # Add colorbar
@@ -227,9 +230,10 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
                        label=f'Detection Threshold: {threshold:.2f}')
             ax4.legend()
         
-        ax4.set_xlabel('Maximum Probability')
-        ax4.set_ylabel('Distance Error (pixels)')
-        ax4.set_title('Uncertainty Quantification:\nProbability vs Error')
+        ax4.set_xlabel('Maximum Probability', fontsize=18)
+        ax4.set_ylabel('Distance Error (pixels)', fontsize=18)
+        ax4.set_title('Uncertainty Quantification:\nProbability vs Error', fontsize=18)
+        ax4.tick_params(axis='both', labelsize=18)
         ax4.grid(True, alpha=0.3)
         
         # Add colorbar
@@ -258,10 +262,11 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
         ax5.axvline(median_cands, color='green', linestyle='--', alpha=0.8, 
                    label=f'Median: {median_cands:.1f}')
         
-        ax5.set_xlabel('Number of Candidates per Image')
-        ax5.set_ylabel('Frequency')
-        ax5.set_title('Candidate Count Distribution')
-        ax5.legend()
+        ax5.set_xlabel('Number of Candidates per Image', fontsize=18)
+        ax5.set_ylabel('Frequency', fontsize=18)
+        ax5.set_title('Candidate Count Distribution', fontsize=18)
+        ax5.tick_params(axis='both', labelsize=18)
+        ax5.legend(fontsize=18)
         ax5.grid(True, alpha=0.3)
     else:
         ax5.text(0.5, 0.5, 'No candidate count\ndata available', ha='center', va='center',
@@ -312,7 +317,7 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
         stats_text.append(f"Mean Redshift: {np.mean(z_data['z']):.3f}")
     
     # Display text
-    ax6.text(0.05, 0.95, '\n'.join(stats_text), transform=ax6.transAxes, fontsize=10,
+    ax6.text(0.05, 0.95, '\n'.join(stats_text), transform=ax6.transAxes, fontsize=18,
             verticalalignment='top', fontfamily='monospace',
             bbox=dict(boxstyle="round,pad=0.5", facecolor="lightblue", alpha=0.3))
     
