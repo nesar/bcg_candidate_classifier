@@ -219,48 +219,48 @@ class PhysicalFeatureInterpreter:
         """Create individual feature name mappings."""
         return {
             # Intensity statistics (8 features)
-            'patch_mean': 'Mean Surface Brightness',
-            'patch_std': 'Brightness Variability',
-            'patch_median': 'Median Luminosity',
-            'patch_max': 'Peak Brightness',
-            'patch_min': 'Background Level',
-            'central_mean': 'Central Region Brightness',
-            'peripheral_mean': 'Peripheral Region Brightness',
-            'concentration_ratio': 'Central Light Concentration Ratio',
+            'patch_mean': 'Mean Intensity $\\mu_I$',
+            'patch_std': 'Intensity Std. Dev. $\\sigma_I$',
+            'patch_median': 'Median Intensity $I_\\text{median}$',
+            'patch_max': 'Maximum Intensity $I_\\max$',
+            'patch_min': 'Minimum Intensity $I_\\min$',
+            'central_mean': 'Central Mean Intensity $\\mu_I^\\text{central}$',
+            'peripheral_mean': 'Peripheral Mean Intensity $\\mu_I^\\text{peripheral}$',
+            'concentration_ratio': 'Concentration Ratio $C_\\text{ratio}$',
             
             # Morphology (22 features)
-            'gradient_mean': 'Mean Edge Strength',
-            'gradient_std': 'Edge Structure Variability',
-            'gradient_max': 'Maximum Edge Response',
-            'x_relative': 'Normalized X Position',
-            'y_relative': 'Normalized Y Position',
-            'r_center': 'Distance from Image Center',
-            'centroid_offset_x': 'Light Centroid Offset X',
-            'centroid_offset_y': 'Light Centroid Offset Y',
-            'eccentricity': 'Galaxy Ellipticity',
-            'context_small_mean': 'Local Environment Brightness',
-            'context_small_std': 'Local Environment Variability',
-            'context_small_pixels': 'Local Environment Size',
-            'context_medium_mean': 'Intermediate Environment Brightness',
-            'context_medium_std': 'Intermediate Environment Variability',
-            'context_medium_pixels': 'Intermediate Environment Size',
-            'context_large_mean': 'Extended Environment Brightness',
-            'context_large_std': 'Extended Environment Variability',
-            'context_large_pixels': 'Extended Environment Size',
-            'context_north_mean': 'Northern Environment Brightness',
-            'context_east_mean': 'Eastern Environment Brightness',
-            'context_south_mean': 'Southern Environment Brightness',
-            'context_west_mean': 'Western Environment Brightness',
+            'gradient_mean': 'Mean Gradient Magnitude $\\langle|\\mathbf{G}|\\rangle$',
+            'gradient_std': 'Gradient Std. Dev. $\\sigma_{|\\mathbf{G}|}$',
+            'gradient_max': 'Max Gradient Magnitude $\\max(|\\mathbf{G}|)$',
+            'x_relative': 'Normalized X Position $x_\\text{rel}$',
+            'y_relative': 'Normalized Y Position $y_\\text{rel}$',
+            'r_center': 'Radial Distance $r_\\text{center}$',
+            'centroid_offset_x': 'Centroid X-Offset $\\bar{x}$',
+            'centroid_offset_y': 'Centroid Y-Offset $\\bar{y}$',
+            'eccentricity': 'Eccentricity $e$',
+            'context_small_mean': 'Small-Scale Env. Mean $\\mu_\\text{env}^{(r_\\text{small})}$',
+            'context_small_std': 'Small-Scale Env. Std. Dev. $\\sigma_\\text{env}^{(r_\\text{small})}$',
+            'context_small_pixels': 'Small-Scale Env. Size $N_{r_\\text{small}}$',
+            'context_medium_mean': 'Medium-Scale Env. Mean $\\mu_\\text{env}^{(r_\\text{medium})}$',
+            'context_medium_std': 'Medium-Scale Env. Std. Dev. $\\sigma_\\text{env}^{(r_\\text{medium})}$',
+            'context_medium_pixels': 'Medium-Scale Env. Size $N_{r_\\text{medium}}$',
+            'context_large_mean': 'Large-Scale Env. Mean $\\mu_\\text{env}^{(r_\\text{large})}$',
+            'context_large_std': 'Large-Scale Env. Std. Dev. $\\sigma_\\text{env}^{(r_\\text{large})}$',
+            'context_large_pixels': 'Large-Scale Env. Size $N_{r_\\text{large}}$',
+            'context_north_mean': 'Northern Direction Mean $\\mu_\\text{dir,N}$',
+            'context_east_mean': 'Eastern Direction Mean $\\mu_\\text{dir,E}$',
+            'context_south_mean': 'Southern Direction Mean $\\mu_\\text{dir,S}$',
+            'context_west_mean': 'Western Direction Mean $\\mu_\\text{dir,W}$',
             
             # Color PCA Components - each represents different color aspects
-            'color_pca_0': 'Red-Sequence Color (PC1)',
-            'color_pca_1': 'Blue-Red Contrast (PC2)',
-            'color_pca_2': 'Color Uniformity (PC3)',
-            'color_pca_3': 'Spatial Color Gradient (PC4)',
-            'color_pca_4': 'Multi-Band Color (PC5)',
-            'color_pca_5': 'Color Asymmetry (PC6)',
-            'color_pca_6': 'Chromatic Structure (PC7)',
-            'color_pca_7': 'Color Noise Pattern (PC8)',
+            'color_pca_0': 'Color PC-1 $w^\\text{C}_1$',
+            'color_pca_1': 'Color PC-2 $w^\\text{C}_2$',
+            'color_pca_2': 'Color PC-3 $w^\\text{C}_3$',
+            'color_pca_3': 'Color PC-4 $w^\\text{C}_4$',
+            'color_pca_4': 'Color PC-5 $w^\\text{C}_5$',
+            'color_pca_5': 'Color PC-6 $w^\\text{C}_6$',
+            'color_pca_6': 'Color PC-7 $w^\\text{C}_7$',
+            'color_pca_7': 'Color PC-8 $w^\\text{C}_8$',
             
             # Direct Color Ratios
             'color_ratio_rg': 'Red-Green Color',
@@ -277,8 +277,8 @@ class PhysicalFeatureInterpreter:
             'local_density': 'Cluster Core Density',
             
             # Auxiliary features (2 features)
-            'redshift_z': 'Photometric Redshift',
-            'delta_m_star_z': 'Stellar Mass Indicator',
+            'redshift_z': 'Photometric Redshift $z$',
+            'delta_m_star_z': 'Luminosity measure $\\delta m_{zb}*$',
             
             # DESprior
             'delta_mstar': 'Stellar Mass Excess',
@@ -304,14 +304,14 @@ class PhysicalFeatureInterpreter:
                     idx = int(name.split('_')[2])
                     # Map to predefined PCA component meanings
                     pca_meanings = [
-                        'Red-Sequence Color (PC1)',
-                        'Blue-Red Contrast (PC2)',
-                        'Color Uniformity (PC3)',
-                        'Spatial Color Gradient (PC4)',
-                        'Multi-Band Color (PC5)',
-                        'Color Asymmetry (PC6)',
-                        'Chromatic Structure (PC7)',
-                        'Color Noise Pattern (PC8)'
+                        'Color PC-1 $w^\\text{C}_1$',
+                        'Color PC-2 $w^\\text{C}_2$',
+                        'Color PC-3 $w^\\text{C}_3$',
+                        'Color PC-4 $w^\\text{C}_4$',
+                        'Color PC-5 $w^\\text{C}_5$',
+                        'Color PC-6 $w^\\text{C}_6$',
+                        'Color PC-7 $w^\\text{C}_7$',
+                        'Color PC-8 $w^\\text{C}_8$'
                     ]
                     if idx < len(pca_meanings):
                         mapped_names.append(pca_meanings[idx])
