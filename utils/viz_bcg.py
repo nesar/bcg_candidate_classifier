@@ -130,8 +130,8 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                 
                 # Add probability label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=18, color='k', weight='bold', 
-                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
+                        fontsize=14, color='k', #weight='bold', 
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.4))
                 
             # Update label for best candidate
             if len(top_indices) > 0:
@@ -374,8 +374,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
                 
                 # Add probability label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=18, color='k', weight='bold', 
-                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.5))
+                        fontsize=16, color='k', #weight='bold', 
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.4))
                 
             # Update label for best candidate
             if len(top_indices) > 0:
@@ -440,7 +440,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             avg_score = np.mean(scores)
             subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
             
-        plt.title(f'{title}\n{subtitle}', fontsize=18, color='red')
+        plt.title(f'{title}\n{subtitle}', fontsize=16, color='black')
         plt.legend(fontsize=14)
         plt.axis('off')
         
@@ -560,8 +560,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 
                 # Add probability label
                 ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                       fontsize=14, color='red', #weight='bold', 
-                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.2))
+                       fontsize=14, color='k', #weight='bold', 
+                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.4))
                 
                 # Create legend entry
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
@@ -607,9 +607,9 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
         
         # Add cluster name as text in top-left corner with legend-style background
-        ax.text(0.02, 0.98, cluster_name, transform=ax.transAxes, fontsize=18, 
-               color='red', verticalalignment='top', horizontalalignment='left',
-               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.2))
+        ax.text(0.02, 0.98, cluster_name, transform=ax.transAxes, fontsize=16, 
+               color='black', verticalalignment='top', horizontalalignment='left',
+               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.4))
         
         # Check if we have RA/Dec coordinates in metadata for proper physical coordinate display
         use_radec = False
