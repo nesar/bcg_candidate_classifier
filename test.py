@@ -492,6 +492,16 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         
         # Extract metadata from original dataframe if available
         metadata = {'filename': filename}
+        
+        # For BCG data, extract redshift directly from sample
+        if args.use_bcg_data and 'cluster_z' in sample:
+            cluster_z = sample['cluster_z']
+            if hasattr(cluster_z, 'numpy'):
+                cluster_z = cluster_z.numpy()
+            elif torch.is_tensor(cluster_z):
+                cluster_z = cluster_z.numpy()
+            metadata['z'] = float(cluster_z)
+        
         if original_dataframe is not None:
             cluster_name = filename.replace('.tif', '').split('_')[0]
             metadata['cluster_name'] = cluster_name
@@ -501,8 +511,11 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 matching_rows = original_dataframe[original_dataframe[cluster_col] == cluster_name]
                 if not matching_rows.empty:
                     row = matching_rows.iloc[0]
-                    if 'z' in row:
-                        metadata['z'] = row['z']
+                    # Try multiple redshift column names
+                    for z_col in ['z', 'Cluster z', 'redshift']:
+                        if z_col in row and not pd.isna(row[z_col]):
+                            metadata['z'] = row[z_col]
+                            break
                     prob_cols = [col for col in row.index if 'prob' in col.lower()]
                     if prob_cols:
                         metadata['bcg_prob'] = row[prob_cols[0]]
