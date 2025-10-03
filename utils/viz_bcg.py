@@ -560,8 +560,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 
                 # Add probability label
                 ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                       fontsize=14, color='k', #weight='bold', 
-                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.6))
+                       fontsize=14, color='red', 
+                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.2))
                 
                 # Create legend entry
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
@@ -601,15 +601,22 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                                         markeredgecolor="#59F5ED", markersize=15, 
                                         markeredgewidth=3, linestyle='None', label=true_bcg_label))
         
-        # Get cluster name for display
+        # Get cluster name and redshift for display
         cluster_name = 'Unknown'
+        redshift = None
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
             cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
+            redshift = metadata_list[idx].get('z')
         
-        # Add cluster name as text in top-left corner with legend-style background
-        ax.text(0.02, 0.98, cluster_name, transform=ax.transAxes, fontsize=16, 
-               color='black', verticalalignment='top', horizontalalignment='left',
-               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.6))
+        # Create display text with cluster name and redshift
+        display_text = cluster_name
+        if redshift is not None:
+            display_text = f"{cluster_name}, z={redshift:.2f}"
+        
+        # Add cluster name and redshift as text in top-left corner
+        ax.text(0.02, 0.98, display_text, transform=ax.transAxes, fontsize=18, 
+               weight='bold', verticalalignment='top', horizontalalignment='left',
+               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
         
         # Check if we have RA/Dec coordinates in metadata for proper physical coordinate display
         use_radec = False
@@ -622,8 +629,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 print(f"Using RA/Dec coordinates: RA={bcg_ra:.6f}, Dec={bcg_dec:.6f}")
         
         if use_radec:
-            ax.set_xlabel("RA (deg)", fontsize=18)
-            ax.set_ylabel("Dec (deg)", fontsize=18)
+            ax.set_xlabel("RA (J2000)", fontsize=18)
+            ax.set_ylabel("Dec (J2000)", fontsize=18)
         else:
             # Fall back to relative coordinates
             ax.set_xlabel("Relative Position", fontsize=18)
@@ -678,11 +685,22 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             dec_values = bcg_dec + degree_offsets  # Dec increases towards North
             
             def format_radec_coordinate(coord_deg, coord_type='ra'):
-                """Format RA/Dec coordinate in degrees with proper precision"""
+                """Format RA/Dec coordinate in proper astronomical notation"""
                 if coord_type == 'ra':
-                    return f"{coord_deg:.4f}°"
+                    # Convert RA degrees to hours:minutes:seconds
+                    hours = coord_deg / 15.0  # 1 hour = 15 degrees
+                    h = int(hours)
+                    m = int((hours - h) * 60)
+                    s = ((hours - h) * 60 - m) * 60
+                    return f"{h:02d}h{m:02d}m{s:04.1f}s"
                 else:  # dec
-                    return f"{coord_deg:.4f}°"
+                    # Convert Dec degrees to degrees:arcminutes:arcseconds
+                    sign = '+' if coord_deg >= 0 else '-'
+                    abs_deg = abs(coord_deg)
+                    deg = int(abs_deg)
+                    arcmin = int((abs_deg - deg) * 60)
+                    arcsec = ((abs_deg - deg) * 60 - arcmin) * 60
+                    return f"{sign}{deg:02d}°{arcmin:02d}'{arcsec:04.1f}\""
             
             x_labels = [format_radec_coordinate(ra, 'ra') for ra in ra_values]
             y_labels = [format_radec_coordinate(dec, 'dec') for dec in dec_values]
@@ -698,7 +716,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
                  bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
-                 frameon=True, fancybox=True, shadow=False, framealpha=0.5,
+                 frameon=True, fancybox=True, shadow=False, framealpha=0.2,
                  columnspacing=0.5, handletextpad=0.3)
         
         # Remove title (cluster name now in corner)
