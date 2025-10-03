@@ -605,8 +605,13 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         cluster_name = 'Unknown'
         redshift = None
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-            cluster_name = metadata_list[idx].get('cluster_name', 'Unknown')
-            redshift = metadata_list[idx].get('z')
+            metadata = metadata_list[idx]
+            cluster_name = metadata.get('cluster_name', 'Unknown')
+            redshift = metadata.get('z')
+            
+            # Debug: print available metadata to help troubleshoot
+            print(f"Debug - Cluster: {cluster_name}, Metadata keys: {list(metadata.keys())}")
+            print(f"Debug - Redshift value: {redshift}")
         
         # Create display text with cluster name and redshift
         display_text = cluster_name
