@@ -99,8 +99,6 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
     # Find candidates using appropriate method
     if use_desprior_candidates:
         # Use DESprior candidates from BCG dataset
-        import pandas as pd
-        
         if desprior_csv_path is None:
             raise ValueError("desprior_csv_path must be provided when use_desprior_candidates=True")
         
@@ -594,9 +592,8 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                 # filename is already available from the loop variable
                 
                 # Import required modules
-                import pandas as pd
                 from data.data_read_bcgs import BCGDataset
-                
+
                 # Load DESprior candidates for this specific image/cluster
                 if desprior_csv_path is None:
                     raise ValueError("desprior_csv_path must be provided when use_desprior_candidates=True")
