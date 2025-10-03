@@ -629,8 +629,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 print(f"Using RA/Dec coordinates: RA={bcg_ra:.6f}, Dec={bcg_dec:.6f}")
         
         if use_radec:
-            ax.set_xlabel("RA (J2000)", fontsize=18)
-            ax.set_ylabel("Dec (J2000)", fontsize=18)
+            ax.set_xlabel("RA", fontsize=14)
+            ax.set_ylabel("Dec", fontsize=14)
         else:
             # Fall back to relative coordinates
             ax.set_xlabel("Relative Position", fontsize=18)
@@ -641,7 +641,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         center_pixel = 256  # 512/2
         
         # Create tick positions in pixels - use 5 ticks instead of 6
-        pixel_ticks = np.linspace(0, 512, 5)  # 5 ticks from 0 to 512
+        # pixel_ticks = np.linspace(0, 512, 5)  # 5 ticks from 0 to 512
+        pixel_ticks = np.linspace(128, 384, 3)
         # Convert to arcmin coordinates (centered)
         arcmin_offsets = (pixel_ticks - center_pixel) * arcmin_per_pixel
         
@@ -716,7 +717,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
                  bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
-                 frameon=True, fancybox=True, shadow=False, framealpha=0.2,
+                 frameon=True, fancybox=True, shadow=False, framealpha=0.5,
                  columnspacing=0.5, handletextpad=0.3)
         
         # Remove title (cluster name now in corner)
