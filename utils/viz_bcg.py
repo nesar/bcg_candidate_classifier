@@ -698,7 +698,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left', 
                  bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
-                 frameon=True, fancybox=True, shadow=False, framealpha=0.2,
+                 frameon=True, fancybox=True, shadow=False, framealpha=0.5,
                  columnspacing=0.5, handletextpad=0.3)
         
         # Remove title (cluster name now in corner)
