@@ -1310,11 +1310,11 @@ def main(args):
         if sample_metadata:
             cluster_names = [meta.get('cluster_name', 'unknown') for meta in sample_metadata]
             results_data['cluster_name'] = cluster_names
-            
-            if any('z' in meta for meta in sample_metadata):
-                redshifts = [meta.get('z', np.nan) for meta in sample_metadata]
-                results_data['z'] = redshifts
-            
+
+            # Always include redshift column (use NaN for missing values)
+            redshifts = [meta.get('z', np.nan) for meta in sample_metadata]
+            results_data['z'] = redshifts
+
             if any('bcg_prob' in meta for meta in sample_metadata):
                 bcg_probs = [meta.get('bcg_prob', np.nan) for meta in sample_metadata]
                 results_data['bcg_prob'] = bcg_probs

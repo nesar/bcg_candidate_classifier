@@ -608,8 +608,13 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             metadata = metadata_list[idx]
             cluster_name = metadata.get('cluster_name', 'Unknown')
             redshift = metadata.get('z')
-        
-        # Create display text with cluster name and redshift
+            # Handle both nan and None cases
+            if redshift is not None and not (isinstance(redshift, float) and np.isnan(redshift)):
+                redshift = float(redshift)
+            else:
+                redshift = None
+
+        # Create display text with cluster name and redshift (2 decimal places only)
         display_text = cluster_name
         if redshift is not None:
             display_text = f"{cluster_name}, z={redshift:.2f}"
