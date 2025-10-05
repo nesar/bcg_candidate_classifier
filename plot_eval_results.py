@@ -1287,21 +1287,29 @@ def main():
     """Main function to run the analysis."""
     import sys
     import os
-    
-    # Default paths
-    base_path = "/Users/nesar/Projects/HEP/IMGmarker/best_runs/runs_sep24/candidate_classifier_color_uq_run_20250927_224937/evaluation_results"
-    eval_results_path = os.path.join(base_path, "evaluation_results.csv")
-    prob_analysis_path = os.path.join(base_path, "probability_analysis.csv")
-    output_dir = os.path.join(base_path, "analysis_plots")
-    
+
+    # Parse command-line arguments
+    if len(sys.argv) < 2:
+        print("Usage: python plot_eval_results.py <evaluation_results.csv>")
+        print("Example: python plot_eval_results.py /path/to/evaluation_results/evaluation_results.csv")
+        sys.exit(1)
+
+    # Get paths from command-line argument
+    eval_results_path = sys.argv[1]
+
+    # Derive other paths from the evaluation_results.csv location
+    eval_results_dir = os.path.dirname(eval_results_path)
+    prob_analysis_path = os.path.join(eval_results_dir, "probability_analysis.csv")
+    output_dir = os.path.join(eval_results_dir, "analysis_plots")
+
     # Check if files exist
     if not os.path.exists(eval_results_path):
         print(f"Error: evaluation_results.csv not found at {eval_results_path}")
-        return
+        sys.exit(1)
     if not os.path.exists(prob_analysis_path):
         print(f"Error: probability_analysis.csv not found at {prob_analysis_path}")
-        return
-    
+        sys.exit(1)
+
     # Create analyzer and run analysis
     analyzer = BCGEvaluationAnalyzer(eval_results_path, prob_analysis_path, output_dir)
     analyzer.run_full_analysis()

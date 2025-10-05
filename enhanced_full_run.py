@@ -702,12 +702,12 @@ except Exception as e:
     print(f"\n" + "="*80)
     print(f"STEP {step_number}: GENERATING DIAGNOSTIC PLOTS")
     print("="*80)
-    
+
     # Generate diagnostic plots from evaluation results
     evaluation_csv = os.path.join(test_output_dir, "evaluation_results.csv")
     if os.path.exists(evaluation_csv):
         diagnostic_command = f"python -c \"from utils.diagnostic_plots import create_diagnostic_plots; create_diagnostic_plots('{evaluation_csv}', '{output_dir}')\""
-        
+
         if not run_command(diagnostic_command, "Generating diagnostic plots"):
             print("Diagnostic plotting failed, but continuing...")
         else:
@@ -715,9 +715,40 @@ except Exception as e:
     else:
         print(f"Warning: Evaluation results file not found: {evaluation_csv}")
         print("Skipping diagnostic plots generation.")
+
+    # Step 5: Generate Additional Analysis Plots
+    step_number = 5 if run_analysis else 4
+    print(f"\n" + "="*80)
+    print(f"STEP {step_number}: GENERATING ADDITIONAL ANALYSIS PLOTS")
+    print("="*80)
+
+    # Run plot_eval_results.py if evaluation_results.csv exists
+    evaluation_csv = os.path.join(test_output_dir, "evaluation_results.csv")
+    if os.path.exists(evaluation_csv):
+        eval_plot_command = f"python plot_eval_results.py \"{evaluation_csv}\""
+        if not run_command(eval_plot_command, "Generating evaluation analysis plots"):
+            print("Evaluation plotting failed, but continuing...")
+        else:
+            print(f"Evaluation analysis plots saved to: {test_output_dir}/")
+    else:
+        print(f"Warning: evaluation_results.csv not found, skipping plot_eval_results.py")
+
+    # Run plot_physical_results.py if feature importance CSV directory exists
+    if run_analysis and analysis_output_dir:
+        csv_reports_dir = os.path.join(analysis_output_dir, "csv_reports")
+        if os.path.exists(csv_reports_dir):
+            physical_plot_command = f"python plot_physical_results.py \"{csv_reports_dir}\""
+            if not run_command(physical_plot_command, "Generating physical feature importance plots"):
+                print("Physical feature plotting failed, but continuing...")
+            else:
+                print(f"Physical feature plots saved to: {csv_reports_dir}/")
+        else:
+            print(f"Warning: CSV reports directory not found, skipping plot_physical_results.py")
+    else:
+        print("Skipping plot_physical_results.py (no feature importance analysis)")
     
     # Final Step: Summary
-    final_step_number = 5 if run_analysis else 4
+    final_step_number = 6 if run_analysis else 5
     print(f"\n" + "="*80)
     print("ENHANCED WORKFLOW COMPLETED SUCCESSFULLY!")
     print("="*80)
