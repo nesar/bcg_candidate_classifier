@@ -112,21 +112,21 @@ class BCGEvaluationAnalyzer:
         ax = axes[0, 0]
         x = self.eval_results['bcg_prob']
         y = self.eval_results['max_probability']
-        
+
         ax.scatter(x, y, alpha=0.6, s=30)
         ax.plot([0, 1], [0, 1], 'r--', alpha=0.8, linewidth=2, label='Perfect Correlation')
-        
+
         # Add trend line
         z = np.polyfit(x, y, 1)
         p = np.poly1d(z)
         ax.plot(x, p(x), "b-", alpha=0.8, linewidth=2, label=f'Trend (slope={z[0]:.3f})')
-        
+
         pearson_r, pearson_p = pearsonr(x, y)
         spearman_r, spearman_p = spearmanr(x, y)
-        
+
         ax.set_xlabel('RedMapper BCG Probability')
-        ax.set_ylabel('ML Max Probability')
-        ax.set_title(f'Probability Correlation\nPearson r={pearson_r:.3f} (p={pearson_p:.3e})\nSpearman ρ={spearman_r:.3f} (p={spearman_p:.3e})')
+        ax.set_ylabel('ML Predictive Confidence')
+        ax.set_title(f'RedMapper vs ML Confidence Correlation\nPearson r={pearson_r:.3f} (p={pearson_p:.3e})\nSpearman ρ={spearman_r:.3f} (p={spearman_p:.3e})')
         ax.legend()
         ax.grid(True, alpha=0.3)
         
@@ -181,52 +181,52 @@ class BCGEvaluationAnalyzer:
         
         # 4. Detection statistics vs RedMapper
         ax = axes[1, 0]
-        
+
         detection_stats = self.eval_results.groupby('redmapper_category').agg({
             'n_detections': ['mean', 'std'],
             'max_probability': ['mean', 'std'],
             'n_candidates': ['mean', 'std']
         }).round(3)
-        
+
         x_pos = range(len(detection_stats))
-        ax.errorbar(x_pos, detection_stats['n_detections']['mean'], 
+        ax.errorbar(x_pos, detection_stats['n_detections']['mean'],
                    yerr=detection_stats['n_detections']['std'],
                    fmt='o-', linewidth=2, markersize=8, capsize=5, label='Detections')
-        
+
         ax2 = ax.twinx()
-        ax2.errorbar(x_pos, detection_stats['max_probability']['mean'], 
+        ax2.errorbar(x_pos, detection_stats['max_probability']['mean'],
                     yerr=detection_stats['max_probability']['std'],
-                    fmt='s-', linewidth=2, markersize=8, capsize=5, color='red', label='Max Probability')
-        
+                    fmt='s-', linewidth=2, markersize=8, capsize=5, color='red', label='ML Max Confidence')
+
         ax.set_xticks(x_pos)
         ax.set_xticklabels(detection_stats.index, rotation=45)
         ax.set_xlabel('RedMapper Category')
         ax.set_ylabel('Number of Detections', color='blue')
-        ax2.set_ylabel('Max ML Probability', color='red')
+        ax2.set_ylabel('ML Predictive Confidence', color='red')
         ax.set_title('Detection Statistics by RedMapper Category')
         ax.grid(True, alpha=0.3)
         
         # 5. Uncertainty patterns
         ax = axes[1, 1]
-        
+
         uncertainty_stats = self.eval_results.groupby('redmapper_category').agg({
             'max_uncertainty': ['mean', 'std'],
             'avg_uncertainty': ['mean', 'std']
         }).round(4)
-        
+
         x_pos = range(len(uncertainty_stats))
-        ax.errorbar(x_pos, uncertainty_stats['max_uncertainty']['mean'], 
+        ax.errorbar(x_pos, uncertainty_stats['max_uncertainty']['mean'],
                    yerr=uncertainty_stats['max_uncertainty']['std'],
-                   fmt='o-', linewidth=2, markersize=8, capsize=5, label='Max Uncertainty')
-        ax.errorbar(x_pos, uncertainty_stats['avg_uncertainty']['mean'], 
+                   fmt='o-', linewidth=2, markersize=8, capsize=5, label='Max ML Uncertainty')
+        ax.errorbar(x_pos, uncertainty_stats['avg_uncertainty']['mean'],
                    yerr=uncertainty_stats['avg_uncertainty']['std'],
-                   fmt='s-', linewidth=2, markersize=8, capsize=5, label='Avg Uncertainty')
-        
+                   fmt='s-', linewidth=2, markersize=8, capsize=5, label='Avg ML Uncertainty')
+
         ax.set_xticks(x_pos)
         ax.set_xticklabels(uncertainty_stats.index, rotation=45)
         ax.set_xlabel('RedMapper Category')
-        ax.set_ylabel('Uncertainty')
-        ax.set_title('Uncertainty Patterns by RedMapper Category')
+        ax.set_ylabel('ML Uncertainty Estimate')
+        ax.set_title('ML Uncertainty Patterns by RedMapper Category')
         ax.legend()
         ax.grid(True, alpha=0.3)
         
@@ -263,8 +263,9 @@ class BCGEvaluationAnalyzer:
         plt.close()
         
         # Statistical summary
-        print(f"Overall Pearson correlation: {pearson_r:.4f} (p-value: {pearson_p:.2e})")
-        print(f"Overall Spearman correlation: {spearman_r:.4f} (p-value: {spearman_p:.2e})")
+        print(f"RedMapper vs ML Predictive Confidence:")
+        print(f"  Pearson correlation: {pearson_r:.4f} (p-value: {pearson_p:.2e})")
+        print(f"  Spearman correlation: {spearman_r:.4f} (p-value: {spearman_p:.2e})")
         
         # Perfect prediction rates by category
         print("\nPerfect prediction rates by RedMapper category:")
@@ -312,25 +313,25 @@ class BCGEvaluationAnalyzer:
         
         # 2. Rank vs ML probability distribution
         ax = axes[0, 1]
-        
+
         rank_prob_data = []
         for rank in sorted(self.eval_results['bcg_rank'].unique()):
             if rank <= 10:  # Focus on top 10 ranks
                 mask = self.eval_results['bcg_rank'] == rank
                 rank_prob_data.append(self.eval_results[mask]['max_probability'].values)
-        
-        bp = ax.boxplot(rank_prob_data, positions=range(1, len(rank_prob_data)+1), 
+
+        bp = ax.boxplot(rank_prob_data, positions=range(1, len(rank_prob_data)+1),
                        patch_artist=True, notch=True)
-        
+
         # Color boxes by rank
         colors = plt.cm.RdYlGn_r(np.linspace(0.2, 0.8, len(bp['boxes'])))
         for patch, color in zip(bp['boxes'], colors):
             patch.set_facecolor(color)
             patch.set_alpha(0.7)
-        
+
         ax.set_xlabel('BCG Rank')
-        ax.set_ylabel('ML Max Probability')
-        ax.set_title('ML Probability Distribution by Rank')
+        ax.set_ylabel('ML Predictive Confidence')
+        ax.set_title('ML Confidence Distribution by Rank')
         ax.grid(True, alpha=0.3)
         
         # 3. Rank performance by RedMapper category
@@ -394,8 +395,8 @@ class BCGEvaluationAnalyzer:
             
             ax.set_xticks(range(len(labels)))
             ax.set_xticklabels(labels)
-            ax.set_ylabel('ML Probability')
-            ax.set_title('Probability Distribution by Candidate Rank')
+            ax.set_ylabel('ML Predictive Confidence')
+            ax.set_title('ML Confidence Distribution by Candidate Rank')
             ax.grid(True, alpha=0.3)
         
         # 5. Distance error vs rank
@@ -490,9 +491,9 @@ class BCGEvaluationAnalyzer:
         y_log = np.log1p(y)  # log(1 + x) to handle zeros
         corr_coef, corr_p = pearsonr(x, y_log)
         
-        ax.set_xlabel('Max Uncertainty')
+        ax.set_xlabel('ML Uncertainty Estimate')
         ax.set_ylabel('Distance Error (pixels)')
-        ax.set_title(f'Uncertainty vs Accuracy\nCorrelation: {corr_coef:.3f} (p={corr_p:.3e})')
+        ax.set_title(f'ML Uncertainty vs Accuracy\nCorrelation: {corr_coef:.3f} (p={corr_p:.3e})')
         ax.set_yscale('symlog', linthresh=1)  # Symmetric log scale to handle zeros
         ax.legend()
         ax.grid(True, alpha=0.3)
@@ -528,9 +529,9 @@ class BCGEvaluationAnalyzer:
                 ax.plot(calib_df['uncertainty'], p(calib_df['uncertainty']), 
                        "g-", alpha=0.8, linewidth=2, label=f'Actual (slope={z[0]:.2f})')
             
-            ax.set_xlabel('Mean Uncertainty (binned)')
+            ax.set_xlabel('Mean ML Uncertainty (binned)')
             ax.set_ylabel('Actual Error Rate')
-            ax.set_title('Uncertainty Calibration\n(Bubble size ∝ sample count)')
+            ax.set_title('ML Uncertainty Calibration\n(Bubble size ∝ sample count)')
             ax.legend()
             ax.grid(True, alpha=0.3)
             ax.set_xlim(0, None)
@@ -560,8 +561,8 @@ class BCGEvaluationAnalyzer:
                 patch.set_facecolor(color)
                 patch.set_alpha(0.7)
         
-        ax.set_ylabel('Max Uncertainty')
-        ax.set_title('Uncertainty Distribution by Performance')
+        ax.set_ylabel('ML Uncertainty Estimate')
+        ax.set_title('ML Uncertainty Distribution by Performance')
         ax.grid(True, alpha=0.3)
         
         # 4. Confidence-uncertainty scatter
@@ -573,10 +574,10 @@ class BCGEvaluationAnalyzer:
         
         scatter = ax.scatter(x, y, c=colors, alpha=0.6, s=30, cmap='viridis_r')
         plt.colorbar(scatter, ax=ax, label='Distance Error (pixels)')
-        
-        ax.set_xlabel('ML Max Probability')
-        ax.set_ylabel('Max Uncertainty')
-        ax.set_title('Confidence vs Uncertainty\n(Color = Distance Error)')
+
+        ax.set_xlabel('ML Predictive Confidence')
+        ax.set_ylabel('ML Uncertainty Estimate')
+        ax.set_title('ML Confidence vs Uncertainty\n(Color = Distance Error)')
         ax.grid(True, alpha=0.3)
         
         # 5. Uncertainty vs number of detections
@@ -601,8 +602,8 @@ class BCGEvaluationAnalyzer:
                 patch.set_facecolor(color)
                 patch.set_alpha(0.7)
         
-        ax.set_ylabel('Max Uncertainty')
-        ax.set_title('Uncertainty vs Number of Detections')
+        ax.set_ylabel('ML Uncertainty Estimate')
+        ax.set_title('ML Uncertainty vs Number of Detections')
         ax.grid(True, alpha=0.3)
         
         # 6. Predictive value of uncertainty
@@ -629,7 +630,7 @@ class BCGEvaluationAnalyzer:
         
         ax.set_xlabel('False Positive Rate')
         ax.set_ylabel('True Positive Rate')
-        ax.set_title('Uncertainty as Failure Predictor\n(Failure = Distance Error > 10px)')
+        ax.set_title('ML Uncertainty as Failure Predictor\n(Failure = Distance Error > 10px)')
         ax.legend()
         ax.grid(True, alpha=0.3)
         
@@ -638,11 +639,11 @@ class BCGEvaluationAnalyzer:
         plt.close()
         
         # Print summary statistics
-        print("Uncertainty Analysis Summary:")
-        print(f"Mean max uncertainty: {self.eval_results['max_uncertainty'].mean():.4f}")
-        print(f"Uncertainty-error correlation: {corr_coef:.4f} (p={corr_p:.3e})")
-        print(f"Uncertainty ROC AUC for failure prediction: {roc_auc:.3f}")
-        print(f"Optimal uncertainty threshold for failure detection: {optimal_threshold:.3f}")
+        print("ML Uncertainty Analysis Summary:")
+        print(f"Mean ML uncertainty estimate: {self.eval_results['max_uncertainty'].mean():.4f}")
+        print(f"ML uncertainty-error correlation: {corr_coef:.4f} (p={corr_p:.3e})")
+        print(f"ML uncertainty ROC AUC for failure prediction: {roc_auc:.3f}")
+        print(f"Optimal ML uncertainty threshold for failure detection: {optimal_threshold:.3f}")
     
     def analyze_multiple_detections(self):
         """Analyze patterns in multiple BCG detections and candidate competition."""
@@ -1196,11 +1197,11 @@ class BCGEvaluationAnalyzer:
         print(f"   Median rank: {self.eval_results['bcg_rank'].median():.1f}")
         
         # RedMapper correlation
-        rm_ml_corr, rm_ml_p = pearsonr(self.eval_results['bcg_prob'], 
+        rm_ml_corr, rm_ml_p = pearsonr(self.eval_results['bcg_prob'],
                                       self.eval_results['max_probability'])
-        
-        print(f"\n3. REDMAPPER-ML CORRELATION")
-        print(f"   Probability correlation: {rm_ml_corr:.4f} (p={rm_ml_p:.2e})")
+
+        print(f"\n3. REDMAPPER BCG PROBABILITY vs ML PREDICTIVE CONFIDENCE")
+        print(f"   Correlation: {rm_ml_corr:.4f} (p={rm_ml_p:.2e})")
         
         # Performance by RedMapper confidence
         print(f"\n4. PERFORMANCE BY REDMAPPER CONFIDENCE")
@@ -1221,34 +1222,34 @@ class BCGEvaluationAnalyzer:
         print(f"   Mean candidate pool size: {self.eval_results['n_candidates'].mean():.1f}")
         
         # Uncertainty analysis
-        print(f"\n6. UNCERTAINTY QUANTIFICATION")
-        print(f"   Mean max uncertainty: {self.eval_results['max_uncertainty'].mean():.4f}")
-        print(f"   Mean avg uncertainty: {self.eval_results['avg_uncertainty'].mean():.4f}")
-        
+        print(f"\n6. ML UNCERTAINTY QUANTIFICATION")
+        print(f"   Mean ML uncertainty (max): {self.eval_results['max_uncertainty'].mean():.4f}")
+        print(f"   Mean ML uncertainty (avg): {self.eval_results['avg_uncertainty'].mean():.4f}")
+
         # Failure prediction analysis
         uncertainty_error_corr, uncertainty_error_p = pearsonr(
             self.eval_results['max_uncertainty'],
             np.log1p(self.eval_results['distance_error'])
         )
-        print(f"   Uncertainty-error correlation: {uncertainty_error_corr:.4f} (p={uncertainty_error_p:.2e})")
+        print(f"   ML uncertainty-error correlation: {uncertainty_error_corr:.4f} (p={uncertainty_error_p:.2e})")
         
         print(f"\n7. KEY FINDINGS")
-        print(f"   • RedMapper and ML probabilities show {'strong' if abs(rm_ml_corr) > 0.5 else 'moderate' if abs(rm_ml_corr) > 0.3 else 'weak'} correlation")
+        print(f"   • RedMapper BCG probability and ML predictive confidence show {'strong' if abs(rm_ml_corr) > 0.5 else 'moderate' if abs(rm_ml_corr) > 0.3 else 'weak'} correlation")
         print(f"   • {'High' if rank_1_3/total_clusters > 0.8 else 'Moderate' if rank_1_3/total_clusters > 0.6 else 'Low'} overall rank performance (top-3: {100*rank_1_3/total_clusters:.1f}%)")
-        print(f"   • Uncertainty {'does' if abs(uncertainty_error_corr) > 0.2 else 'does not'} show predictive value for errors")
-        
-        high_rm_high_ml = ((self.eval_results['bcg_prob'] >= 0.8) & 
+        print(f"   • ML uncertainty estimate {'does' if abs(uncertainty_error_corr) > 0.2 else 'does not'} show predictive value for errors")
+
+        high_rm_high_ml = ((self.eval_results['bcg_prob'] >= 0.8) &
                           (self.eval_results['max_probability'] >= 0.6)).sum()
-        print(f"   • {high_rm_high_ml} clusters show high confidence from both methods")
+        print(f"   • {high_rm_high_ml} clusters show high confidence from both RedMapper and ML")
         
         # Recommendations
         print(f"\n8. RECOMMENDATIONS")
         if rm_ml_corr < 0.5:
-            print(f"   • Investigate systematic differences between RedMapper and ML probability scales")
+            print(f"   • Investigate systematic differences between RedMapper BCG probability and ML predictive confidence")
         if rank_1/total_clusters < 0.7:
-            print(f"   • Consider ensemble methods or probability calibration to improve rank-1 performance")
+            print(f"   • Consider ensemble methods or temperature calibration to improve rank-1 performance")
         if uncertainty_error_corr > 0.2:
-            print(f"   • Uncertainty estimates show promise for failure detection and active learning")
+            print(f"   • ML uncertainty estimates show promise for failure detection and active learning")
         if (self.eval_results['n_detections'] == 0).sum() > total_clusters * 0.1:
             print(f"   • Consider lowering detection threshold to reduce no-detection cases")
         
