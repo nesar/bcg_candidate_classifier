@@ -560,8 +560,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 
                 # Add probability label
                 ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                       fontsize=14, color='red', 
-                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.2))
+                       fontsize=14, color='k', 
+                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.6))
                 
                 # Create legend entry
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
