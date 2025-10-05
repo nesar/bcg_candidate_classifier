@@ -620,8 +620,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             display_text = f"{cluster_name}, z={redshift:.2f}"
         
         # Add cluster name and redshift as text in top-left corner
-        ax.text(0.02, 0.98, display_text, transform=ax.transAxes, fontsize=18, 
-               weight='bold', verticalalignment='top', horizontalalignment='left',
+        ax.text(0.02, 0.98, display_text, transform=ax.transAxes, fontsize=14, 
+               verticalalignment='top', horizontalalignment='left',
                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
         
         # Check if we have RA/Dec coordinates in metadata for proper physical coordinate display
@@ -648,7 +648,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         
         # Create tick positions in pixels - use 5 ticks instead of 6
         # pixel_ticks = np.linspace(0, 512, 5)  # 5 ticks from 0 to 512
-        pixel_ticks = np.linspace(128, 384, 3)
+        pixel_ticks = np.linspace(128-32, 384 + 32, 3)
         # Convert to arcmin coordinates (centered)
         arcmin_offsets = (pixel_ticks - center_pixel) * arcmin_per_pixel
         
@@ -716,8 +716,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             x_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
             y_labels = [format_relative_coordinate(offset) for offset in arcmin_offsets]
             
-        ax.set_xticklabels(x_labels, fontsize=18)
-        ax.set_yticklabels(y_labels, fontsize=18)
+        ax.set_xticklabels(x_labels, fontsize=14)
+        ax.set_yticklabels(y_labels, fontsize=14)
         
         # Move legend to bottom-left and make it column-wise with smaller font
         ncol = min(3, len(legend_elements))  # Adaptive column count
