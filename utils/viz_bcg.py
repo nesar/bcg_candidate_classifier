@@ -128,9 +128,9 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                            facecolors='none', edgecolors=color, linewidths=2, alpha=0.9,
                            label=f'Candidate {rank+1}' if rank < 3 else None)
                 
-                # Add probability label
-                plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=14, color='k', #weight='bold', 
+                # Add ML confidence label
+                plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}',
+                        fontsize=14, color='k', #weight='bold',
                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.6))
                 
             # Update label for best candidate
@@ -434,7 +434,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
         if use_uq and len(probabilities) > 0:
             max_prob = np.max(probabilities)
             n_detections = np.sum(probabilities >= detection_threshold)
-            subtitle += f' | Max Prob: {max_prob:.3f} | Detections: {n_detections} (≥{detection_threshold:.2f})'
+            subtitle += f' | ML Max Conf: {max_prob:.3f} | Detections: {n_detections} (≥{detection_threshold:.2f})'
         elif len(scores) > 0:
             max_score = np.max(scores)
             avg_score = np.mean(scores)
@@ -558,16 +558,16 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 ax.scatter(candidate[0], candidate[1], marker='o', s=800, 
                           facecolors='none', edgecolors=color, linewidths=2, alpha=0.9)
                 
-                # Add probability label
-                ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                       fontsize=14, color='k', 
+                # Add ML confidence label
+                ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}',
+                       fontsize=14, color='k',
                        bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.6))
-                
-                # Create legend entry
-                legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
-                                                markeredgecolor=color, markersize=12, 
+
+                # Create legend entry with clear ML confidence label
+                legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                                markeredgecolor=color, markersize=12,
                                                 markeredgewidth=2, linestyle='None', markerfacecolor='None',
-                                                label=f'Rank {rank+1} ({prob:.2f})'))
+                                                label=f'Rank {rank+1} (ML conf: {prob:.2f})'))
         else:
             # Standard visualization for non-UQ mode
             legend_elements = []

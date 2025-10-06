@@ -62,12 +62,31 @@ PURPOSE:    Reliability indicator / confidence interval
 - `probability` = ML Predictive Confidence (for this specific candidate)
 - `uncertainty` = ML Uncertainty Estimate (for this specific candidate)
 
+## Visualization Labels
+
+### In Prediction Sample Images
+Images like `ProbabilisticTesting_prediction_sample_best_rank1_*.png` show:
+
+**Numbers on candidates (e.g., "0.85"):**
+- This is **ML Predictive Confidence** (NOT uncertainty)
+- Range: 0-1, where 1.0 = ML is very confident this is the BCG
+- Calculated via MC Dropout + Temperature Scaling
+
+**Legend entries (e.g., "Rank 1 (ML conf: 0.85)"):**
+- Shows the rank and ML Predictive Confidence
+- Rank = position when candidates sorted by confidence (1 = highest)
+
+**Subtitle info (e.g., "ML Max Conf: 0.85"):**
+- Maximum ML Predictive Confidence among all candidates
+
 ## Remember
 ✅ Always specify "RedMapper" or "ML"
 ✅ Use "ML Predictive Confidence" not just "probability"
 ✅ Use "ML Uncertainty Estimate" not just "uncertainty"
 ✅ RedMapper is for **reference/comparison**, not model input during testing
 ✅ ML metrics come from **MC Dropout + Temperature Scaling**
+✅ Numbers shown on candidate images = **ML Predictive Confidence**
 
 ❌ Don't use ambiguous terms like "BCG Probability" or "Uncertainty"
 ❌ Don't confuse confidence (prediction) with uncertainty (variability)
+❌ The numbers on images are NOT uncertainty estimates
