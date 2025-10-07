@@ -161,7 +161,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
             bcg_prob = metadata_list[idx].get('bcg_prob')
             if bcg_prob is not None and not np.isnan(bcg_prob):
-                true_bcg_label = f'True BCG (p={bcg_prob:.3f})'
+                true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
         
         plt.scatter(target[0], target[1], marker='o', s=950, 
                    facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -411,7 +411,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
             bcg_prob = metadata_list[idx].get('bcg_prob')
             if bcg_prob is not None and not np.isnan(bcg_prob):
-                true_bcg_label = f'True BCG (p={bcg_prob:.3f})'
+                true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
         
         plt.scatter(target[0], target[1], marker='o', s=950, 
                    facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -434,11 +434,11 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
         if use_uq and len(probabilities) > 0:
             max_prob = np.max(probabilities)
             n_detections = np.sum(probabilities >= detection_threshold)
-            subtitle += f' | Max $\\bar{{p}}_i$: {max_prob:.3f} | Detections: {n_detections} (≥{detection_threshold:.2f})'
+            subtitle += f' | Max $\\bar{{p}}$: {max_prob:.2f} | Detections: {n_detections} (≥{detection_threshold:.2f})'
         elif len(scores) > 0:
             max_score = np.max(scores)
             avg_score = np.mean(scores)
-            subtitle += f' | Selected Score: {max_score:.3f} | Avg Score: {avg_score:.3f}'
+            subtitle += f' | Selected Score: {max_score:.2f} | Avg Score: {avg_score:.2f}'
             
         plt.title(f'{title}\n{subtitle}', fontsize=16, color='black')
         plt.legend(fontsize=14)
@@ -567,7 +567,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
                                                 markeredgecolor=color, markersize=12,
                                                 markeredgewidth=2, linestyle='None', markerfacecolor='None',
-                                                label=f'Rank {rank+1} ($\\bar{{p}}_i$: {prob:.2f})'))
+                                                label=f'Rank {rank+1} ($\\bar{{p}}$: {prob:.2f})'))
         else:
             # Standard visualization for non-UQ mode
             legend_elements = []
@@ -592,7 +592,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
             bcg_prob = metadata_list[idx].get('bcg_prob')
             if bcg_prob is not None and not np.isnan(bcg_prob):
-                true_bcg_label = f'True BCG (p={bcg_prob:.3f})'
+                true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
         
         ax.scatter(target[0], target[1], marker='o', s=950, 
                   facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, 

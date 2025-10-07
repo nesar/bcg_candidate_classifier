@@ -125,8 +125,8 @@ def main():
     
     # Dataset selection
     print("\nDataset options:")
-    print("1. BCG 2.2 arcmin (default)")
-    print("2. BCG 3.8 arcmin")
+    print("1. BCG 3.8 arcmin (default)")
+    print("2. BCG 2.2 arcmin")
     
     dataset_choice = input("\nSelect dataset (1-2): ").strip()
     
@@ -141,13 +141,13 @@ def main():
     candidate_delta_mstar_range = None
     
     if dataset_choice == "2":
-        DATASET_TYPE = "bcg_3p8arcmin" 
-        bcg_arcmin_type = "3p8arcmin"
-        print(f"\nSelected: BCG 3.8 arcmin dataset")
-    else:
-        DATASET_TYPE = "bcg_2p2arcmin"
+        DATASET_TYPE = "bcg_2p2arcmin" 
         bcg_arcmin_type = "2p2arcmin"
         print(f"\nSelected: BCG 2.2 arcmin dataset")
+    else:
+        DATASET_TYPE = "bcg_3p8arcmin"
+        bcg_arcmin_type = "3p8arcmin"
+        print(f"\nSelected: BCG 3.8 arcmin dataset")
     
     # Get paths from centralized configuration
     paths = _path_config.get_paths(bcg_arcmin_type)
@@ -395,13 +395,13 @@ def main():
     modify_training = input("Modify training parameters? (y/N): ").strip().lower()
     
     if modify_training in ['y', 'yes']:
-        epochs = int(input("Number of epochs (default 64): ") or "64")
+        epochs = int(input("Number of epochs (default 128): ") or "128")
         batch_size = int(input("Batch size (default 16): ") or "16")
-        lr = float(input("Learning rate (default 0.0001): ") or "0.0001")
+        lr = float(input("Learning rate (default 0.0002): ") or "0.0002")
     else:
-        epochs = 64
+        epochs = 128
         batch_size = 16
-        lr = 0.0001
+        lr = 0.0002
         print(f"Using defaults: epochs={epochs}, batch_size={batch_size}, lr={lr}")
     
     # Feature extraction parameters
