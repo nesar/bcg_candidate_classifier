@@ -746,9 +746,30 @@ except Exception as e:
             print(f"Warning: CSV reports directory not found, skipping plot_physical_results.py")
     else:
         print("Skipping plot_physical_results.py (no feature importance analysis)")
-    
+
+    # Step 6: Generate Literature Comparison Analysis
+    step_number = 6 if run_analysis else 5
+    print(f"\n" + "="*80)
+    print(f"STEP {step_number}: GENERATING LITERATURE COMPARISON ANALYSIS")
+    print("="*80)
+
+    # Run comprehensive analysis script
+    lit_analysis_script = os.path.join("analysis", "literature_comparison", "comprehensive_analysis.py")
+    if os.path.exists(lit_analysis_script):
+        lit_analysis_command = f"python {lit_analysis_script} \"{output_dir}\""
+        if not run_command(lit_analysis_command, "Generating literature comparison analysis and plots"):
+            print("Literature comparison analysis failed, but continuing...")
+        else:
+            lit_output_dir = os.path.join(output_dir, "literature_analysis")
+            print(f"Literature comparison analysis complete!")
+            print(f"  📊 9 publication-quality plots saved to: {lit_output_dir}/")
+            print(f"  📚 Comparison with 4 recent papers (2022-2025)")
+    else:
+        print(f"Warning: Literature comparison script not found: {lit_analysis_script}")
+        print("Skipping literature comparison analysis")
+
     # Final Step: Summary
-    final_step_number = 6 if run_analysis else 5
+    final_step_number = 7 if run_analysis else 6
     print(f"\n" + "="*80)
     print("ENHANCED WORKFLOW COMPLETED SUCCESSFULLY!")
     print("="*80)
@@ -771,7 +792,23 @@ except Exception as e:
     if use_uq:
         print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
         print(f"  Uncertainty plots: {test_output_dir}/probability_analysis.png")
-    
+
+    # Literature comparison analysis results
+    lit_output_dir = os.path.join(output_dir, "literature_analysis")
+    if os.path.exists(lit_output_dir):
+        print(f"\n  === Literature Comparison Analysis ===")
+        print(f"  Analysis directory: {lit_output_dir}/")
+        print(f"  Learning curves: {lit_output_dir}/plot1_learning_curve.png")
+        print(f"  Accuracy plots: {lit_output_dir}/plot2_accuracy.png")
+        print(f"  Top features: {lit_output_dir}/plot3_top_features.png")
+        print(f"  Feature groups: {lit_output_dir}/plot4_feature_groups.png")
+        print(f"  Error CDF: {lit_output_dir}/plot5_error_cdf.png")
+        print(f"  Error histogram: {lit_output_dir}/plot6_error_histogram.png")
+        print(f"  Probability dist: {lit_output_dir}/plot7_probability_dist.png")
+        print(f"  Uncertainty scatter: {lit_output_dir}/plot8_uncertainty_scatter.png")
+        print(f"  Redshift performance: {lit_output_dir}/plot9_redshift_performance.png")
+        print(f"  📚 Compares with Janulewicz+ 2025, Chu+ 2025, Tian+ 2024, Marini+ 2022")
+
     # Feature importance analysis results
     if run_analysis and analysis_output_dir:
         print(f"\n  === Feature Importance Analysis Results ===")
@@ -855,6 +892,17 @@ except Exception as e:
         print(f"{enhancement_num}. ✗ Feature importance analysis (skipped)")
         enhancement_num += 1
     
+    print(f"{enhancement_num}. ✓ Literature Comparison Analysis:")
+    if os.path.exists(lit_output_dir):
+        print("   - 9 publication-quality plots generated")
+        print("   - Comparison with 4 recent papers (2022-2025)")
+        print("   - Learning curves, accuracy, error distributions")
+        print("   - Feature importance rankings (if available)")
+        print("   - Performance by redshift analysis")
+    else:
+        print("   - Skipped (script not found or failed)")
+    enhancement_num += 1
+
     print(f"{enhancement_num}. ✓ BCG Dataset Integration:")
     print(f"   - New astronomical data ({bcg_arcmin_type} scale)")
     if use_additional_features:
@@ -868,7 +916,7 @@ except Exception as e:
         print("   - Automatic candidate detection")
     if z_range or delta_mstar_z_range:
         print("   - Data filtering by physical properties")
-    
+
     print(f"\nTo re-run evaluation with different parameters:")
     test_cmd_simple = f"python {test_script} --model_path '{model_path}' --scaler_path '{scaler_path}'"
     if use_enhanced:
@@ -887,6 +935,7 @@ except Exception as e:
         print("- Uncertainty quantification with probabilistic outputs")
     if run_analysis:
         print("- Feature importance analysis with SHAP and gradient methods")
+    print("- Literature comparison analysis with publication-quality plots")
     print("- BCG dataset integration with additional features")
     print("- DESprior candidate system with filtering capabilities")
     print("All existing functionality maintained with backward compatibility.")
@@ -898,6 +947,16 @@ except Exception as e:
         print(f"   🔍 Individual explanations: {analysis_output_dir}/individual_plots/")
         print(f"   📋 Read summary report: {analysis_output_dir}/analysis_summary.txt")
         print(f"\n   Use these results to understand which features matter most for BCG detection!")
+
+    if os.path.exists(lit_output_dir):
+        print(f"\n📚 LITERATURE COMPARISON:")
+        print(f"   📊 View analysis plots: {lit_output_dir}/")
+        print(f"   📈 Compare with state-of-the-art methods from:")
+        print(f"      • Janulewicz et al. (2025) - Neural Networks for BCG ID")
+        print(f"      • Chu et al. (2025) - ML for Rubin-LSST")
+        print(f"      • Tian et al. (2024) - COSMIC Cluster Finding")
+        print(f"      • Marini et al. (2022) - ICL and BCG Identification")
+        print(f"\n   Use these plots for publications and presentations!")
 
 
 if __name__ == "__main__":
