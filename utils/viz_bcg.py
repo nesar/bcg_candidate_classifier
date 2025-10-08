@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
+from matplotlib.legend_handler import HandlerPatch
 
 # Set style consistent with plot_physical_results.py
 plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
@@ -686,10 +688,10 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                     ax.scatter(bcg_x, bcg_y, marker='o', s=950,
                              facecolors='none', edgecolors=color, linewidths=3,
                              alpha=1.0, linestyle='dashed')
-                    legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
-                                                    markeredgecolor=color, markersize=15,
-                                                    markerfacecolor='None', markeredgewidth=3,
-                                                    linestyle='dashed', label=label))
+                    # Create dashed circle for legend
+                    circle = Circle((0, 0), radius=1, fill=False, edgecolor=color,
+                                  linewidth=3, linestyle='dashed')
+                    legend_elements.append((circle, label))
         else:
             # Single BCG or no candidates info - use original behavior
             target_label = 'Target'
@@ -701,9 +703,10 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             ax.scatter(target[0], target[1], marker='o', s=950,
                       facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
                       linestyle='dashed')
-            legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
-                                            markeredgecolor="#59F5ED", markersize=15, markerfacecolor='None',
-                                            markeredgewidth=3, linestyle='dashed', label=target_label))
+            # Create dashed circle for legend
+            circle = Circle((0, 0), radius=1, fill=False, edgecolor="#59F5ED",
+                          linewidth=3, linestyle='dashed')
+            legend_elements.append((circle, target_label))
         
         # Get cluster name and redshift for display
         cluster_name = 'Unknown'
@@ -824,11 +827,22 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ax.set_yticklabels(y_labels, fontsize=14)
         
         # Move legend to bottom-left and make it column-wise with smaller font
-        ncol = min(3, len(legend_elements))  # Adaptive column count
-        ax.legend(handles=legend_elements, loc='lower left', 
+        # Separate patches and labels from legend_elements
+        handles = []
+        labels = []
+        for elem in legend_elements:
+            if isinstance(elem, tuple):
+                handles.append(elem[0])
+                labels.append(elem[1])
+            else:
+                handles.append(elem)
+                labels.append(elem.get_label())
+
+        ncol = min(3, len(handles))  # Adaptive column count
+        ax.legend(handles=handles, labels=labels, loc='lower left',
                  bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
                  frameon=True, fancybox=True, shadow=False, framealpha=0.5,
-                 columnspacing=0.5, handletextpad=0.3)
+                 columnspacing=0.5, handletextpad=0.3, handler_map={Circle: HandlerPatch()})
         
         # Remove title (cluster name now in corner)
         # Keep axis visible for coordinate reference

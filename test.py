@@ -1286,6 +1286,7 @@ def main(args):
         matches_any_target = []
         n_targets_per_image = []
         min_distance_to_any_target = []
+        multi_target_bcg_ranks = []
 
         for i, (pred, meta) in enumerate(zip(predictions, sample_metadata)):
             all_bcg_candidates = meta.get('all_bcg_candidates', [])
@@ -1294,8 +1295,10 @@ def main(args):
 
             # Check if prediction matches ANY target (within threshold)
             if len(all_bcg_candidates) > 1:
-                # Multiple targets - check distance to all
+                # Multiple targets - check distance to all and find best rank
                 min_dist = float('inf')
+                best_rank_for_any_target = None
+
                 for bcg_cand in all_bcg_candidates:
                     if 'x' in bcg_cand and 'y' in bcg_cand:
                         bcg_pos = np.array([bcg_cand['x'], bcg_cand['y']])
@@ -1303,13 +1306,24 @@ def main(args):
                         dist = np.sqrt(np.sum((pred_pos - bcg_pos)**2))
                         min_dist = min(min_dist, dist)
 
+                        # Calculate rank for this target
+                        if i < len(all_candidates_list) and i < len(all_scores_list):
+                            candidates = all_candidates_list[i]
+                            scores = all_scores_list[i] if all_scores_list else []
+                            if len(candidates) > 0 and len(scores) > 0:
+                                rank = calculate_bcg_rank(bcg_pos, candidates, scores, distance_threshold=10.0)
+                                if rank is not None:
+                                    if best_rank_for_any_target is None or rank < best_rank_for_any_target:
+                                        best_rank_for_any_target = rank
+
                 min_distance_to_any_target.append(min_dist)
-                # Match if within 10 pixel threshold
                 matches_any_target.append(min_dist <= 10.0)
+                multi_target_bcg_ranks.append(best_rank_for_any_target)
             else:
-                # Single target - use the original distance
+                # Single target - use the original distance and rank
                 min_distance_to_any_target.append(distances[i])
                 matches_any_target.append(distances[i] <= 10.0)
+                multi_target_bcg_ranks.append(bcg_ranks[i])
 
         # Create enhanced results dictionary
         results_data = {
@@ -1322,7 +1336,8 @@ def main(args):
             'bcg_rank': bcg_ranks,
             'n_targets': n_targets_per_image,
             'matches_any_target': matches_any_target,
-            'min_dist_to_any_target': min_distance_to_any_target
+            'min_dist_to_any_target': min_distance_to_any_target,
+            'multi_target_rank': multi_target_bcg_ranks
         }
         
         # Add UQ-specific columns
@@ -1385,7 +1400,7 @@ def main(args):
         cols.extend(['pred_x', 'pred_y', 'true_x', 'true_y', 'distance_error'])
 
         # Add multi-target matching columns
-        cols.extend(['n_targets', 'matches_any_target', 'min_dist_to_any_target'])
+        cols.extend(['n_targets', 'matches_any_target', 'min_dist_to_any_target', 'multi_target_rank'])
 
         # Add rank-based evaluation column
         cols.extend(['bcg_rank'])

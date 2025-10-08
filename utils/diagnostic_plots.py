@@ -245,53 +245,53 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
                 facecolor="lightgray", alpha=0.8))
         ax4.set_title('Uncertainty Quantification\n(No Data Available)')
     
-    # Plot 5: Multi-Target Accuracy Comparison
+    # Plot 5: Multi-Target Rank-Based Success Analysis
     ax5 = axes[1, 1]
-    if 'matches_any_target' in df.columns and 'n_targets' in df.columns:
-        # Calculate multi-target accuracy
-        multi_target_correct = df['matches_any_target'].sum()
-        multi_target_accuracy = multi_target_correct / len(df) * 100
+    if 'multi_target_rank' in df.columns and not df['multi_target_rank'].isna().all():
+        # Multi-target rank-based success analysis
+        multi_ranks = df['multi_target_rank'].dropna()
 
-        # Calculate single-target accuracy for comparison
-        single_target_correct = np.sum(correct_detections)
-        single_target_accuracy = accuracy
+        # Count successes by rank (considering all targets)
+        rank_1_count = len(multi_ranks[multi_ranks == 1])
+        rank_2_count = len(multi_ranks[multi_ranks == 2])
+        rank_3_count = len(multi_ranks[multi_ranks == 3])
+        rank_other_count = len(multi_ranks[multi_ranks > 3])
+        no_success_count = len(df) - len(multi_ranks)  # Cases where no target found in any rank
+
+        counts = [rank_1_count, rank_2_count, rank_3_count, rank_other_count, no_success_count]
+        labels = [
+            f'Best Prediction\n(Rank 1)\n{rank_1_count} ({rank_1_count/len(df)*100:.1f}%)',
+            f'2nd Best Prediction\n(Rank 2)\n{rank_2_count} ({rank_2_count/len(df)*100:.1f}%)',
+            f'3rd Best Prediction\n(Rank 3)\n{rank_3_count} ({rank_3_count/len(df)*100:.1f}%)',
+            f'Lower Rank\n(Rank >3)\n{rank_other_count} ({rank_other_count/len(df)*100:.1f}%)',
+            f'Not Detected\n{no_success_count} ({no_success_count/len(df)*100:.1f}%)'
+        ]
+        colors = ['#2ecc71', '#f39c12', '#e67e22', '#9b59b6', '#e74c3c']
+
+        # Filter out zero counts for cleaner display
+        non_zero_indices = [i for i, count in enumerate(counts) if count > 0]
+        counts = [counts[i] for i in non_zero_indices]
+        labels = [labels[i] for i in non_zero_indices]
+        colors = [colors[i] for i in non_zero_indices]
+
+        wedges, texts, autotexts = ax5.pie(counts, labels=labels, colors=colors, autopct='',
+                                           startangle=90, textprops={'fontsize': 9})
+
+        # Calculate top-3 success rate
+        top3_success = (rank_1_count + rank_2_count + rank_3_count) / len(df) * 100
 
         # Count images with multiple targets
-        images_with_multiple_targets = len(df[df['n_targets'] > 1])
-        pct_multiple_targets = images_with_multiple_targets / len(df) * 100
+        images_with_multiple_targets = 0
+        if 'n_targets' in df.columns:
+            images_with_multiple_targets = len(df[df['n_targets'] > 1])
 
-        # Create comparison bar chart
-        metrics = ['Single-Target\nAccuracy', 'Multi-Target\nAccuracy']
-        values = [single_target_accuracy, multi_target_accuracy]
-        colors_bar = ['#3498db', '#2ecc71']
-
-        bars = ax5.bar(metrics, values, color=colors_bar, alpha=0.8, edgecolor='black', linewidth=1.5)
-
-        # Add value labels on bars
-        for bar, value in zip(bars, values):
-            height = bar.get_height()
-            ax5.text(bar.get_x() + bar.get_width()/2., height + 1,
-                    f'{value:.1f}%', ha='center', va='bottom', fontsize=16, fontweight='bold')
-
-        ax5.set_ylabel('Accuracy (%)', fontsize=18)
-        ax5.set_title(f'Accuracy Comparison (≤10px)\n{images_with_multiple_targets} images ({pct_multiple_targets:.1f}%) have multiple targets',
-                     fontweight='bold', fontsize=16)
-        ax5.set_ylim(0, 105)
-        ax5.tick_params(axis='both', labelsize=18)
-        ax5.grid(True, alpha=0.3, axis='y')
-
-        # Add improvement annotation if there's a difference
-        improvement = multi_target_accuracy - single_target_accuracy
-        if abs(improvement) > 0.1:
-            ax5.text(0.5, 0.5, f'Improvement:\n{improvement:+.1f}%',
-                    transform=ax5.transAxes, ha='center', va='center',
-                    fontsize=14, bbox=dict(boxstyle="round,pad=0.5",
-                    facecolor='yellow' if improvement > 0 else 'lightcoral', alpha=0.3))
+        ax5.set_title(f'Multi-Target Rank Analysis\nTop-3 Success: {top3_success:.1f}%\n({images_with_multiple_targets} images have multiple targets)',
+                     fontweight='bold', fontsize=14)
     else:
-        ax5.text(0.5, 0.5, 'Multi-target matching\ndata not available\n(run test.py to generate)',
+        ax5.text(0.5, 0.5, 'Multi-target rank data\nnot available\n(run test.py to generate)',
                 ha='center', va='center', transform=ax5.transAxes, fontsize=12,
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray", alpha=0.8))
-        ax5.set_title('Multi-Target Accuracy\n(No Data Available)', fontsize=16)
+        ax5.set_title('Multi-Target Rank Analysis\n(No Data Available)', fontsize=16)
     
     # Plot 6: Performance Summary Statistics
     ax6 = axes[1, 2]
