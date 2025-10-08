@@ -155,17 +155,48 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                        facecolors='none', edgecolors='red', linewidths=3, alpha=0.9,
                        label='Predicted BCG')
         
-        # Always plot true BCG location as yellow circle (transparent with edges only)
-        # Get BCG probability from metadata (ground truth) if available
-        true_bcg_label = 'True BCG'
+        # Always plot true BCG location and ALL RedMapper candidates
+        # Check if we have multiple BCG candidates for this cluster
+        all_bcg_candidates = []
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-            bcg_prob = metadata_list[idx].get('bcg_prob')
-            if bcg_prob is not None and not np.isnan(bcg_prob):
-                true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
-        
-        plt.scatter(target[0], target[1], marker='o', s=950, 
-                   facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
-                   label=true_bcg_label)
+            all_bcg_candidates = metadata_list[idx].get('all_bcg_candidates', [])
+
+        if len(all_bcg_candidates) > 1:
+            # Multiple RedMapper candidates - plot all of them with dashed circles
+            redmapper_colors = ['#59F5ED', '#FF1493', '#00FF00', '#FFD700', '#FF4500',
+                               '#9370DB', '#00CED1', '#FF69B4', '#32CD32', '#FFA500']
+
+            # Sort candidates by probability (descending) for consistent ordering
+            sorted_candidates = sorted(all_bcg_candidates,
+                                     key=lambda x: x.get('prob', 0), reverse=True)
+
+            for bcg_idx, bcg_candidate in enumerate(sorted_candidates):
+                if 'x' in bcg_candidate and 'y' in bcg_candidate:
+                    bcg_x = bcg_candidate['x']
+                    bcg_y = bcg_candidate['y']
+                    bcg_prob = bcg_candidate.get('prob', None)
+                    color = redmapper_colors[bcg_idx % len(redmapper_colors)]
+
+                    # Create label with probability
+                    if bcg_prob is not None and not np.isnan(bcg_prob):
+                        label = f'RedMapper #{bcg_idx+1} (p={bcg_prob:.2f})'
+                    else:
+                        label = f'RedMapper #{bcg_idx+1}'
+
+                    plt.scatter(bcg_x, bcg_y, marker='o', s=950,
+                               facecolors='none', edgecolors=color, linewidths=3,
+                               alpha=1.0, ls='dashed', label=label)
+        else:
+            # Single BCG or no candidates info - use original behavior
+            true_bcg_label = 'True BCG'
+            if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
+                bcg_prob = metadata_list[idx].get('bcg_prob')
+                if bcg_prob is not None and not np.isnan(bcg_prob):
+                    true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
+
+            plt.scatter(target[0], target[1], marker='o', s=950,
+                       facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
+                       label=true_bcg_label)
         
         # Add title with information including cluster name
         cluster_name = 'Unknown'
@@ -405,17 +436,48 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
                         transform=plt.gca().transAxes, fontsize=18, color='red',
                         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
         
-        # Always plot true BCG location as blue dashed circle (same as successful cases)
-        # Get BCG probability from metadata (ground truth) if available
-        true_bcg_label = 'True BCG'
+        # Always plot true BCG location and ALL RedMapper candidates
+        # Check if we have multiple BCG candidates for this cluster
+        all_bcg_candidates = []
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-            bcg_prob = metadata_list[idx].get('bcg_prob')
-            if bcg_prob is not None and not np.isnan(bcg_prob):
-                true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
-        
-        plt.scatter(target[0], target[1], marker='o', s=950, 
-                   facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
-                   label=true_bcg_label)
+            all_bcg_candidates = metadata_list[idx].get('all_bcg_candidates', [])
+
+        if len(all_bcg_candidates) > 1:
+            # Multiple RedMapper candidates - plot all of them with dashed circles
+            redmapper_colors = ['#59F5ED', '#FF1493', '#00FF00', '#FFD700', '#FF4500',
+                               '#9370DB', '#00CED1', '#FF69B4', '#32CD32', '#FFA500']
+
+            # Sort candidates by probability (descending) for consistent ordering
+            sorted_candidates = sorted(all_bcg_candidates,
+                                     key=lambda x: x.get('prob', 0), reverse=True)
+
+            for bcg_idx, bcg_candidate in enumerate(sorted_candidates):
+                if 'x' in bcg_candidate and 'y' in bcg_candidate:
+                    bcg_x = bcg_candidate['x']
+                    bcg_y = bcg_candidate['y']
+                    bcg_prob = bcg_candidate.get('prob', None)
+                    color = redmapper_colors[bcg_idx % len(redmapper_colors)]
+
+                    # Create label with probability
+                    if bcg_prob is not None and not np.isnan(bcg_prob):
+                        label = f'RedMapper #{bcg_idx+1} (p={bcg_prob:.2f})'
+                    else:
+                        label = f'RedMapper #{bcg_idx+1}'
+
+                    plt.scatter(bcg_x, bcg_y, marker='o', s=950,
+                               facecolors='none', edgecolors=color, linewidths=3,
+                               alpha=1.0, ls='dashed', label=label)
+        else:
+            # Single BCG or no candidates info - use original behavior
+            true_bcg_label = 'True BCG'
+            if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
+                bcg_prob = metadata_list[idx].get('bcg_prob')
+                if bcg_prob is not None and not np.isnan(bcg_prob):
+                    true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
+
+            plt.scatter(target[0], target[1], marker='o', s=950,
+                       facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
+                       label=true_bcg_label)
         
         # Add title with failure information and cluster name
         cluster_name = 'Unknown'
@@ -587,19 +649,59 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                                             markeredgecolor='red', markersize=12, markerfacecolor='None',
                                             markeredgewidth=3, linestyle='None', label='Predicted BCG'))
         
-        # Always plot true BCG location
-        true_bcg_label = 'True BCG'
+        # Always plot true BCG location and ALL RedMapper candidates
+        # Check if we have multiple BCG candidates for this cluster
+        all_bcg_candidates = []
         if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-            bcg_prob = metadata_list[idx].get('bcg_prob')
-            if bcg_prob is not None and not np.isnan(bcg_prob):
-                true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
-        
-        ax.scatter(target[0], target[1], marker='o', s=950, 
-                  facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, 
-                  linestyle='dashed')
-        legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
-                                        markeredgecolor="#59F5ED", markersize=15, markerfacecolor='None',
-                                        markeredgewidth=3, linestyle='None', label=true_bcg_label))
+            all_bcg_candidates = metadata_list[idx].get('all_bcg_candidates', [])
+
+        if len(all_bcg_candidates) > 1:
+            # Multiple RedMapper candidates - plot all of them with dashed circles
+            # Use different colors for different candidates, sorted by probability
+            redmapper_colors = ['#59F5ED', '#FF1493', '#00FF00', '#FFD700', '#FF4500',
+                               '#9370DB', '#00CED1', '#FF69B4', '#32CD32', '#FFA500']
+
+            # Sort candidates by probability (descending) for consistent ordering
+            sorted_candidates = sorted(all_bcg_candidates,
+                                     key=lambda x: x.get('prob', 0), reverse=True)
+
+            for bcg_idx, bcg_candidate in enumerate(sorted_candidates):
+                if 'x' in bcg_candidate and 'y' in bcg_candidate:
+                    bcg_x = bcg_candidate['x']
+                    bcg_y = bcg_candidate['y']
+                    bcg_prob = bcg_candidate.get('prob', None)
+
+                    # Pick color from palette
+                    color = redmapper_colors[bcg_idx % len(redmapper_colors)]
+
+                    # Create label with probability
+                    if bcg_prob is not None and not np.isnan(bcg_prob):
+                        label = f'RedMapper #{bcg_idx+1} (p={bcg_prob:.2f})'
+                    else:
+                        label = f'RedMapper #{bcg_idx+1}'
+
+                    # Plot with dashed circle
+                    ax.scatter(bcg_x, bcg_y, marker='o', s=950,
+                             facecolors='none', edgecolors=color, linewidths=3,
+                             alpha=1.0, linestyle='dashed')
+                    legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                                    markeredgecolor=color, markersize=15,
+                                                    markerfacecolor='None', markeredgewidth=3,
+                                                    linestyle='None', label=label))
+        else:
+            # Single BCG or no candidates info - use original behavior
+            true_bcg_label = 'True BCG'
+            if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
+                bcg_prob = metadata_list[idx].get('bcg_prob')
+                if bcg_prob is not None and not np.isnan(bcg_prob):
+                    true_bcg_label = f'True BCG (p={bcg_prob:.2f})'
+
+            ax.scatter(target[0], target[1], marker='o', s=950,
+                      facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
+                      linestyle='dashed')
+            legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                            markeredgecolor="#59F5ED", markersize=15, markerfacecolor='None',
+                                            markeredgewidth=3, linestyle='None', label=true_bcg_label))
         
         # Get cluster name and redshift for display
         cluster_name = 'Unknown'

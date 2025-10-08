@@ -503,7 +503,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
         if original_dataframe is not None:
             cluster_name = filename.replace('.tif', '').split('_')[0]
             metadata['cluster_name'] = cluster_name
-            
+
             cluster_col = 'Cluster name' if 'Cluster name' in original_dataframe.columns else 'cluster_name'
             if cluster_col in original_dataframe.columns:
                 matching_rows = original_dataframe[original_dataframe[cluster_col] == cluster_name]
@@ -522,6 +522,30 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         metadata['bcg_ra'] = row['BCG RA']
                     if 'BCG Dec' in row:
                         metadata['bcg_dec'] = row['BCG Dec']
+
+                    # Extract ALL BCG candidates for this cluster (for multiple RedMapper candidates)
+                    all_bcg_candidates = []
+                    for _, bcg_row in matching_rows.iterrows():
+                        bcg_info = {}
+                        # Get coordinates
+                        if 'BCG RA' in bcg_row and 'BCG Dec' in bcg_row:
+                            bcg_info['ra'] = bcg_row['BCG RA']
+                            bcg_info['dec'] = bcg_row['BCG Dec']
+                        # Get probability
+                        prob_cols = [col for col in bcg_row.index if 'prob' in col.lower()]
+                        if prob_cols and not pd.isna(bcg_row[prob_cols[0]]):
+                            bcg_info['prob'] = bcg_row[prob_cols[0]]
+                        # Get pixel coordinates (x, y)
+                        if 'x' in bcg_row and 'y' in bcg_row:
+                            bcg_info['x'] = bcg_row['x']
+                            bcg_info['y'] = bcg_row['y']
+
+                        # Only add if we have essential information
+                        if bcg_info:
+                            all_bcg_candidates.append(bcg_info)
+
+                    if len(all_bcg_candidates) > 0:
+                        metadata['all_bcg_candidates'] = all_bcg_candidates
         
         # Extract additional features if using BCG data
         additional_features = None
