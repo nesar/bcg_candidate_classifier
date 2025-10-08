@@ -1282,15 +1282,47 @@ def main(args):
         features_file = os.path.join(args.output_dir, 'test_features.npz')
         print(f"Saving {len(all_features_list)} samples of features for analysis...")
         
+        # Calculate multi-target matching (for images with multiple BCG candidates)
+        matches_any_target = []
+        n_targets_per_image = []
+        min_distance_to_any_target = []
+
+        for i, (pred, meta) in enumerate(zip(predictions, sample_metadata)):
+            all_bcg_candidates = meta.get('all_bcg_candidates', [])
+            n_targets = len(all_bcg_candidates) if len(all_bcg_candidates) > 1 else 1
+            n_targets_per_image.append(n_targets)
+
+            # Check if prediction matches ANY target (within threshold)
+            if len(all_bcg_candidates) > 1:
+                # Multiple targets - check distance to all
+                min_dist = float('inf')
+                for bcg_cand in all_bcg_candidates:
+                    if 'x' in bcg_cand and 'y' in bcg_cand:
+                        bcg_pos = np.array([bcg_cand['x'], bcg_cand['y']])
+                        pred_pos = np.array(pred)
+                        dist = np.sqrt(np.sum((pred_pos - bcg_pos)**2))
+                        min_dist = min(min_dist, dist)
+
+                min_distance_to_any_target.append(min_dist)
+                # Match if within 10 pixel threshold
+                matches_any_target.append(min_dist <= 10.0)
+            else:
+                # Single target - use the original distance
+                min_distance_to_any_target.append(distances[i])
+                matches_any_target.append(distances[i] <= 10.0)
+
         # Create enhanced results dictionary
         results_data = {
             'pred_x': [pred[0] for pred in predictions],
-            'pred_y': [pred[1] for pred in predictions], 
+            'pred_y': [pred[1] for pred in predictions],
             'true_x': [target[0] for target in targets],
             'true_y': [target[1] for target in targets],
             'distance_error': distances,
             'n_candidates': [len(cand) for cand in all_candidates_list],
-            'bcg_rank': bcg_ranks
+            'bcg_rank': bcg_ranks,
+            'n_targets': n_targets_per_image,
+            'matches_any_target': matches_any_target,
+            'min_dist_to_any_target': min_distance_to_any_target
         }
         
         # Add UQ-specific columns
@@ -1351,7 +1383,10 @@ def main(args):
         
         # Add coordinate and error columns
         cols.extend(['pred_x', 'pred_y', 'true_x', 'true_y', 'distance_error'])
-        
+
+        # Add multi-target matching columns
+        cols.extend(['n_targets', 'matches_any_target', 'min_dist_to_any_target'])
+
         # Add rank-based evaluation column
         cols.extend(['bcg_rank'])
         
