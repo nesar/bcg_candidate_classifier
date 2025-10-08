@@ -1,23 +1,6 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle
-from matplotlib.legend_handler import HandlerPatch
-import matplotlib.patches as mpatches
-
-# Custom handler for dashed circle in legend
-class HandlerDashedCircle(HandlerPatch):
-    def create_artists(self, legend, orig_handle,
-                      xdescent, ydescent, width, height, fontsize, trans):
-        center = 0.5 * width - 0.5 * xdescent, 0.5 * height - 0.5 * ydescent
-        radius = min(width, height) / 3
-        p = mpatches.Circle(xy=center, radius=radius,
-                           fill=False,
-                           edgecolor=orig_handle.get_edgecolor(),
-                           linewidth=orig_handle.get_linewidth(),
-                           linestyle=orig_handle.get_linestyle(),
-                           transform=trans)
-        return [p]
 
 # Set style consistent with plot_physical_results.py
 plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
@@ -700,13 +683,11 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                         label = f'Target {bcg_idx+1}'
 
                     # Plot with dashed circle
-                    ax.scatter(bcg_x, bcg_y, marker='o', s=950,
-                             facecolors='none', edgecolors=color, linewidths=3,
-                             alpha=1.0, linestyle='dashed')
-                    # Create dashed circle for legend
-                    circle = Circle((0, 0), radius=1, fill=False, edgecolor=color,
-                                  linewidth=3, linestyle='dashed')
-                    legend_elements.append((circle, label))
+                    scatter = ax.scatter(bcg_x, bcg_y, marker='o', s=950,
+                                        facecolors='none', edgecolors=color, linewidths=3,
+                                        alpha=1.0, linestyle='dashed', label=label)
+                    # Add to legend elements using the scatter object
+                    legend_elements.append(scatter)
         else:
             # Single BCG or no candidates info - use original behavior
             target_label = 'Target'
@@ -715,13 +696,11 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 if bcg_prob is not None and not np.isnan(bcg_prob):
                     target_label = f'Target (p={bcg_prob:.2f})'
 
-            ax.scatter(target[0], target[1], marker='o', s=950,
-                      facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
-                      linestyle='dashed')
-            # Create dashed circle for legend
-            circle = Circle((0, 0), radius=1, fill=False, edgecolor="#59F5ED",
-                          linewidth=3, linestyle='dashed')
-            legend_elements.append((circle, target_label))
+            scatter = ax.scatter(target[0], target[1], marker='o', s=950,
+                                facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
+                                linestyle='dashed', label=target_label)
+            # Add to legend elements using the scatter object
+            legend_elements.append(scatter)
         
         # Get cluster name and redshift for display
         cluster_name = 'Unknown'
@@ -842,22 +821,11 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ax.set_yticklabels(y_labels, fontsize=14)
         
         # Move legend to bottom-left and make it column-wise with smaller font
-        # Separate patches and labels from legend_elements
-        handles = []
-        labels = []
-        for elem in legend_elements:
-            if isinstance(elem, tuple):
-                handles.append(elem[0])
-                labels.append(elem[1])
-            else:
-                handles.append(elem)
-                labels.append(elem.get_label())
-
-        ncol = min(3, len(handles))  # Adaptive column count
-        ax.legend(handles=handles, labels=labels, loc='lower left',
+        ncol = min(3, len(legend_elements))  # Adaptive column count
+        ax.legend(handles=legend_elements, loc='lower left',
                  bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
                  frameon=True, fancybox=True, shadow=False, framealpha=0.5,
-                 columnspacing=0.5, handletextpad=0.3, handler_map={Circle: HandlerDashedCircle()})
+                 columnspacing=0.5, handletextpad=0.3)
         
         # Remove title (cluster name now in corner)
         # Keep axis visible for coordinate reference
