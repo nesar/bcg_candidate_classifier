@@ -3,6 +3,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib.legend_handler import HandlerPatch
+import matplotlib.patches as mpatches
+
+# Custom handler for dashed circle in legend
+class HandlerDashedCircle(HandlerPatch):
+    def create_artists(self, legend, orig_handle,
+                      xdescent, ydescent, width, height, fontsize, trans):
+        center = 0.5 * width - 0.5 * xdescent, 0.5 * height - 0.5 * ydescent
+        radius = min(width, height) / 3
+        p = mpatches.Circle(xy=center, radius=radius,
+                           fill=False,
+                           edgecolor=orig_handle.get_edgecolor(),
+                           linewidth=orig_handle.get_linewidth(),
+                           linestyle=orig_handle.get_linestyle(),
+                           transform=trans)
+        return [p]
 
 # Set style consistent with plot_physical_results.py
 plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
@@ -842,7 +857,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ax.legend(handles=handles, labels=labels, loc='lower left',
                  bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
                  frameon=True, fancybox=True, shadow=False, framealpha=0.5,
-                 columnspacing=0.5, handletextpad=0.3, handler_map={Circle: HandlerPatch()})
+                 columnspacing=0.5, handletextpad=0.3, handler_map={Circle: HandlerDashedCircle()})
         
         # Remove title (cluster name now in corner)
         # Keep axis visible for coordinate reference
