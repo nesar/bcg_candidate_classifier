@@ -683,11 +683,15 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                         label = f'Target {bcg_idx+1}'
 
                     # Plot with dashed circle
-                    scatter = ax.scatter(bcg_x, bcg_y, marker='o', s=950,
-                                        facecolors='none', edgecolors=color, linewidths=3,
-                                        alpha=1.0, linestyle='dashed', label=label)
-                    # Add to legend elements using the scatter object
-                    legend_elements.append(scatter)
+                    ax.scatter(bcg_x, bcg_y, marker='o', s=950,
+                              facecolors='none', edgecolors=color, linewidths=3,
+                              alpha=1.0, linestyle='dashed')
+                    # Create legend entry with Line2D to match Rank symbols size (solid edge in legend)
+                    legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                                    markeredgecolor=color, markersize=12,
+                                                    markeredgewidth=3, linestyle='None',
+                                                    markerfacecolor='None',
+                                                    label=label))
         else:
             # Single BCG or no candidates info - use original behavior
             target_label = 'Target'
@@ -696,11 +700,15 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 if bcg_prob is not None and not np.isnan(bcg_prob):
                     target_label = f'Target (p={bcg_prob:.2f})'
 
-            scatter = ax.scatter(target[0], target[1], marker='o', s=950,
-                                facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
-                                linestyle='dashed', label=target_label)
-            # Add to legend elements using the scatter object
-            legend_elements.append(scatter)
+            ax.scatter(target[0], target[1], marker='o', s=950,
+                      facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
+                      linestyle='dashed')
+            # Create legend entry with Line2D to match Rank symbols size (solid edge in legend)
+            legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                            markeredgecolor="#59F5ED", markersize=12,
+                                            markeredgewidth=3, linestyle='None',
+                                            markerfacecolor='None',
+                                            label=target_label))
         
         # Get cluster name and redshift for display
         cluster_name = 'Unknown'
@@ -825,7 +833,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         ax.legend(handles=legend_elements, loc='lower left',
                  bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
                  frameon=True, fancybox=True, shadow=False, framealpha=0.5,
-                 columnspacing=0.5, handletextpad=0.3, markerscale=0.4)
+                 columnspacing=0.5, handletextpad=0.3)
         
         # Remove title (cluster name now in corner)
         # Keep axis visible for coordinate reference
