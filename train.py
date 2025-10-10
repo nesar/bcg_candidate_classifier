@@ -521,7 +521,7 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     plt.ylabel('Loss', fontsize=12)
     plt.title('Training and Validation Loss', fontsize=14, fontweight='bold')
     plt.legend(fontsize=12)
-    plt.grid(True, alpha=0.3)
+    # plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
     loss_plot_path = os.path.join(output_dir, 'training_loss_curves.png')
@@ -540,7 +540,7 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     plt.ylabel('Accuracy', fontsize=12)
     plt.title('Training and Validation Accuracy', fontsize=14, fontweight='bold')
     plt.legend(fontsize=12)
-    plt.grid(True, alpha=0.3)
+    # plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
     acc_plot_path = os.path.join(output_dir, 'training_accuracy_curves.png')
@@ -561,7 +561,7 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     ax1.set_ylabel('Loss')
     ax1.set_title('Training and Validation Loss')
     ax1.legend()
-    ax1.grid(True)
+    # ax1.grid(True)
     
     # Accuracy curves
     ax2.plot(epochs, train_accs, 'b-', label='Training Accuracy')
@@ -570,7 +570,7 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     ax2.set_ylabel('Accuracy')
     ax2.set_title('Training and Validation Accuracy')
     ax2.legend()
-    ax2.grid(True)
+    # ax2.grid(True)
     
     plt.tight_layout()
     combined_plot_path = os.path.join(output_dir, 'training_curves.png')
