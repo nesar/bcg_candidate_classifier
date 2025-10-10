@@ -130,7 +130,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                 
                 # Add ML confidence label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}',
-                        fontsize=14, color='k', #weight='bold',
+                        fontsize=12, color='k', #weight='bold',
                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.6))
                 
             # Update label for best candidate
@@ -181,7 +181,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                     # Create label with probability
                     if bcg_prob is not None and not np.isnan(bcg_prob):
                         # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
-                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$={bcg_prob:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -195,7 +195,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                 bcg_prob = metadata_list[idx].get('bcg_prob')
                 if bcg_prob is not None and not np.isnan(bcg_prob):
                     # target_label = f'Target (p={bcg_prob:.2f})'
-                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$={bcg_prob:.2f})'
+                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
 
             plt.scatter(target[0], target[1], marker='o', s=950,
                        facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -408,7 +408,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
                 
                 # Add probability label
                 plt.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}', 
-                        fontsize=16, color='k', #weight='bold', 
+                        fontsize=12, color='k', #weight='bold', 
                         bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.6))
                 
             # Update label for best candidate
@@ -465,7 +465,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
                     # Create label with probability
                     if bcg_prob is not None and not np.isnan(bcg_prob):
                         # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
-                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$={bcg_prob:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -479,7 +479,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
                 bcg_prob = metadata_list[idx].get('bcg_prob')
                 if bcg_prob is not None and not np.isnan(bcg_prob):
                     # target_label = f'Target (p={bcg_prob:.2f})'
-                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$={bcg_prob:.2f})'
+                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
 
             plt.scatter(target[0], target[1], marker='o', s=950,
                        facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -628,8 +628,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 
                 # Add ML confidence label
                 ax.text(candidate[0] + 8, candidate[1] - 8, f'{prob:.2f}',
-                       fontsize=14, color='k',
-                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.6))
+                       fontsize=11, color='k',
+                       bbox=dict(boxstyle="round,pad=0.1", facecolor='white', alpha=0.7))
 
                 # Create legend entry with mathematical notation for mean probability
                 legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
@@ -683,7 +683,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                     # Create label with probability
                     if bcg_prob is not None and not np.isnan(bcg_prob):
                         # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
-                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$={bcg_prob:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -704,7 +704,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 bcg_prob = metadata_list[idx].get('bcg_prob')
                 if bcg_prob is not None and not np.isnan(bcg_prob):
                     # target_label = f'Target (p={bcg_prob:.2f})'
-                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$={bcg_prob:.2f})'
+                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
 
             ax.scatter(target[0], target[1], marker='o', s=950,
                       facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
@@ -735,9 +735,9 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             display_text = f"{cluster_name}, z={redshift:.2f}"
         
         # Add cluster name and redshift as text in top-left corner
-        ax.text(0.02, 0.98, display_text, transform=ax.transAxes, fontsize=14, 
+        ax.text(0.02, 0.98, display_text, transform=ax.transAxes, fontsize=11, 
                verticalalignment='top', horizontalalignment='left',
-               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
+               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.7))
         
         # Check if we have RA/Dec coordinates in metadata for proper physical coordinate display
         use_radec = False
@@ -837,8 +837,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
         # Move legend to bottom-left and make it column-wise with smaller font
         ncol = min(3, len(legend_elements))  # Adaptive column count
         ax.legend(handles=legend_elements, loc='lower left',
-                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=12,
-                 frameon=True, fancybox=True, shadow=False, framealpha=0.5,
+                 bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=11,
+                 frameon=True, fancybox=True, shadow=False, framealpha=0.7,
                  columnspacing=0.5, handletextpad=0.3)
         
         # Remove title (cluster name now in corner)
