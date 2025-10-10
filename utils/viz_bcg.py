@@ -180,7 +180,8 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
 
                     # Create label with probability
                     if bcg_prob is not None and not np.isnan(bcg_prob):
-                        label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
+                        # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{RM}}$={bcg_prob:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -193,7 +194,8 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
             if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
                 bcg_prob = metadata_list[idx].get('bcg_prob')
                 if bcg_prob is not None and not np.isnan(bcg_prob):
-                    target_label = f'Target (p={bcg_prob:.2f})'
+                    # target_label = f'Target (p={bcg_prob:.2f})'
+                    target_label = f'Target ($p_{{RM}}$={bcg_prob:.2f})'
 
             plt.scatter(target[0], target[1], marker='o', s=950,
                        facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -462,7 +464,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
 
                     # Create label with probability
                     if bcg_prob is not None and not np.isnan(bcg_prob):
-                        label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
+                        # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{RM}}$={bcg_prob:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -475,7 +478,8 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
                 bcg_prob = metadata_list[idx].get('bcg_prob')
                 if bcg_prob is not None and not np.isnan(bcg_prob):
-                    target_label = f'Target (p={bcg_prob:.2f})'
+                    # target_label = f'Target (p={bcg_prob:.2f})'
+                    target_label = f'Target ($p_{{RM}}$={bcg_prob:.2f})'
 
             plt.scatter(target[0], target[1], marker='o', s=950,
                        facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -678,7 +682,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
 
                     # Create label with probability
                     if bcg_prob is not None and not np.isnan(bcg_prob):
-                        label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
+                        # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{RM}}$={bcg_prob:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -698,7 +703,8 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
                 bcg_prob = metadata_list[idx].get('bcg_prob')
                 if bcg_prob is not None and not np.isnan(bcg_prob):
-                    target_label = f'Target (p={bcg_prob:.2f})'
+                    # target_label = f'Target (p={bcg_prob:.2f})'
+                    target_label = f'Target ($p_{{RM}}$={bcg_prob:.2f})'
 
             ax.scatter(target[0], target[1], marker='o', s=950,
                       facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,
