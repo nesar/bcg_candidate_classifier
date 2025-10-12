@@ -60,6 +60,31 @@ cd bcg_deployment
 pip install -r requirements.txt
 ```
 
+## Quick Demo
+
+**Try it immediately with included demo data!**
+
+The package includes a `demo/` folder with:
+- Pre-trained models (Oct 10, 2025 experiment)
+- 5 test images from 3.8 arcmin BCG dataset
+- Corresponding candidate catalog
+- Complete documentation
+
+Run the demo:
+
+```bash
+# From the bcg_deployment directory
+python scripts/run_inference.py \
+  --model_dir demo/models \
+  --image_dir demo/images \
+  --candidates_csv demo/demo_candidates.csv \
+  --output_dir demo/results
+```
+
+Expected output: Perfect BCG predictions (rank 1) for all 5 images in <1 minute.
+
+See `demo/README.md` for detailed information and expected results.
+
 ## Usage
 
 ### Command-Line Interface
