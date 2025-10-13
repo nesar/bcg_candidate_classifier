@@ -67,8 +67,8 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
     legend = [Patch(facecolor=group_colors[g], edgecolor="black",
                     label=f"{g} (total={group_totals[g]:.3f})") for g in group_df["Group"]]
     ax.legend(handles=legend, title=r"Groups (Total Importance)",
-              fontsize=18, title_fontsize=16, loc="upper right",
-              bbox_to_anchor=(0.98,0.1), frameon=True)
+              fontsize=16, title_fontsize=16, loc="upper right",
+              bbox_to_anchor=(0.98,0.16), frameon=True)
 
     plt.tight_layout()
     for ext in ["png","pdf"]:
