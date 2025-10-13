@@ -1069,10 +1069,22 @@ def main(args):
     
     if args.use_color_features:
         print("Color features enabled - loading color extractor...")
-    model, scaler, color_extractor = load_trained_model(args.model_path, args.scaler_path, 
-                                                       base_feature_dim, use_uq=args.use_uq, 
+    model, scaler, color_extractor = load_trained_model(args.model_path, args.scaler_path,
+                                                       base_feature_dim, use_uq=args.use_uq,
                                                        use_color_features=args.use_color_features)
-    
+
+    # Print model architecture
+    print("\n" + "="*80)
+    print("LOADED MODEL ARCHITECTURE")
+    print("="*80)
+    print(f"Model type: {'BCGProbabilisticClassifier' if args.use_uq else 'BCGCandidateClassifier'}")
+    print(f"Input dimension: {base_feature_dim}")
+    print(f"Model structure:")
+    print(model)
+    print(f"\nTotal parameters: {sum(p.numel() for p in model.parameters()):,}")
+    print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+    print("="*80 + "\n")
+
     # Set up candidate parameters
     candidate_params = {
         'min_distance': args.min_distance,

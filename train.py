@@ -373,7 +373,21 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
     
     device = torch.device('cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu')
     print(f"Using device: {device}")
-    
+
+    # Print model architecture
+    print("\n" + "="*80)
+    print("MODEL ARCHITECTURE")
+    print("="*80)
+    print(f"Model type: {'BCGProbabilisticClassifier' if args.use_uq else 'BCGCandidateClassifier'}")
+    print(f"Input dimension: {feature_dim}")
+    print(f"Hidden dimensions: {[128, 64, 32]}")
+    print(f"Dropout rate: {0.2}")
+    print(f"\nModel structure:")
+    print(model)
+    print(f"\nTotal parameters: {sum(p.numel() for p in model.parameters()):,}")
+    print(f"Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+    print("="*80 + "\n")
+
     # Create trainer
     if args.use_uq:
         trainer = ProbabilisticTrainer(model, device, feature_scaler, use_uq=True, 

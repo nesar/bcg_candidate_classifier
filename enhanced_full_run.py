@@ -672,8 +672,7 @@ config = {{
     'analysis_samples': {analysis_samples},
     'features': {{
         'use_color': {use_color_features},
-        'use_auxiliary': {use_additional_features},
-        'color_pca_components': 8
+        'use_auxiliary': {use_additional_features}
     }}
 }}
 

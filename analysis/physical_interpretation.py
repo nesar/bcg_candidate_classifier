@@ -40,7 +40,8 @@ class PhysicalFeatureInterpreter:
             'total_features': len(feature_names),
             'unique_features': len(set(feature_names)),
             'duplicates': [],
-            'color_pca_components': [],
+            # 'color_pca_components': [],  # DEPRECATED: PCA was never actually used
+            'color_features': [],  # Track actual color features instead
             'unmapped_features': [],
             'identical_values': [],
             'warnings': []
@@ -57,15 +58,14 @@ class PhysicalFeatureInterpreter:
             else:
                 seen_names[name] = i
         
-        # Check color PCA components
-        color_pca_features = [name for name in feature_names if name.startswith('color_pca_')]
-        validation_results['color_pca_components'] = color_pca_features
-        
+        # Check color features (all 54 raw color features, not PCA)
+        color_features = [name for name in feature_names if name.startswith('color_')]
+        validation_results['color_features'] = color_features
+
         # Check for unmapped features
         for name in feature_names:
             if name not in self.feature_mappings and not any([
-                name.startswith('color_pca_'),
-                name.startswith('color_conv_'),
+                name.startswith('color_'),  # All color features handled together
                 name.startswith('moment_'),
                 name.startswith('context_'),
                 name.startswith('feature_')
@@ -104,10 +104,14 @@ class PhysicalFeatureInterpreter:
         # Generate warnings
         if validation_results['duplicates']:
             validation_results['warnings'].append(f"Found {len(validation_results['duplicates'])} duplicate feature names")
-        
-        if len(validation_results['color_pca_components']) != 8:
-            validation_results['warnings'].append(f"Expected 8 color PCA components, found {len(validation_results['color_pca_components'])}")
-        
+
+        # NOTE: PCA validation commented out - model uses 54 raw color features, not 8 PCA components
+        # if len(validation_results['color_pca_components']) != 8:
+        #     validation_results['warnings'].append(f"Expected 8 color PCA components, found {len(validation_results['color_pca_components'])}")
+
+        if len(validation_results['color_features']) != 54:
+            validation_results['warnings'].append(f"Expected 54 raw color features, found {len(validation_results['color_features'])}")
+
         if validation_results['identical_values']:
             identical_count = sum(group['count'] for group in validation_results['identical_values'])
             validation_results['warnings'].append(f"Found {identical_count} features with identical importance values")
@@ -139,9 +143,10 @@ class PhysicalFeatureInterpreter:
         for i, name in enumerate(feature_names):
             importance = importance_values[i] if importance_values else None
             
-            if name.startswith('color_pca_'):
-                color_features['pca_components'].append((name, importance))
-            elif 'ratio' in name and 'color' in name:
+            # NOTE: No longer using PCA - all 54 raw color features are used
+            # if name.startswith('color_pca_'):
+            #     color_features['pca_components'].append((name, importance))
+            if 'ratio' in name and 'color' in name:
                 color_features['ratios'].append((name, importance))
             elif name.startswith('color_conv_'):
                 color_features['convolution'].append((name, importance))
@@ -204,9 +209,25 @@ class PhysicalFeatureInterpreter:
                 'color': '#4ECDC4'
             },
             'color_information': {
-                'description': 'Red-sequence and color properties (8 PCA components from 54-dimensional raw color space)',
-                'technical_features': ['color_pca_0', 'color_pca_1', 'color_pca_2', 'color_pca_3', 'color_pca_4',
-                                     'color_pca_5', 'color_pca_6', 'color_pca_7'],
+                'description': 'Red-sequence and RGB color properties (54 raw features: channel stats, ratios, spatial variation, gradients, convolutions)',
+                'technical_features': [
+                    # Basic channel statistics (9)
+                    'color_mean_r', 'color_mean_g', 'color_mean_b',
+                    'color_std_r', 'color_std_g', 'color_std_b',
+                    'color_rel_r', 'color_rel_g', 'color_rel_b',
+                    # Color ratios (7)
+                    'color_rg_ratio', 'color_rg_diff', 'color_rb_ratio', 'color_rb_diff', 'color_gb_ratio',
+                    'color_magnitude', 'color_red_sequence_score',
+                    # Spatial variation (3)
+                    'color_spatial_rg_std', 'color_spatial_rb_std', 'color_central_peripheral_rg_diff',
+                    # Gradients (8)
+                    'color_gradient_r_mean', 'color_gradient_r_std',
+                    'color_gradient_g_mean', 'color_gradient_g_std',
+                    'color_gradient_b_mean', 'color_gradient_b_std',
+                    'color_gradient_rg_corr', 'color_gradient_rb_corr',
+                    # Convolutions (27) - use prefix matching since there are many
+                    # These will be matched by startswith('color_conv_')
+                ],
                 'combination_method': 'weighted_sum',
                 'color': '#45B7D1'
             },
@@ -255,21 +276,46 @@ class PhysicalFeatureInterpreter:
             'context_south_mean': 'Southern Direction Mean $\\mu_\\text{dir,S}$',
             'context_west_mean': 'Western Direction Mean $\\mu_\\text{dir,W}$',
             
-            # Color PCA Components - each represents different color aspects
-            'color_pca_0': 'Color PC-1 $w^\\text{C}_1$',
-            'color_pca_1': 'Color PC-2 $w^\\text{C}_2$',
-            'color_pca_2': 'Color PC-3 $w^\\text{C}_3$',
-            'color_pca_3': 'Color PC-4 $w^\\text{C}_4$',
-            'color_pca_4': 'Color PC-5 $w^\\text{C}_5$',
-            'color_pca_5': 'Color PC-6 $w^\\text{C}_6$',
-            'color_pca_6': 'Color PC-7 $w^\\text{C}_7$',
-            'color_pca_7': 'Color PC-8 $w^\\text{C}_8$',
-            
-            # Direct Color Ratios
-            'color_ratio_rg': 'Red-Green Color',
-            'color_ratio_rb': 'Red-Blue Color',
-            'color_ratio_gb': 'Green-Blue Color',
-            'color_variation': 'Spatial Color Variation',
+            # Raw RGB Color Features (54 total - no PCA)
+            # Basic channel statistics (9 features)
+            'color_mean_r': 'Red Mean $\\mu_R$',
+            'color_mean_g': 'Green Mean $\\mu_G$',
+            'color_mean_b': 'Blue Mean $\\mu_B$',
+            'color_std_r': 'Red Std. Dev. $\\sigma_R$',
+            'color_std_g': 'Green Std. Dev. $\\sigma_G$',
+            'color_std_b': 'Blue Std. Dev. $\\sigma_B$',
+            'color_rel_r': 'Red Fraction $f_R$',
+            'color_rel_g': 'Green Fraction $f_G$',
+            'color_rel_b': 'Blue Fraction $f_B$',
+
+            # Color ratios (7 features)
+            'color_rg_ratio': 'R/G Ratio $\\chi_{R/G}$',
+            'color_rg_diff': 'Norm. R-G Diff. $\\chi^{\\text{norm}}_{R/G}$',
+            'color_rb_ratio': 'R/B Ratio $\\chi_{R/B}$',
+            'color_rb_diff': 'Norm. R-B Diff. $\\chi^{\\text{norm}}_{R/B}$',
+            'color_gb_ratio': 'G/B Ratio $\\chi_{G/B}$',
+            'color_magnitude': 'Chromatic Departure $\\chi_{\\text{col}}$',
+            'color_red_sequence_score': 'Red Enhancement $S_{\\text{red}}$',
+
+            # Spatial color variation (3 features)
+            'color_spatial_rg_std': 'R/G Variability $\\sigma_{R/G}$',
+            'color_spatial_rb_std': 'R/B Variability $\\sigma_{R/B}$',
+            'color_central_peripheral_rg_diff': 'Central-Periph. Diff. $\\Delta_{c-p}$',
+
+            # Color gradients (8 features)
+            'color_gradient_r_mean': 'Red Gradient Mean $\\langle|\\mathbf{G}_R|\\rangle$',
+            'color_gradient_g_mean': 'Green Gradient Mean $\\langle|\\mathbf{G}_G|\\rangle$',
+            'color_gradient_b_mean': 'Blue Gradient Mean $\\langle|\\mathbf{G}_B|\\rangle$',
+            'color_gradient_r_std': 'Red Gradient Std. $\\sigma_{|\\mathbf{G}_R|}$',
+            'color_gradient_g_std': 'Green Gradient Std. $\\sigma_{|\\mathbf{G}_G|}$',
+            'color_gradient_b_std': 'Blue Gradient Std. $\\sigma_{|\\mathbf{G}_B|}$',
+            'color_gradient_rg_corr': 'R-G Gradient Corr. $\\rho_{RG}$',
+            'color_gradient_rb_corr': 'R-B Gradient Corr. $\\rho_{RB}$',
+
+            # Convolution features (27 features) - will be handled by pattern matching
+            # Format: color_conv_{kernel}_{channel}_{stat} where kernel=edge/smooth/laplacian,
+            # channel=r/g/b, stat=mean/std/max_abs
+            # These represent $F_{c,k}$ in the notation
             
             # Environment
             'context_mean': 'Local Background',
@@ -301,36 +347,22 @@ class PhysicalFeatureInterpreter:
                 # Handle generic features
                 idx = name.split('_')[1]
                 mapped_names.append(f'Extended Feature {idx}')
-            elif name.startswith('color_pca_'):
-                # Handle color PCA components with proper numbering
-                try:
-                    idx = int(name.split('_')[2])
-                    # Map to predefined PCA component meanings
-                    pca_meanings = [
-                        'Color PC-1 $w^\\text{C}_1$',
-                        'Color PC-2 $w^\\text{C}_2$',
-                        'Color PC-3 $w^\\text{C}_3$',
-                        'Color PC-4 $w^\\text{C}_4$',
-                        'Color PC-5 $w^\\text{C}_5$',
-                        'Color PC-6 $w^\\text{C}_6$',
-                        'Color PC-7 $w^\\text{C}_7$',
-                        'Color PC-8 $w^\\text{C}_8$'
-                    ]
-                    if idx < len(pca_meanings):
-                        mapped_names.append(pca_meanings[idx])
-                    else:
-                        mapped_names.append(f'Color Component {idx+1}')
-                except (ValueError, IndexError):
-                    mapped_names.append(f'Color Component (Unknown)')
+            # NOTE: PCA handling removed - model uses 54 raw color features
+            # elif name.startswith('color_pca_'):
+            #     ... PCA code commented out ...
             elif name.startswith('color_conv_'):
-                # Handle color convolution features
+                # Handle color convolution features: color_conv_{kernel}_{channel}_{stat}
+                # These represent $F_{c,k}$ in the LaTeX notation
                 parts = name.split('_')
-                if len(parts) >= 4:
-                    channel = parts[2].upper()
-                    kernel = parts[3].title()
-                    mapped_names.append(f'{channel}-Channel {kernel} Response')
+                if len(parts) >= 5:  # color_conv_kernel_channel_stat
+                    kernel = parts[2]  # edge, smooth, laplacian
+                    channel = parts[3].upper()  # R, G, B
+                    stat = parts[4]  # mean, std, max_abs
+                    kernel_map = {'edge': 'Edge', 'smooth': 'Smooth', 'laplacian': 'Laplacian'}
+                    stat_map = {'mean': 'Mean', 'std': 'Std', 'max_abs': 'Max'}
+                    mapped_names.append(f'{channel}-{kernel_map.get(kernel, kernel)} {stat_map.get(stat, stat)} $F_{{c,k}}$')
                 else:
-                    mapped_names.append('Color Convolution Feature')
+                    mapped_names.append('Color Conv. Feature $F_{c,k}$')
             elif name.startswith('color_'):
                 # Handle other color features with better naming
                 clean_name = name.replace('color_', '').replace('_', ' ').title()
@@ -422,16 +454,10 @@ class PhysicalFeatureInterpreter:
         if actual_feature == template_feature:
             return True
         
-        # Handle color_pca extensions - exact matching for PCA components
-        if template_feature.startswith('color_pca_') and actual_feature.startswith('color_pca_'):
-            # Only match if the component number is within the expected range
-            try:
-                actual_idx = int(actual_feature.split('_')[2])
-                template_idx = int(template_feature.split('_')[2])
-                return actual_idx == template_idx
-            except (ValueError, IndexError):
-                return actual_feature == template_feature
-        
+        # NOTE: PCA matching commented out - model uses raw color features
+        # if template_feature.startswith('color_pca_') and actual_feature.startswith('color_pca_'):
+        #     ... PCA matching code ...
+
         # Handle color convolution features - exact match only
         if template_feature.startswith('color_conv_') and actual_feature.startswith('color_conv_'):
             return actual_feature == template_feature

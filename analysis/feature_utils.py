@@ -9,16 +9,17 @@ import numpy as np
 from typing import List, Dict, Optional
 
 
-def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=True, 
-                            color_pca_components=8) -> List[str]:
+def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=True) -> List[str]:
     """
     Create feature names matching the BCG classification feature extraction pipeline.
-    
+
+    NOTE: PCA reduction was intended but never actually fitted or used in training.
+    The model uses all 54 raw color features without dimensionality reduction.
+
     Args:
-        use_color_features: Whether color features are included
+        use_color_features: Whether color features are included (54 features if True)
         use_auxiliary_features: Whether auxiliary features (redshift, delta_m) are included
-        color_pca_components: Number of PCA components for color features
-        
+
     Returns:
         List of feature names in order
     """
@@ -77,48 +78,70 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
     ]
     feature_names.extend(directional_context_features)
     
-    # 8. Color features (if enabled)
+    # 8. Color features (if enabled) - 54 total features
+    # Order matches ColorFeatureExtractor.extract_color_features() in utils/color_features.py
     if use_color_features:
-        # Basic color ratios
+        # 8.1 Basic color statistics (9 features)
+        basic_color_features = [
+            'color_mean_r', 'color_mean_g', 'color_mean_b',
+            'color_std_r', 'color_std_g', 'color_std_b',
+            'color_rel_r', 'color_rel_g', 'color_rel_b'
+        ]
+        feature_names.extend(basic_color_features)
+
+        # 8.2 Color ratio features (7 features)
         color_ratio_features = [
-            'rg_ratio_mean', 'rb_ratio_mean', 'color_magnitude'
+            'color_rg_ratio',           # R/G ratio
+            'color_rg_diff',            # (R-G)/(R+G) normalized
+            'color_rb_ratio',           # R/B ratio
+            'color_rb_diff',            # (R-B)/(R+B) normalized
+            'color_gb_ratio',           # G/B ratio
+            'color_magnitude',          # Color magnitude
+            'color_red_sequence_score'  # Red-sequence indicator
         ]
         feature_names.extend(color_ratio_features)
-        
-        # Red-sequence indicator
-        feature_names.append('red_sequence_score')
-        
-        # Spatial color variation
-        color_variation_features = [
-            'rg_ratio_std', 'rb_ratio_std'
+
+        # 8.3 Spatial color variation (3 features)
+        spatial_color_features = [
+            'color_spatial_rg_std',     # Spatial variation in R/G
+            'color_spatial_rb_std',     # Spatial variation in R/B
+            'color_central_peripheral_rg_diff'  # Central-peripheral R/G difference
         ]
-        feature_names.extend(color_variation_features)
-        
-        # Color gradient correlations
-        color_correlation_features = [
-            'color_gradient_corr_rg', 'color_gradient_corr_rb'
+        feature_names.extend(spatial_color_features)
+
+        # 8.4 Color gradient features (8 features)
+        gradient_color_features = [
+            'color_gradient_r_mean', 'color_gradient_r_std',
+            'color_gradient_g_mean', 'color_gradient_g_std',
+            'color_gradient_b_mean', 'color_gradient_b_std',
+            'color_gradient_rg_corr',   # R-G gradient correlation
+            'color_gradient_rb_corr'    # R-B gradient correlation
         ]
-        feature_names.extend(color_correlation_features)
-        
-        # Convolution-based color features (edge, smooth, laplacian responses)
+        feature_names.extend(gradient_color_features)
+
+        # 8.5 Convolution-based color features (27 features)
+        # 3 kernels × 3 channels × 3 stats (mean, std, max_abs) = 27
         conv_features = []
-        for channel in ['r', 'g', 'b']:
-            for kernel in ['edge', 'smooth', 'laplacian']:
-                conv_features.append(f'color_conv_{channel}_{kernel}')
+        for kernel in ['edge', 'smooth', 'laplacian']:
+            for channel in ['r', 'g', 'b']:
+                conv_features.extend([
+                    f'color_conv_{kernel}_{channel}_mean',
+                    f'color_conv_{kernel}_{channel}_std',
+                    f'color_conv_{kernel}_{channel}_max_abs'
+                ])
         feature_names.extend(conv_features)
-        
-        # PCA-reduced color features
-        pca_features = [f'color_pca_{i}' for i in range(color_pca_components)]
-        feature_names.extend(pca_features)
-    
-    # 9. Auxiliary astronomical features (if enabled)
+
+    # 9. Auxiliary/candidate features (if enabled)
+    # Note: The actual features depend on dataset type:
+    # - DESprior candidates: delta_mstar, starflag (from candidates CSV)
+    # - Other datasets: redshift_z, delta_m_star_z (image-level auxiliary features)
     if use_auxiliary_features:
         auxiliary_features = [
-            'redshift_z',           # photometric redshift
-            'delta_m_star_z'        # stellar mass indicator
+            'delta_mstar',      # DESprior: magnitude diff; or redshift_z for others
+            'starflag'          # DESprior: star flag; or delta_m_star_z for others
         ]
         feature_names.extend(auxiliary_features)
-    
+
     return feature_names
 
 
@@ -256,33 +279,58 @@ def get_feature_descriptions() -> Dict[str, str]:
         'candidate_density': 'Local density of other candidates nearby',
         'background_level': 'Local background intensity level',
         
-        # Color features
-        'rg_ratio_mean': 'Mean R/G color ratio within patch (approximates r-g color)',
-        'rb_ratio_mean': 'Mean R/B color ratio within patch (approximates r-i color)',
+        # Color features - Basic statistics (9 features)
+        'color_mean_r': 'Mean red channel intensity',
+        'color_mean_g': 'Mean green channel intensity',
+        'color_mean_b': 'Mean blue channel intensity',
+        'color_std_r': 'Standard deviation of red channel intensity',
+        'color_std_g': 'Standard deviation of green channel intensity',
+        'color_std_b': 'Standard deviation of blue channel intensity',
+        'color_rel_r': 'Relative red contribution (R/(R+G+B))',
+        'color_rel_g': 'Relative green contribution (G/(R+G+B))',
+        'color_rel_b': 'Relative blue contribution (B/(R+G+B))',
+
+        # Color ratios (7 features)
+        'color_rg_ratio': 'Red to green ratio (approximates r-g color)',
+        'color_rg_diff': 'Normalized red-green difference (R-G)/(R+G)',
+        'color_rb_ratio': 'Red to blue ratio (approximates r-i color)',
+        'color_rb_diff': 'Normalized red-blue difference (R-B)/(R+B)',
+        'color_gb_ratio': 'Green to blue ratio',
         'color_magnitude': 'Departure from achromatic (white) colors',
-        'red_sequence_score': 'Score indicating red-sequence galaxy characteristics',
-        'rg_ratio_std': 'Standard deviation of R/G ratio (spatial color variation)',
-        'rb_ratio_std': 'Standard deviation of R/B ratio (spatial color variation)',
-        'color_gradient_corr_rg': 'Correlation between R and G channel gradients',
-        'color_gradient_corr_rb': 'Correlation between R and B channel gradients',
-        
-        # Auxiliary features
-        'redshift_z': 'Photometric redshift estimate',
-        'delta_m_star_z': 'Magnitude difference from characteristic stellar mass at redshift z'
+        'color_red_sequence_score': 'Red-sequence galaxy indicator',
+
+        # Spatial color variation (3 features)
+        'color_spatial_rg_std': 'Spatial variation in R/G ratio across patch',
+        'color_spatial_rb_std': 'Spatial variation in R/B ratio across patch',
+        'color_central_peripheral_rg_diff': 'Central-peripheral R/G difference',
+
+        # Color gradients (8 features)
+        'color_gradient_r_mean': 'Mean red channel gradient magnitude',
+        'color_gradient_r_std': 'Standard deviation of red gradient',
+        'color_gradient_g_mean': 'Mean green channel gradient magnitude',
+        'color_gradient_g_std': 'Standard deviation of green gradient',
+        'color_gradient_b_mean': 'Mean blue channel gradient magnitude',
+        'color_gradient_b_std': 'Standard deviation of blue gradient',
+        'color_gradient_rg_corr': 'Correlation between R and G channel gradients',
+        'color_gradient_rb_corr': 'Correlation between R and B channel gradients',
+
+        # DESprior candidate features
+        'delta_mstar': 'Magnitude difference from candidate to brightest cluster member',
+        'starflag': 'Binary flag indicating if candidate is classified as a star (1=star, 0=galaxy)'
     }
-    
-    # Add PCA and convolution feature descriptions
-    for i in range(20):  # Up to 20 PCA components
-        descriptions[f'color_pca_{i}'] = f'Principal component {i+1} of color feature space'
-    
-    for channel in ['r', 'g', 'b']:
-        for kernel in ['edge', 'smooth', 'laplacian']:
+
+    # Add convolution feature descriptions (27 features)
+    for kernel in ['edge', 'smooth', 'laplacian']:
+        for channel in ['r', 'g', 'b']:
             desc_map = {
-                'edge': 'edge detection response',
-                'smooth': 'smoothing filter response', 
-                'laplacian': 'Laplacian edge enhancement response'
+                'edge': 'edge detection',
+                'smooth': 'smoothing filter',
+                'laplacian': 'Laplacian edge enhancement'
             }
-            descriptions[f'color_conv_{channel}_{kernel}'] = f'{channel.upper()}-channel {desc_map[kernel]}'
+            channel_name = {'r': 'Red', 'g': 'Green', 'b': 'Blue'}[channel]
+            descriptions[f'color_conv_{kernel}_{channel}_mean'] = f'{channel_name} {desc_map[kernel]} mean response'
+            descriptions[f'color_conv_{kernel}_{channel}_std'] = f'{channel_name} {desc_map[kernel]} response variation'
+            descriptions[f'color_conv_{kernel}_{channel}_max_abs'] = f'{channel_name} {desc_map[kernel]} max absolute response'
     
     return descriptions
 
@@ -379,8 +427,7 @@ if __name__ == "__main__":
     # Full feature set
     full_features = create_bcg_feature_names(
         use_color_features=True,
-        use_auxiliary_features=True,
-        color_pca_components=8
+        use_auxiliary_features=True
     )
     
     print_feature_summary(full_features)

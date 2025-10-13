@@ -277,8 +277,7 @@ class BCGAnalysisRunner:
             feature_config = self.config.get('features', {})
             self.feature_names = create_bcg_feature_names(
                 use_color_features=feature_config.get('use_color', True),
-                use_auxiliary_features=feature_config.get('use_auxiliary', True),
-                color_pca_components=feature_config.get('color_pca_components', 8)
+                use_auxiliary_features=feature_config.get('use_auxiliary', True)
             )
         
         # Ensure feature names match actual data dimensions
