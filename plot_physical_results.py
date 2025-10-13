@@ -46,7 +46,7 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
 
     # Styling
     plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
-    fig,ax = plt.subplots(figsize=(12,14))
+    fig,ax = plt.subplots(figsize=(12,18))
     bars = ax.barh(labels, vals, color=cols, edgecolor="black")
 
     for b,v in zip(bars,vals):
@@ -67,8 +67,8 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
     legend = [Patch(facecolor=group_colors[g], edgecolor="black",
                     label=f"{g} (total={group_totals[g]:.3f})") for g in group_df["Group"]]
     ax.legend(handles=legend, title=r"Groups (Total Importance)",
-              fontsize=18, title_fontsize=18, loc="upper right",
-              bbox_to_anchor=(0.98,0.17), frameon=True)
+              fontsize=18, title_fontsize=16, loc="upper right",
+              bbox_to_anchor=(0.98,0.1), frameon=True)
 
     plt.tight_layout()
     for ext in ["png","pdf"]:
