@@ -982,35 +982,54 @@ def main(args):
         'max_candidates': args.max_candidates
     }
     
+    # Load color extractor first if needed (before dimension calculation)
+    temp_color_extractor = None
+    if args.use_color_features:
+        print("Loading color extractor for feature dimension calculation...")
+        model_dir = os.path.dirname(args.model_path)
+        model_name = os.path.splitext(os.path.basename(args.model_path))[0]
+        color_extractor_path = os.path.join(model_dir, f"{model_name}_color_extractor.pkl")
+
+        if os.path.exists(color_extractor_path):
+            try:
+                temp_color_extractor = joblib.load(color_extractor_path)
+                print(f"Loaded color extractor from: {color_extractor_path}")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load color extractor: {e}")
+        else:
+            raise FileNotFoundError(f"Color extractor not found at: {color_extractor_path}")
+
     # Determine feature dimension from sample data
     print("Determining feature dimension from sample data...")
-    
+
     if args.use_desprior_candidates:
         # For DESprior candidates: extract actual features to get correct dimension
         try:
             if args.desprior_csv_path is None:
                 raise ValueError("--desprior_csv_path must be provided when using DESprior candidates")
-            
+
             candidates_df = pd.read_csv(args.desprior_csv_path)
             first_file = candidates_df['filename'].iloc[0]
             file_candidates = candidates_df[candidates_df['filename'] == first_file]
-            
+
             if len(file_candidates) > 0:
                 candidates = file_candidates[['x', 'y']].values
-                # NOTE: Currently using candidate-level features for dimension estimation
-                # Model was trained with these, but SHOULD use image-level auxiliary features
+                # Model was trained with candidate-level features: delta_mstar, starflag
                 candidate_features = file_candidates[['delta_mstar', 'starflag']].values
 
-                # Extract visual features (without color for dimension estimation)
+                # Extract visual features WITH color if enabled (to get actual dimension)
                 from utils.candidate_based_bcg import extract_candidate_features
                 visual_features, _ = extract_candidate_features(
-                    sample_image, candidates, patch_size=args.patch_size, 
-                    include_context=True, include_color=False,  # Don't use color for dimension estimation
-                    color_extractor=None
+                    sample_image, candidates, patch_size=args.patch_size,
+                    include_context=True,
+                    include_color=args.use_color_features,  # Include color for correct dimension
+                    color_extractor=temp_color_extractor
                 )
                 combined_features = np.hstack([visual_features, candidate_features])
                 base_feature_dim = combined_features.shape[1]
-                print(f"Determined DESprior feature dimension: {base_feature_dim}")
+                print(f"Determined feature dimension: {base_feature_dim}")
+                print(f"  Visual features: {visual_features.shape[1]}")
+                print(f"  Candidate features: {candidate_features.shape[1]}")
             else:
                 raise ValueError("No DESprior candidates found for feature dimension determination. Cannot proceed without real feature data.")
         except Exception as e:
@@ -1021,70 +1040,54 @@ def main(args):
         candidates, _ = find_bcg_candidates(sample_image, **candidate_params_sample)
         if len(candidates) > 0:
             features, _ = extract_candidate_features(
-                sample_image, candidates, patch_size=args.patch_size, 
-                include_context=True, include_color=False,  # Don't use color for dimension estimation
-                color_extractor=None
+                sample_image, candidates, patch_size=args.patch_size,
+                include_context=True,
+                include_color=args.use_color_features,  # Include color for correct dimension
+                color_extractor=temp_color_extractor
             )
             if len(features) > 0:
                 base_feature_dim = features.shape[1]
+                print(f"Determined feature dimension: {base_feature_dim}")
             else:
                 raise ValueError("No candidates found for feature dimension determination. Cannot proceed without real feature data.")
         else:
             raise ValueError("No candidates could be detected for feature dimension determination. Cannot proceed without real candidate data.")
     
-    # Adjust feature dimension for BCG dataset additional features
-    print(f"Base feature dimension (without color): {base_feature_dim}")
-    
-    # Add color features if enabled
-    if args.use_color_features:
-        print("Model was trained with color features - adding color feature dimensions")
-        # Color features add: 8 color ratios + 8 PCA components + other color stats = ~20+ features
-        color_feature_count = 20  # Estimated from ColorFeatureExtractor
-        base_feature_dim += color_feature_count
-        print(f"Added {color_feature_count} color features")
-    
-    # NOTE: Current model was trained with candidate-level features (delta_mstar, starflag)
-    # which are already included in base_feature_dim.
-    # FUTURE: Should use image-level auxiliary features (redshift_z, delta_m_star_z) instead.
-    # starflag is always 0 and provides no information.
-
-    # Add additional BCG features if enabled
-    if args.use_bcg_data and args.use_additional_features:
-        print("WARNING: use_additional_features adds redshift_z and delta_m_star_z (image-level)")
-        print("         but model was trained with delta_mstar and starflag (candidate-level)")
-        print("Adding additional features from BCG dataset: +2 (redshift_z, delta_m_star_z)")
-        base_feature_dim += 2
-    
-    print(f"Final feature dimension: {base_feature_dim}")
-    
-    # Load trained model and determine actual feature dimension from the saved model
+    # Load trained model and verify feature dimension
     print("Loading trained model...")
-    print("Determining actual feature dimension from saved model...")
-    
+    print("Verifying feature dimension with saved model...")
+
     # Read the model checkpoint to get the actual input dimension
     checkpoint = torch.load(args.model_path, map_location='cpu')
     if 'model_state_dict' in checkpoint:
         state_dict = checkpoint['model_state_dict']
     else:
         state_dict = checkpoint
-    
+
     # Get actual feature dimension from first layer
     if 'network.0.weight' in state_dict:
         actual_feature_dim = state_dict['network.0.weight'].shape[1]
         print(f"Model expects {actual_feature_dim} features")
-        
+
         if base_feature_dim != actual_feature_dim:
-            print(f"⚠️  WARNING: Calculated dimension ({base_feature_dim}) != model's actual dimension ({actual_feature_dim})")
-            print("   Using model's actual dimension for compatibility...")
-            base_feature_dim = actual_feature_dim
+            raise ValueError(
+                f"CRITICAL ERROR: Calculated dimension ({base_feature_dim}) != model's actual dimension ({actual_feature_dim})\n"
+                f"This means feature extraction is not matching the training configuration.\n"
+                f"Check:\n"
+                f"  1. Are you using --use_color_features if model was trained with color?\n"
+                f"  2. Is the color extractor file present and correct?\n"
+                f"  3. Are candidate features (delta_mstar, starflag) being included?"
+            )
     else:
         print("⚠️  Could not determine feature dimension from model, using calculated dimension")
-    
-    if args.use_color_features:
-        print("Color features enabled - loading color extractor...")
-    model, scaler, color_extractor = load_trained_model(args.model_path, args.scaler_path,
-                                                       base_feature_dim, use_uq=args.use_uq,
-                                                       use_color_features=args.use_color_features)
+
+    # Load model using the already-loaded color_extractor
+    model, scaler, _ = load_trained_model(args.model_path, args.scaler_path,
+                                         base_feature_dim, use_uq=args.use_uq,
+                                         use_color_features=args.use_color_features)
+
+    # Use the temp_color_extractor we already loaded (don't reload)
+    color_extractor = temp_color_extractor
 
     # Print model architecture
     print("\n" + "="*80)
