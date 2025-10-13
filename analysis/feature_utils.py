@@ -131,15 +131,15 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
                 ])
         feature_names.extend(conv_features)
 
-    # 9. Auxiliary astronomical features (if enabled)
-    # These are image-level features from the BCG catalog, NOT candidate-level
-    # Notation: f_i^aux = [z, δm_{zb}*]
+    # 9. Candidate-level features from DESprior catalog (if enabled)
+    # NOTE: These are per-candidate features, NOT image-level auxiliary features
+    # Image-level features (redshift_z, delta_m_star_z) are loaded but NOT used in training
     if use_auxiliary_features:
-        auxiliary_features = [
-            'redshift_z',        # Photometric redshift z
-            'delta_m_star_z'     # Luminosity measure δm_{zb}*
+        candidate_level_features = [
+            'delta_mstar',   # Magnitude difference from candidate to brightest cluster member
+            'starflag'       # Star/galaxy flag (NOTE: always 0 in DESprior, provides no information)
         ]
-        feature_names.extend(auxiliary_features)
+        feature_names.extend(candidate_level_features)
 
     return feature_names
 
@@ -313,9 +313,9 @@ def get_feature_descriptions() -> Dict[str, str]:
         'color_gradient_rg_corr': 'Correlation between R and G channel gradients',
         'color_gradient_rb_corr': 'Correlation between R and B channel gradients',
 
-        # Auxiliary astronomical features (image-level from BCG catalog)
-        'redshift_z': 'Photometric redshift z of the cluster',
-        'delta_m_star_z': 'Luminosity measure δm_{zb}* (magnitude difference from characteristic stellar mass at redshift z)'
+        # Candidate-level features from DESprior catalog
+        'delta_mstar': 'Magnitude difference from candidate to brightest cluster member (candidate-level)',
+        'starflag': 'Star/galaxy classification flag (always 0 in DESprior catalog, provides no information)'
     }
 
     # Add convolution feature descriptions (27 features)

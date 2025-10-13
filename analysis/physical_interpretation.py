@@ -231,9 +231,9 @@ class PhysicalFeatureInterpreter:
                 'combination_method': 'weighted_sum',
                 'color': '#45B7D1'
             },
-            'auxiliary': {
-                'description': 'Cosmological and physical parameters (2 features)',
-                'technical_features': ['redshift_z', 'delta_m_star_z'],
+            'candidate_properties': {
+                'description': 'Candidate-level properties from DESprior catalog (2 features: delta_mstar useful, starflag always 0)',
+                'technical_features': ['delta_mstar', 'starflag'],
                 'combination_method': 'weighted_sum',
                 'color': '#FECA57'
             }
@@ -325,9 +325,9 @@ class PhysicalFeatureInterpreter:
             'neighbor_count': 'Nearby Galaxy Count',
             'local_density': 'Cluster Core Density',
             
-            # Auxiliary astronomical features (2 features, image-level)
-            'redshift_z': 'Photometric Redshift $z$',
-            'delta_m_star_z': 'Luminosity measure $\\delta m_{zb}*$',
+            # Candidate-level features from DESprior catalog (2 features)
+            'delta_mstar': 'Candidate $\\Delta m_{\\star}$',
+            'starflag': 'Star Flag (always 0)',
 
             # Additional photometric features (if present)
             'mag_auto_g': 'g-band Magnitude',
