@@ -325,13 +325,11 @@ class PhysicalFeatureInterpreter:
             'neighbor_count': 'Nearby Galaxy Count',
             'local_density': 'Cluster Core Density',
             
-            # Auxiliary features (2 features)
+            # Auxiliary astronomical features (2 features, image-level)
             'redshift_z': 'Photometric Redshift $z$',
             'delta_m_star_z': 'Luminosity measure $\\delta m_{zb}*$',
-            
-            # DESprior
-            'delta_mstar': 'Stellar Mass Excess',
-            'starflag': 'Star/Galaxy Classifier',
+
+            # Additional photometric features (if present)
             'mag_auto_g': 'g-band Magnitude',
             'mag_auto_r': 'r-band Magnitude',
             'mag_auto_i': 'i-band Magnitude',

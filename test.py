@@ -111,8 +111,11 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             else:
                 # Extract coordinates and candidate features
                 all_candidates = file_candidates[['x', 'y']].values
+                # NOTE: Currently using candidate-level features from DESprior CSV
+                # SHOULD use image-level auxiliary features (redshift_z, delta_m_star_z) instead
+                # starflag is always 0 and provides no information
                 candidate_specific_features = file_candidates[['delta_mstar', 'starflag']].values
-                
+
                 # Extract visual features and combine with candidate features
                 from utils.candidate_based_bcg import extract_candidate_features
                 visual_features, _ = extract_candidate_features(
@@ -633,8 +636,11 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     else:
                         # Extract coordinates and candidate features
                         all_candidates = file_candidates[['x', 'y']].values
+                        # NOTE: Currently using candidate-level features from DESprior CSV
+                        # SHOULD use image-level auxiliary features (redshift_z, delta_m_star_z) instead
+                        # starflag is always 0 and provides no information
                         candidate_specific_features = file_candidates[['delta_mstar', 'starflag']].values
-                        
+
                         # Extract visual features and combine with candidate features
                         from utils.candidate_based_bcg import extract_candidate_features
                         visual_features, _ = extract_candidate_features(
@@ -991,8 +997,10 @@ def main(args):
             
             if len(file_candidates) > 0:
                 candidates = file_candidates[['x', 'y']].values
+                # NOTE: Currently using candidate-level features for dimension estimation
+                # Model was trained with these, but SHOULD use image-level auxiliary features
                 candidate_features = file_candidates[['delta_mstar', 'starflag']].values
-                
+
                 # Extract visual features (without color for dimension estimation)
                 from utils.candidate_based_bcg import extract_candidate_features
                 visual_features, _ = extract_candidate_features(
@@ -1035,11 +1043,16 @@ def main(args):
         base_feature_dim += color_feature_count
         print(f"Added {color_feature_count} color features")
     
-    # Note: DESprior candidate-specific features (delta_mstar, starflag) are already included in base_feature_dim
-    
+    # NOTE: Current model was trained with candidate-level features (delta_mstar, starflag)
+    # which are already included in base_feature_dim.
+    # FUTURE: Should use image-level auxiliary features (redshift_z, delta_m_star_z) instead.
+    # starflag is always 0 and provides no information.
+
     # Add additional BCG features if enabled
     if args.use_bcg_data and args.use_additional_features:
-        print("Adding additional features from BCG dataset: +2 (redshift, delta_mstar_z)")
+        print("WARNING: use_additional_features adds redshift_z and delta_m_star_z (image-level)")
+        print("         but model was trained with delta_mstar and starflag (candidate-level)")
+        print("Adding additional features from BCG dataset: +2 (redshift_z, delta_m_star_z)")
         base_feature_dim += 2
     
     print(f"Final feature dimension: {base_feature_dim}")
