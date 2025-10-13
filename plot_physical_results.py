@@ -2,6 +2,7 @@ import os, sys
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+import numpy as np
 
 def load_csvs(csv_dir):
     files = [f for f in os.listdir(csv_dir) if f.endswith(".csv")]
@@ -40,35 +41,55 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
         for f in sub["Feature"]:
             order.append((g,f))
 
-    labels = [f for g,f in order]
+    # labels = [f for g,f in order]
+    # vals   = [breakdown_df[(breakdown_df["Group"]==g)&(breakdown_df["Feature"]==f)]["Importance"].values[0] for g,f in order]
+    # cols   = [group_colors[g] for g,f in order]
+
+    # # Styling
+    # plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
+    # fig,ax = plt.subplots(figsize=(12,24))
+    # bars = ax.barh(labels, vals, color=cols, edgecolor="black", height=1)
+
+    labels = [f for g, f in order]
     vals   = [breakdown_df[(breakdown_df["Group"]==g)&(breakdown_df["Feature"]==f)]["Importance"].values[0] for g,f in order]
     cols   = [group_colors[g] for g,f in order]
 
-    # Styling
-    plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
-    fig,ax = plt.subplots(figsize=(12,18))
-    bars = ax.barh(labels, vals, color=cols, edgecolor="black")
+    plt.rcParams.update({"text.usetex": False, "font.family": "serif",
+                        "mathtext.fontset": "cm", "axes.linewidth": 1.2})
+
+    fig, ax = plt.subplots(figsize=(12, 24))
+
+    # Define manual y positions
+    height =1.0        # bar thickness
+    gap = 0.4           # gap between bars
+    y = np.arange(len(labels)) * (height + gap)
+
+    bars = ax.barh(y, vals, color=cols, edgecolor="black", height=height)
 
     for b,v in zip(bars,vals):
         ax.text(b.get_width()+0.002, b.get_y()+b.get_height()/2,
-                f"{v:.3f}", va="center", fontsize=18)
+                f"{v:.3f}", va="center", fontsize=20)
 
     ax.set_xlim(0, max(vals)*1.19)
-    ax.set_xlabel(r"Importance Score", fontsize=18)
+    ax.set_xlabel(r"Importance Score", fontsize=20)
     ax.set_ylabel("")
     ax.grid(False)
-    ax.tick_params(axis='x', labelsize=18)
-    ax.tick_params(axis='y', labelsize=18)
+    ax.tick_params(axis='x', labelsize=20)
+    ax.tick_params(axis='y', labelsize=20)
 
     for s in ["top","right","left","bottom"]: ax.spines[s].set_visible(True)
     ax.xaxis.set_ticks_position("both"); ax.yaxis.set_ticks_position("both")
     ax.tick_params(axis="both", which="both", direction="in")
 
     legend = [Patch(facecolor=group_colors[g], edgecolor="black",
-                    label=f"{g} (total={group_totals[g]:.3f})") for g in group_df["Group"]]
+                    label=f"{g}\n(total={group_totals[g]:.3f})") for g in group_df["Group"]]
     ax.legend(handles=legend, title=r"Groups (Total Importance)",
-              fontsize=16, title_fontsize=16, loc="upper right",
-              bbox_to_anchor=(0.98,0.16), frameon=True)
+              fontsize=20, title_fontsize=20, loc="upper right",
+              bbox_to_anchor=(0.98,0.65), frameon=True)
+    
+    # Match y positions to labels
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
 
     plt.tight_layout()
     for ext in ["png","pdf"]:
