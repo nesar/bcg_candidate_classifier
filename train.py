@@ -459,9 +459,11 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
         val_losses.append(avg_val_loss)
         val_accuracies.append(avg_val_acc)
         
-        print(f"Epoch {epoch+1:3d} | "
-              f"Train Loss: {avg_train_loss:.4f} | Train Acc: {avg_train_acc:.3f} | "
-              f"Val Loss: {avg_val_loss:.4f} | Val Acc: {avg_val_acc:.3f}")
+
+        if epoch % 10 == 0:
+            print(f"Epoch {epoch+1:3d} | "
+                f"Train Loss: {avg_train_loss:.4f} | Train Acc: {avg_train_acc:.3f} | "
+                f"Val Loss: {avg_val_loss:.4f} | Val Acc: {avg_val_acc:.3f}")
         
         # Save best model
         if avg_val_acc > best_val_accuracy:

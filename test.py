@@ -178,8 +178,8 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             # This is a probabilistic model with UQ trained with ranking loss
             # Debug: Check raw logits first
             raw_logits = model(features_tensor).squeeze(-1)
-            print(f"DEBUG: Raw logits range [{torch.min(raw_logits):.4f}, {torch.max(raw_logits):.4f}], mean={torch.mean(raw_logits):.4f}")
-            print(f"DEBUG: Temperature: {model.temperature.item():.4f}")
+            # print(f"DEBUG: Raw logits range [{torch.min(raw_logits):.4f}, {torch.max(raw_logits):.4f}], mean={torch.mean(raw_logits):.4f}")
+            # print(f"DEBUG: Temperature: {model.temperature.item():.4f}")
             
             probabilities, uncertainties = model.predict_with_uncertainty(features_tensor)
             probabilities = probabilities.numpy()
@@ -189,14 +189,14 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             probabilities = np.atleast_1d(probabilities)
             uncertainties = np.atleast_1d(uncertainties)
             
-            print(f"DEBUG: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}]")
+            # print(f"DEBUG: Final probabilities range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}]")
             
             # If still getting zeros, try different approach
             if np.max(probabilities) < 1e-6:
-                print("DEBUG: Probabilities still near zero, trying raw sigmoid")
+                # print("DEBUG: Probabilities still near zero, trying raw sigmoid")
                 probabilities = np.atleast_1d(torch.sigmoid(raw_logits).numpy())
                 uncertainties = np.zeros_like(probabilities)
-                print(f"DEBUG: Raw sigmoid range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}]")
+                # print(f"DEBUG: Raw sigmoid range [{np.min(probabilities):.10f}, {np.max(probabilities):.10f}]")
         elif hasattr(model, 'temperature'):
             # This is a probabilistic model without MC dropout - trained with ranking loss
             logits = model.forward_with_temperature(features_tensor).squeeze(-1)
