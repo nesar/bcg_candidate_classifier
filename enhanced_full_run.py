@@ -711,6 +711,14 @@ except Exception as e:
             print("Diagnostic plotting failed, but continuing...")
         else:
             print(f"Diagnostic plots saved to: {output_dir}/diagnostic_plots.png")
+
+        # Generate sectors plot (donut charts for rank analysis)
+        sectors_command = f"python -c \"from plot_sectors_hardcoded import create_sectors_plot; create_sectors_plot('{evaluation_csv}', '{output_dir}')\""
+
+        if not run_command(sectors_command, "Generating sectors plot"):
+            print("Sectors plotting failed, but continuing...")
+        else:
+            print(f"Sectors plot saved to: {output_dir}/diagnostic_plots_sectors.png")
     else:
         print(f"Warning: Evaluation results file not found: {evaluation_csv}")
         print("Skipping diagnostic plots generation.")
@@ -787,6 +795,8 @@ except Exception as e:
     print(f"  Detailed results: {test_output_dir}/evaluation_results.csv")
     print(f"  Diagnostic plots: {output_dir}/diagnostic_plots.png")
     print(f"  Diagnostic plots (PDF): {output_dir}/diagnostic_plots.pdf")
+    print(f"  Sectors plot: {output_dir}/diagnostic_plots_sectors.png")
+    print(f"  Sectors plot (PDF): {output_dir}/diagnostic_plots_sectors.pdf")
     
     if use_uq:
         print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
