@@ -719,6 +719,14 @@ except Exception as e:
             print("Sectors plotting failed, but continuing...")
         else:
             print(f"Sectors plot saved to: {output_dir}/diagnostic_plots_sectors.png")
+
+        # Generate completeness and purity plots
+        completeness_command = f"python -c \"from plot_completeness_purity import plot_completeness_purity; plot_completeness_purity('{evaluation_csv}', '{output_dir}', '{TRUTH_TABLE}')\""
+
+        if not run_command(completeness_command, "Generating completeness and purity plots"):
+            print("Completeness/purity plotting failed, but continuing...")
+        else:
+            print(f"Completeness and purity plots saved to: {output_dir}/completeness_purity_plots.png")
     else:
         print(f"Warning: Evaluation results file not found: {evaluation_csv}")
         print("Skipping diagnostic plots generation.")
@@ -797,6 +805,8 @@ except Exception as e:
     print(f"  Diagnostic plots (PDF): {output_dir}/diagnostic_plots.pdf")
     print(f"  Sectors plot: {output_dir}/diagnostic_plots_sectors.png")
     print(f"  Sectors plot (PDF): {output_dir}/diagnostic_plots_sectors.pdf")
+    print(f"  Completeness & Purity plots: {output_dir}/completeness_purity_plots.png")
+    print(f"  Completeness & Purity plots (PDF): {output_dir}/completeness_purity_plots.pdf")
     
     if use_uq:
         print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
