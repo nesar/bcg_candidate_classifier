@@ -178,7 +178,7 @@ def compute_metrics_by_bins(df, bin_column, n_bins=10, distance_threshold=10.0,
 
 
 def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
-                             distance_threshold=10.0, n_bins=10, figsize=(16, 12)):
+                             distance_threshold=10.0, n_bins=15, figsize=(16, 8)):
     """
     Create completeness and purity plots as functions of redshift and delta_mstar_z.
 
@@ -205,8 +205,8 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
     else:
         print(f"Using single-prediction analysis")
 
-    # Create figure with 4 subplots (2x2) - no suptitle
-    fig, axes = plt.subplots(2, 2, figsize=figsize)
+    # Create figure with 2 subplots (1x2) - no suptitle
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
 
     # Define colors
     color_completeness = '#2ecc71'  # Green
@@ -221,9 +221,9 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
         delta_min, delta_max = df['delta_mstar_z'].min(), df['delta_mstar_z'].max()
 
     # ============================================================================
-    # Plot 1: Completeness vs Redshift
+    # Plot 1: Completeness and Purity vs Redshift
     # ============================================================================
-    ax1 = axes[0, 0]
+    ax1 = axes[0]
 
     if 'z' in df.columns and df['z'].notna().sum() > 0:
         bin_centers_z, completeness_z, purity_z, n_samples_z = compute_metrics_by_bins(
@@ -244,34 +244,63 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
                            (completeness_z + completeness_err/100) * 100,
                            alpha=0.3, color=color_completeness)
 
+            # Add overall completeness line
+            overall_completeness = np.nanmean(completeness_z) * 100
+            ax1.axhline(overall_completeness, color=color_completeness, linestyle=':',
+                       alpha=0.5, linewidth=2, label=f'Overall: {overall_completeness:.1f}%')
+
+            # Plot purity
+            ax1.plot(bin_centers_z, purity_z * 100, 's-', color=color_purity,
+                    linewidth=2, markersize=8, label='Purity')
+
+            # Add error bars for purity
+            if use_multi_detection:
+                # For multi-detection, purity uncertainty is more complex
+                # Use a simple approximation
+                purity_err = np.sqrt(purity_z * (1 - purity_z) / n_samples_z) * 100
+                purity_err = np.nan_to_num(purity_err, nan=0.0)
+            else:
+                # For single-prediction, purity = completeness
+                purity_err = completeness_err
+
+            ax1.fill_between(bin_centers_z,
+                           (purity_z - purity_err/100) * 100,
+                           (purity_z + purity_err/100) * 100,
+                           alpha=0.3, color=color_purity)
+
+            # Add overall purity line
+            overall_purity = np.nanmean(purity_z) * 100
+            ax1.axhline(overall_purity, color=color_purity, linestyle=':',
+                       alpha=0.5, linewidth=2, label=f'Overall: {overall_purity:.1f}%')
+
             ax1.set_xlabel(r'$z$', fontsize=18)
-            ax1.set_ylabel('Completeness (%)', fontsize=18)
+            ax1.set_ylabel('Completeness / Purity (%)', fontsize=18)
             ax1.tick_params(axis='both', labelsize=14)
             ax1.set_ylim([0, 105])
             if z_min is not None and z_max is not None:
                 ax1.set_xlim([z_min, z_max])
-            ax1.legend(fontsize=11, loc='lower left')
+            ax1.legend(fontsize='x-large', loc='lower left')
 
-            # Add overall completeness line
-            overall_completeness = np.nanmean(completeness_z) * 100
-            ax1.axhline(overall_completeness, color=color_completeness, linestyle=':',
-                       alpha=0.5, label=f'Overall: {overall_completeness:.1f}%')
-            ax1.legend(fontsize=11, loc='lower left')
+            # Add note about single-prediction vs multi-detection
+            if not use_multi_detection:
+                ax1.text(0.02, 0.98, 'Single-prediction:\nPurity = Completeness',
+                        transform=ax1.transAxes, fontsize=11, va='top',
+                        bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.7))
         else:
             ax1.text(0.5, 0.5, 'Insufficient redshift data', ha='center', va='center',
                     transform=ax1.transAxes, fontsize=14)
             ax1.set_xlabel(r'$z$', fontsize=18)
-            ax1.set_ylabel('Completeness (%)', fontsize=18)
+            ax1.set_ylabel('Completeness / Purity (%)', fontsize=18)
     else:
         ax1.text(0.5, 0.5, 'No redshift data available', ha='center', va='center',
                 transform=ax1.transAxes, fontsize=14)
         ax1.set_xlabel(r'$z$', fontsize=18)
-        ax1.set_ylabel('Completeness (%)', fontsize=18)
+        ax1.set_ylabel('Completeness / Purity (%)', fontsize=18)
 
     # ============================================================================
-    # Plot 2: Completeness vs Delta M* z
+    # Plot 2: Completeness and Purity vs Delta M* z
     # ============================================================================
-    ax2 = axes[0, 1]
+    ax2 = axes[1]
 
     if 'delta_mstar_z' in df.columns and df['delta_mstar_z'].notna().sum() > 0:
         bin_centers_dm, completeness_dm, purity_dm, n_samples_dm = compute_metrics_by_bins(
@@ -292,126 +321,55 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
                            (completeness_dm + completeness_err/100) * 100,
                            alpha=0.3, color=color_completeness)
 
+            # Add overall completeness line
+            overall_completeness = np.nanmean(completeness_dm) * 100
+            ax2.axhline(overall_completeness, color=color_completeness, linestyle=':',
+                       alpha=0.5, linewidth=2, label=f'Overall: {overall_completeness:.1f}%')
+
+            # Plot purity
+            ax2.plot(bin_centers_dm, purity_dm * 100, 's-', color=color_purity,
+                    linewidth=2, markersize=8, label='Purity')
+
+            # Add error bars for purity
+            if use_multi_detection:
+                purity_err = np.sqrt(purity_dm * (1 - purity_dm) / n_samples_dm) * 100
+                purity_err = np.nan_to_num(purity_err, nan=0.0)
+            else:
+                purity_err = completeness_err
+
+            ax2.fill_between(bin_centers_dm,
+                           (purity_dm - purity_err/100) * 100,
+                           (purity_dm + purity_err/100) * 100,
+                           alpha=0.3, color=color_purity)
+
+            # Add overall purity line
+            overall_purity = np.nanmean(purity_dm) * 100
+            ax2.axhline(overall_purity, color=color_purity, linestyle=':',
+                       alpha=0.5, linewidth=2, label=f'Overall: {overall_purity:.1f}%')
+
             ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-            ax2.set_ylabel('Completeness (%)', fontsize=18)
+            ax2.set_ylabel('Completeness / Purity (%)', fontsize=18)
             ax2.tick_params(axis='both', labelsize=14)
             ax2.set_ylim([0, 105])
             if delta_min is not None and delta_max is not None:
                 ax2.set_xlim([delta_min, delta_max])
-            ax2.legend(fontsize=11, loc='lower left')
+            ax2.legend(fontsize='x-large', loc='lower left')
 
-            # Add overall completeness line
-            overall_completeness = np.nanmean(completeness_dm) * 100
-            ax2.axhline(overall_completeness, color=color_completeness, linestyle=':',
-                       alpha=0.5, label=f'Overall: {overall_completeness:.1f}%')
-            ax2.legend(fontsize=11, loc='lower left')
+            # Add note about single-prediction vs multi-detection
+            if not use_multi_detection:
+                ax2.text(0.02, 0.98, 'Single-prediction:\nPurity = Completeness',
+                        transform=ax2.transAxes, fontsize=11, va='top',
+                        bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.7))
         else:
             ax2.text(0.5, 0.5, 'Insufficient delta_mstar_z data', ha='center', va='center',
                     transform=ax2.transAxes, fontsize=14)
             ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-            ax2.set_ylabel('Completeness (%)', fontsize=18)
+            ax2.set_ylabel('Completeness / Purity (%)', fontsize=18)
     else:
         ax2.text(0.5, 0.5, 'No delta_mstar_z data available', ha='center', va='center',
                 transform=ax2.transAxes, fontsize=14)
         ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-        ax2.set_ylabel('Completeness (%)', fontsize=18)
-
-    # ============================================================================
-    # Plot 3: Purity vs Redshift
-    # ============================================================================
-    ax3 = axes[1, 0]
-
-    if 'z' in df.columns and df['z'].notna().sum() > 0 and len(bin_centers_z) > 0:
-        # Plot purity
-        ax3.plot(bin_centers_z, purity_z * 100, 's-', color=color_purity,
-                linewidth=2, markersize=8, label='Purity')
-
-        # Add error bars for purity
-        if use_multi_detection:
-            # For multi-detection, purity uncertainty is more complex
-            # Use a simple approximation
-            purity_err = np.sqrt(purity_z * (1 - purity_z) / n_samples_z) * 100
-            purity_err = np.nan_to_num(purity_err, nan=0.0)
-        else:
-            # For single-prediction, purity = completeness
-            purity_err = completeness_err
-
-        ax3.fill_between(bin_centers_z,
-                       (purity_z - purity_err/100) * 100,
-                       (purity_z + purity_err/100) * 100,
-                       alpha=0.3, color=color_purity)
-
-        ax3.set_xlabel(r'$z$', fontsize=18)
-        ax3.set_ylabel('Purity (%)', fontsize=18)
-        ax3.tick_params(axis='both', labelsize=14)
-        ax3.set_ylim([0, 105])
-        if z_min is not None and z_max is not None:
-            ax3.set_xlim([z_min, z_max])
-        ax3.legend(fontsize=11, loc='lower left')
-
-        # Add overall purity line
-        overall_purity = np.nanmean(purity_z) * 100
-        ax3.axhline(overall_purity, color=color_purity, linestyle=':',
-                   alpha=0.5, label=f'Overall: {overall_purity:.1f}%')
-        ax3.legend(fontsize=11, loc='lower left')
-
-        # Add note about single-prediction vs multi-detection
-        if not use_multi_detection:
-            ax3.text(0.02, 0.98, 'Single-prediction:\nPurity = Completeness',
-                    transform=ax3.transAxes, fontsize=11, va='top',
-                    bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.7))
-    else:
-        ax3.text(0.5, 0.5, 'No redshift data available', ha='center', va='center',
-                transform=ax3.transAxes, fontsize=14)
-        ax3.set_xlabel(r'$z$', fontsize=18)
-        ax3.set_ylabel('Purity (%)', fontsize=18)
-
-    # ============================================================================
-    # Plot 4: Purity vs Delta M* z
-    # ============================================================================
-    ax4 = axes[1, 1]
-
-    if 'delta_mstar_z' in df.columns and df['delta_mstar_z'].notna().sum() > 0 and len(bin_centers_dm) > 0:
-        # Plot purity
-        ax4.plot(bin_centers_dm, purity_dm * 100, 's-', color=color_purity,
-                linewidth=2, markersize=8, label='Purity')
-
-        # Add error bars
-        if use_multi_detection:
-            purity_err = np.sqrt(purity_dm * (1 - purity_dm) / n_samples_dm) * 100
-            purity_err = np.nan_to_num(purity_err, nan=0.0)
-        else:
-            purity_err = completeness_err
-
-        ax4.fill_between(bin_centers_dm,
-                       (purity_dm - purity_err/100) * 100,
-                       (purity_dm + purity_err/100) * 100,
-                       alpha=0.3, color=color_purity)
-
-        ax4.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-        ax4.set_ylabel('Purity (%)', fontsize=18)
-        ax4.tick_params(axis='both', labelsize=14)
-        ax4.set_ylim([0, 105])
-        if delta_min is not None and delta_max is not None:
-            ax4.set_xlim([delta_min, delta_max])
-        ax4.legend(fontsize=11, loc='lower left')
-
-        # Add overall purity line
-        overall_purity = np.nanmean(purity_dm) * 100
-        ax4.axhline(overall_purity, color=color_purity, linestyle=':',
-                   alpha=0.5, label=f'Overall: {overall_purity:.1f}%')
-        ax4.legend(fontsize=11, loc='lower left')
-
-        # Add note about single-prediction vs multi-detection
-        if not use_multi_detection:
-            ax4.text(0.02, 0.98, 'Single-prediction:\nPurity = Completeness',
-                    transform=ax4.transAxes, fontsize=11, va='top',
-                    bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.7))
-    else:
-        ax4.text(0.5, 0.5, 'No delta_mstar_z data available', ha='center', va='center',
-                transform=ax4.transAxes, fontsize=14)
-        ax4.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-        ax4.set_ylabel('Purity (%)', fontsize=18)
+        ax2.set_ylabel('Completeness / Purity (%)', fontsize=18)
 
     # Adjust layout and save
     plt.tight_layout()
@@ -443,9 +401,9 @@ def main():
     parser.add_argument('--bcg_csv', help='Path to BCG CSV file (to get delta_mstar_z)')
     parser.add_argument('--distance_threshold', type=float, default=10.0,
                        help='Distance threshold in pixels for successful detection (default: 10.0)')
-    parser.add_argument('--n_bins', type=int, default=10,
-                       help='Number of bins for each variable (default: 10)')
-    parser.add_argument('--figsize', nargs=2, type=float, default=[16, 12],
+    parser.add_argument('--n_bins', type=int, default=15,
+                       help='Number of bins for each variable (default: 15)')
+    parser.add_argument('--figsize', nargs=2, type=float, default=[16, 8],
                        help='Figure size (width height) in inches')
 
     args = parser.parse_args()

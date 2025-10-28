@@ -169,9 +169,61 @@ python plot_completeness_purity.py evaluation_results.csv --bcg_csv path/to/bcg.
 
 ---
 
+## Update 2: Combined Subplots and Increased Bins
+
+**Date**: 2025-10-28
+
+### Changes Made:
+
+1. **Combined Subplots**: Reduced from 4 subplots (2x2) to 2 subplots (1x2)
+   - Left subplot: Both Completeness and Purity vs z
+   - Right subplot: Both Completeness and Purity vs delta_m*_z
+   - Easier to compare completeness and purity side-by-side
+
+2. **Increased Bin Count**: Changed default from 10 bins to 15 bins
+   - Better resolution for understanding trends
+   - More data points visible in plots
+
+3. **Legend Font Size**: Changed from 11pt to 'x-large'
+   - Improved readability
+   - Matches importance of legend information
+
+4. **Overall Line Width**: Increased from 1.0 to 2.0 for horizontal reference lines
+   - Dotted lines showing overall completeness/purity are now thicker (lw=2)
+   - Better visibility of reference values
+
+5. **Y-Axis Label**: Changed to "Completeness / Purity (%)" to reflect both metrics
+
+**Lines Modified**:
+- **Line 181**: Changed default n_bins from 10 to 15, figsize from (16, 12) to (16, 8)
+- **Line 209**: Changed subplot grid from (2, 2) to (1, 2)
+- **Lines 226-298**: Combined Plot 1 (Completeness vs z) and Plot 3 (Purity vs z)
+- **Lines 303-372**: Combined Plot 2 (Completeness vs delta_m*_z) and Plot 4 (Purity vs delta_m*_z)
+- **Line 282, 356**: Changed legend fontsize from 11 to 'x-large'
+- **Line 250, 274, 327, 348**: Added linewidth=2 to axhline calls for overall reference lines
+- **Line 404**: Updated argparse default for n_bins to 15
+- **Line 406**: Updated argparse default for figsize to [16, 8]
+
+### Purity at 100% - Expected Behavior:
+
+**Note**: The presence of some purity points at exactly 100% is **correct and expected** behavior:
+
+- This occurs in sparse detection regimes (high-z or extreme delta_m*_z bins)
+- When the purity approximation formula gives >100%, it's capped at 100%
+- This is the physically meaningful upper bound
+- It indicates bins where the approximation is at its limit, but the classifier is performing well
+
+**Why This Happens**:
+- In bins with very few detections per image (sparse regime)
+- When most images with detections have correct matches
+- The ratio n_detected/total_detections approaches or exceeds 1.0
+- Capping ensures purity remains in valid range [0%, 100%]
+
+---
+
 ## Files Modified
 
-1. **plot_completeness_purity.py** - Main plotting module with bug fix and styling
+1. **plot_completeness_purity.py** - Main plotting module with bug fix, styling, and combined subplots
 2. **COMPLETENESS_PURITY_BUGFIX.md** - This documentation file
 
 ---
