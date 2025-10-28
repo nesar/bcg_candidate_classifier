@@ -28,14 +28,13 @@ import warnings
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
 
-# Set style for publication-quality plots
+# Set style consistent with physical_images plots (viz_bcg.py)
 plt.rcParams.update({
     "text.usetex": False,
     "font.family": "serif",
     "mathtext.fontset": "cm",
     "axes.linewidth": 1.2
 })
-plt.style.use('default')
 sns.set_palette("husl")
 
 
@@ -154,7 +153,8 @@ def compute_metrics_by_bins(df, bin_column, n_bins=10, distance_threshold=10.0,
             total_detections = df_bin['n_detections'].sum()
             if total_detections > 0:
                 # Approximate: assume each correct image contributes 1 correct detection
-                purity_bin = n_detected / total_detections
+                # Cap at 1.0 (100%) since approximation can exceed 100% with sparse detections
+                purity_bin = min(1.0, n_detected / total_detections)
             else:
                 purity_bin = np.nan
 
@@ -205,13 +205,20 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
     else:
         print(f"Using single-prediction analysis")
 
-    # Create figure with 4 subplots (2x2)
+    # Create figure with 4 subplots (2x2) - no suptitle
     fig, axes = plt.subplots(2, 2, figsize=figsize)
-    fig.suptitle('Completeness and Purity Analysis', fontsize=20, fontweight='bold')
 
     # Define colors
     color_completeness = '#2ecc71'  # Green
     color_purity = '#3498db'  # Blue
+
+    # Determine common x-axis limits for matching scales
+    z_min, z_max = None, None
+    delta_min, delta_max = None, None
+    if 'z' in df.columns and df['z'].notna().sum() > 0:
+        z_min, z_max = df['z'].min(), df['z'].max()
+    if 'delta_mstar_z' in df.columns and df['delta_mstar_z'].notna().sum() > 0:
+        delta_min, delta_max = df['delta_mstar_z'].min(), df['delta_mstar_z'].max()
 
     # ============================================================================
     # Plot 1: Completeness vs Redshift
@@ -237,27 +244,29 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
                            (completeness_z + completeness_err/100) * 100,
                            alpha=0.3, color=color_completeness)
 
-            ax1.set_xlabel('Redshift (z)', fontsize=16, fontweight='bold')
-            ax1.set_ylabel('Completeness (%)', fontsize=16, fontweight='bold')
-            ax1.set_title('Completeness vs Redshift', fontsize=18, fontweight='bold')
+            ax1.set_xlabel(r'$z$', fontsize=18)
+            ax1.set_ylabel('Completeness (%)', fontsize=18)
             ax1.tick_params(axis='both', labelsize=14)
-            ax1.grid(True, alpha=0.3, linestyle='--')
             ax1.set_ylim([0, 105])
-            ax1.legend(fontsize=14, loc='lower left')
+            if z_min is not None and z_max is not None:
+                ax1.set_xlim([z_min, z_max])
+            ax1.legend(fontsize=11, loc='lower left')
 
             # Add overall completeness line
             overall_completeness = np.nanmean(completeness_z) * 100
             ax1.axhline(overall_completeness, color=color_completeness, linestyle=':',
                        alpha=0.5, label=f'Overall: {overall_completeness:.1f}%')
-            ax1.legend(fontsize=14, loc='lower left')
+            ax1.legend(fontsize=11, loc='lower left')
         else:
             ax1.text(0.5, 0.5, 'Insufficient redshift data', ha='center', va='center',
                     transform=ax1.transAxes, fontsize=14)
-            ax1.set_title('Completeness vs Redshift\n(No Data)', fontsize=18)
+            ax1.set_xlabel(r'$z$', fontsize=18)
+            ax1.set_ylabel('Completeness (%)', fontsize=18)
     else:
         ax1.text(0.5, 0.5, 'No redshift data available', ha='center', va='center',
                 transform=ax1.transAxes, fontsize=14)
-        ax1.set_title('Completeness vs Redshift\n(No Data)', fontsize=18)
+        ax1.set_xlabel(r'$z$', fontsize=18)
+        ax1.set_ylabel('Completeness (%)', fontsize=18)
 
     # ============================================================================
     # Plot 2: Completeness vs Delta M* z
@@ -283,27 +292,29 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
                            (completeness_dm + completeness_err/100) * 100,
                            alpha=0.3, color=color_completeness)
 
-            ax2.set_xlabel('Delta M* z', fontsize=16, fontweight='bold')
-            ax2.set_ylabel('Completeness (%)', fontsize=16, fontweight='bold')
-            ax2.set_title('Completeness vs Delta M* z', fontsize=18, fontweight='bold')
+            ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
+            ax2.set_ylabel('Completeness (%)', fontsize=18)
             ax2.tick_params(axis='both', labelsize=14)
-            ax2.grid(True, alpha=0.3, linestyle='--')
             ax2.set_ylim([0, 105])
-            ax2.legend(fontsize=14, loc='lower left')
+            if delta_min is not None and delta_max is not None:
+                ax2.set_xlim([delta_min, delta_max])
+            ax2.legend(fontsize=11, loc='lower left')
 
             # Add overall completeness line
             overall_completeness = np.nanmean(completeness_dm) * 100
             ax2.axhline(overall_completeness, color=color_completeness, linestyle=':',
                        alpha=0.5, label=f'Overall: {overall_completeness:.1f}%')
-            ax2.legend(fontsize=14, loc='lower left')
+            ax2.legend(fontsize=11, loc='lower left')
         else:
             ax2.text(0.5, 0.5, 'Insufficient delta_mstar_z data', ha='center', va='center',
                     transform=ax2.transAxes, fontsize=14)
-            ax2.set_title('Completeness vs Delta M* z\n(No Data)', fontsize=18)
+            ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
+            ax2.set_ylabel('Completeness (%)', fontsize=18)
     else:
         ax2.text(0.5, 0.5, 'No delta_mstar_z data available', ha='center', va='center',
                 transform=ax2.transAxes, fontsize=14)
-        ax2.set_title('Completeness vs Delta M* z\n(No Data)', fontsize=18)
+        ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
+        ax2.set_ylabel('Completeness (%)', fontsize=18)
 
     # ============================================================================
     # Plot 3: Purity vs Redshift
@@ -330,19 +341,19 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
                        (purity_z + purity_err/100) * 100,
                        alpha=0.3, color=color_purity)
 
-        ax3.set_xlabel('Redshift (z)', fontsize=16, fontweight='bold')
-        ax3.set_ylabel('Purity (%)', fontsize=16, fontweight='bold')
-        ax3.set_title('Purity vs Redshift', fontsize=18, fontweight='bold')
+        ax3.set_xlabel(r'$z$', fontsize=18)
+        ax3.set_ylabel('Purity (%)', fontsize=18)
         ax3.tick_params(axis='both', labelsize=14)
-        ax3.grid(True, alpha=0.3, linestyle='--')
         ax3.set_ylim([0, 105])
-        ax3.legend(fontsize=14, loc='lower left')
+        if z_min is not None and z_max is not None:
+            ax3.set_xlim([z_min, z_max])
+        ax3.legend(fontsize=11, loc='lower left')
 
         # Add overall purity line
         overall_purity = np.nanmean(purity_z) * 100
         ax3.axhline(overall_purity, color=color_purity, linestyle=':',
                    alpha=0.5, label=f'Overall: {overall_purity:.1f}%')
-        ax3.legend(fontsize=14, loc='lower left')
+        ax3.legend(fontsize=11, loc='lower left')
 
         # Add note about single-prediction vs multi-detection
         if not use_multi_detection:
@@ -352,7 +363,8 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
     else:
         ax3.text(0.5, 0.5, 'No redshift data available', ha='center', va='center',
                 transform=ax3.transAxes, fontsize=14)
-        ax3.set_title('Purity vs Redshift\n(No Data)', fontsize=18)
+        ax3.set_xlabel(r'$z$', fontsize=18)
+        ax3.set_ylabel('Purity (%)', fontsize=18)
 
     # ============================================================================
     # Plot 4: Purity vs Delta M* z
@@ -376,19 +388,19 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
                        (purity_dm + purity_err/100) * 100,
                        alpha=0.3, color=color_purity)
 
-        ax4.set_xlabel('Delta M* z', fontsize=16, fontweight='bold')
-        ax4.set_ylabel('Purity (%)', fontsize=16, fontweight='bold')
-        ax4.set_title('Purity vs Delta M* z', fontsize=18, fontweight='bold')
+        ax4.set_xlabel(r'$\delta m^*_z$', fontsize=18)
+        ax4.set_ylabel('Purity (%)', fontsize=18)
         ax4.tick_params(axis='both', labelsize=14)
-        ax4.grid(True, alpha=0.3, linestyle='--')
         ax4.set_ylim([0, 105])
-        ax4.legend(fontsize=14, loc='lower left')
+        if delta_min is not None and delta_max is not None:
+            ax4.set_xlim([delta_min, delta_max])
+        ax4.legend(fontsize=11, loc='lower left')
 
         # Add overall purity line
         overall_purity = np.nanmean(purity_dm) * 100
         ax4.axhline(overall_purity, color=color_purity, linestyle=':',
                    alpha=0.5, label=f'Overall: {overall_purity:.1f}%')
-        ax4.legend(fontsize=14, loc='lower left')
+        ax4.legend(fontsize=11, loc='lower left')
 
         # Add note about single-prediction vs multi-detection
         if not use_multi_detection:
@@ -398,7 +410,8 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
     else:
         ax4.text(0.5, 0.5, 'No delta_mstar_z data available', ha='center', va='center',
                 transform=ax4.transAxes, fontsize=14)
-        ax4.set_title('Purity vs Delta M* z\n(No Data)', fontsize=18)
+        ax4.set_xlabel(r'$\delta m^*_z$', fontsize=18)
+        ax4.set_ylabel('Purity (%)', fontsize=18)
 
     # Adjust layout and save
     plt.tight_layout()
