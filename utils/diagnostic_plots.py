@@ -14,6 +14,7 @@ Features:
 """
 
 import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -21,13 +22,14 @@ import seaborn as sns
 from pathlib import Path
 import warnings
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import consistent plot configuration
+from plot_config import setup_plot_style, COLORS, FONTS, SIZES
+
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
-
-# Set style for publication-quality plots consistent with plot_physical_results.py
-plt.rcParams.update({"text.usetex":False,"font.family":"serif","mathtext.fontset":"cm","axes.linewidth":1.2})
-plt.style.use('default')
-sns.set_palette("husl")
 
 
 def load_evaluation_results(results_file):
@@ -52,13 +54,15 @@ def load_evaluation_results(results_file):
 def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
     """
     Create comprehensive diagnostic plots from evaluation results.
-    
+
     Args:
         results_file: Path to evaluation_results.csv
         output_dir: Directory to save plots (defaults to same dir as results)
         figsize: Figure size for the subplot grid
     """
-    
+    # Apply consistent plot style
+    setup_plot_style(use_seaborn=True, seaborn_style='whitegrid')
+
     # Load data
     df = load_evaluation_results(results_file)
     
@@ -68,7 +72,7 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
     
     # Create figure with subplots
     fig, axes = plt.subplots(2, 3, figsize=figsize)
-    fig.suptitle('BCG Candidate Classifier - Diagnostic Analysis', fontsize=18, fontweight='bold')
+    fig.suptitle('BCG Candidate Classifier - Diagnostic Analysis', fontsize=FONTS['title'], fontweight='bold')
     
     # Define distance threshold for "correct" detections (in pixels)
     distance_threshold = 10.0  # pixels
@@ -113,7 +117,7 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
 
         # Calculate top-3 success rate
         top3_success = (rank_1_count + rank_2_count + rank_3_count) / len(df) * 100
-        ax1.set_title(f'Single-Target Rank Analysis\nTop-3 Success: {top3_success:.1f}%', fontweight='bold', fontsize=16)
+        ax1.set_title(f'Single-Target Rank Analysis\nTop-3 Success: {top3_success:.1f}%', fontweight='bold', fontsize=FONTS['subtitle'])
     else:
         # Fall back to traditional distance-based analysis
         counts = [np.sum(correct_detections), np.sum(~correct_detections)]
@@ -122,8 +126,8 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
         colors = ['#2ecc71', '#e74c3c']
 
         wedges, texts, autotexts = ax1.pie(counts, labels=labels, colors=colors, autopct='',
-                                           startangle=90, textprops={'fontsize': 10})
-        ax1.set_title(f'Single-Target Detection\nOverall: {accuracy:.1f}%', fontweight='bold', fontsize=16)
+                                           startangle=90, textprops={'fontsize': FONTS['small']})
+        ax1.set_title(f'Single-Target Detection\nOverall: {accuracy:.1f}%', fontweight='bold', fontsize=FONTS['subtitle'])
     
     # Plot 2: Distance Error Distribution
     ax2 = axes[0, 1]
@@ -167,10 +171,10 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
                 ha='center', va='center', transform=ax2.transAxes, fontsize=12)
         ax2.set_title('Distance Error Distribution')
     
-    ax2.set_xlabel('Distance Error (pixels)', fontsize=18)
-    ax2.set_ylabel('Density', fontsize=18)
-    ax2.tick_params(axis='both', labelsize=18)
-    ax2.legend(fontsize=18)
+    ax2.set_xlabel('Distance Error (pixels)', fontsize=FONTS['label'])
+    ax2.set_ylabel('Density', fontsize=FONTS['label'])
+    ax2.tick_params(axis='both', labelsize=FONTS['tick'])
+    ax2.legend(fontsize=FONTS['legend'])
     ax2.grid(True, alpha=0.3)
     
     # Plot 3: Redshift Dependence (if redshift data available)
@@ -198,10 +202,10 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
             except:
                 pass
         
-        ax3.set_xlabel('Redshift (z)', fontsize=18)
-        ax3.set_ylabel('Distance Error (pixels)', fontsize=18)
-        ax3.set_title('Distance Error vs Redshift', fontsize=18)
-        ax3.tick_params(axis='both', labelsize=18)
+        ax3.set_xlabel('Redshift (z)', fontsize=FONTS['label'])
+        ax3.set_ylabel('Distance Error (pixels)', fontsize=FONTS['label'])
+        ax3.set_title('Distance Error vs Redshift', fontsize=FONTS['subtitle'])
+        ax3.tick_params(axis='both', labelsize=FONTS['tick'])
         ax3.grid(True, alpha=0.3)
         
         # Add colorbar
@@ -230,10 +234,10 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
                        label=f'Detection Threshold: {threshold:.2f}')
             ax4.legend()
         
-        ax4.set_xlabel('Maximum Probability', fontsize=18)
-        ax4.set_ylabel('Distance Error (pixels)', fontsize=18)
-        ax4.set_title('Uncertainty Quantification:\nProbability vs Error', fontsize=18)
-        ax4.tick_params(axis='both', labelsize=18)
+        ax4.set_xlabel('Maximum Probability', fontsize=FONTS['label'])
+        ax4.set_ylabel('Distance Error (pixels)', fontsize=FONTS['label'])
+        ax4.set_title('Uncertainty Quantification:\nProbability vs Error', fontsize=FONTS['subtitle'])
+        ax4.tick_params(axis='both', labelsize=FONTS['tick'])
         ax4.grid(True, alpha=0.3)
         
         # Add colorbar
@@ -286,12 +290,12 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
             images_with_multiple_targets = len(df[df['n_targets'] > 1])
 
         ax5.set_title(f'Multi-Target Rank Analysis\nTop-3 Success: {top3_success:.1f}%\n({images_with_multiple_targets} images have multiple targets)',
-                     fontweight='bold', fontsize=14)
+                     fontweight='bold', fontsize=FONTS['subtitle'])
     else:
         ax5.text(0.5, 0.5, 'Multi-target rank data\nnot available\n(run test.py to generate)',
                 ha='center', va='center', transform=ax5.transAxes, fontsize=12,
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="lightgray", alpha=0.8))
-        ax5.set_title('Multi-Target Rank Analysis\n(No Data Available)', fontsize=16)
+        ax5.set_title('Multi-Target Rank Analysis\n(No Data Available)', fontsize=FONTS['subtitle'])
     
     # Plot 6: Performance Summary Statistics
     ax6 = axes[1, 2]
@@ -344,7 +348,7 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
         stats_text.append(f"Mean Redshift: {np.mean(z_data['z']):.3f}")
     
     # Display text
-    ax6.text(0.05, 0.95, '\n'.join(stats_text), transform=ax6.transAxes, fontsize=18,
+    ax6.text(0.05, 0.95, '\n'.join(stats_text), transform=ax6.transAxes, fontsize=FONTS['tick'],
             verticalalignment='top', fontfamily='monospace',
             bbox=dict(boxstyle="round,pad=0.5", facecolor="lightblue", alpha=0.3))
     
@@ -353,12 +357,12 @@ def create_diagnostic_plots(results_file, output_dir=None, figsize=(16, 12)):
     
     # Save the plot
     output_file = os.path.join(output_dir, 'diagnostic_plots.png')
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    plt.savefig(output_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Diagnostic plots saved to: {output_file}")
-    
+
     # Also save as PDF for publication quality
     pdf_file = os.path.join(output_dir, 'diagnostic_plots.pdf')
-    plt.savefig(pdf_file, dpi=300, bbox_inches='tight')
+    plt.savefig(pdf_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"High-quality PDF saved to: {pdf_file}")
     
     return fig

@@ -10,6 +10,8 @@ Author: Claude
 Date: 2025-09-28
 """
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,26 +19,17 @@ import seaborn as sns
 from scipy import stats
 from scipy.stats import pearsonr, spearmanr, ks_2samp, mannwhitneyu
 import warnings
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Import consistent plot configuration
+from plot_config import setup_plot_style, COLORS, FONTS, SIZES
+
 warnings.filterwarnings('ignore')
 
-# Set style for publication-quality plots consistent with plot_physical_results.py
-plt.rcParams.update({
-    'text.usetex': False,
-    'font.family': 'serif',
-    'mathtext.fontset': 'cm',
-    'axes.linewidth': 1.2,
-    'font.size': 18,
-    'axes.titlesize': 18,
-    'axes.labelsize': 18,
-    'xtick.labelsize': 18,
-    'ytick.labelsize': 18,
-    'legend.fontsize': 18,
-    'figure.titlesize': 18,
-    'figure.figsize': [12, 14],
-    'figure.dpi': 300,
-    'savefig.dpi': 300,
-    'savefig.bbox': 'tight'
-})
+# Apply consistent plot style
+setup_plot_style()
 plt.ioff()  # Turn off interactive mode
 
 
