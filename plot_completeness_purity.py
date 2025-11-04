@@ -24,18 +24,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 import warnings
+from plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
-
-# Set style consistent with physical_images plots (viz_bcg.py)
-plt.rcParams.update({
-    "text.usetex": False,
-    "font.family": "serif",
-    "mathtext.fontset": "cm",
-    "axes.linewidth": 1.2
-})
-sns.set_palette("husl")
 
 
 def load_and_merge_data(evaluation_csv, bcg_csv=None):
@@ -190,6 +182,9 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
         n_bins: Number of bins for each variable
         figsize: Figure size for the subplot grid
     """
+    # Apply consistent plot style
+    setup_plot_style(use_seaborn=True, seaborn_style='whitegrid')
+
     # Load and merge data
     df = load_and_merge_data(evaluation_csv, bcg_csv)
 
@@ -208,9 +203,9 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
     # Create figure with 2 subplots (1x2) - no suptitle
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
-    # Define colors
-    color_completeness = '#2ecc71'  # Green
-    color_purity = '#3498db'  # Blue
+    # Define colors - use consistent colors from plot_config
+    color_completeness = COLORS['completeness']  # Green
+    color_purity = COLORS['purity']  # Blue
 
     # Determine common x-axis limits for matching scales
     z_min, z_max = None, None
@@ -234,7 +229,7 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
         if len(bin_centers_z) > 0:
             # Plot completeness
             ax1.plot(bin_centers_z, completeness_z * 100, 'o-', color=color_completeness,
-                    linewidth=2, markersize=8, label='Completeness')
+                    linewidth=SIZES['linewidth'], markersize=SIZES['markersize'], label='Completeness')
 
             # Add error bars based on binomial statistics
             completeness_err = np.sqrt(completeness_z * (1 - completeness_z) / n_samples_z) * 100
@@ -247,11 +242,11 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
             # Add overall completeness line
             overall_completeness = np.nanmean(completeness_z) * 100
             ax1.axhline(overall_completeness, color=color_completeness, linestyle=':',
-                       alpha=0.5, linewidth=2, label=f'Overall: {overall_completeness:.1f}%')
+                       alpha=0.5, linewidth=SIZES['linewidth'], label=f'Overall: {overall_completeness:.1f}%')
 
             # Plot purity
             ax1.plot(bin_centers_z, purity_z * 100, 's-', color=color_purity,
-                    linewidth=2, markersize=8, label='Purity')
+                    linewidth=SIZES['linewidth'], markersize=SIZES['markersize'], label='Purity')
 
             # Add error bars for purity
             if use_multi_detection:
@@ -271,31 +266,31 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
             # Add overall purity line
             overall_purity = np.nanmean(purity_z) * 100
             ax1.axhline(overall_purity, color=color_purity, linestyle=':',
-                       alpha=0.5, linewidth=2, label=f'Overall: {overall_purity:.1f}%')
+                       alpha=0.5, linewidth=SIZES['linewidth'], label=f'Overall: {overall_purity:.1f}%')
 
-            ax1.set_xlabel(r'$z$', fontsize=18)
-            ax1.set_ylabel('Completeness / Purity (%)', fontsize=18)
-            ax1.tick_params(axis='both', labelsize=14)
+            ax1.set_xlabel(r'$z$', fontsize=FONTS['label'])
+            ax1.set_ylabel('Completeness / Purity (%)', fontsize=FONTS['label'])
+            ax1.tick_params(axis='both', labelsize=FONTS['tick'])
             ax1.set_ylim([0, 105])
             if z_min is not None and z_max is not None:
                 ax1.set_xlim([z_min, z_max])
-            ax1.legend(fontsize='x-large', loc='lower left')
+            ax1.legend(fontsize=FONTS['legend'], loc='lower left')
 
             # Add note about single-prediction vs multi-detection
             if not use_multi_detection:
                 ax1.text(0.02, 0.98, 'Single-prediction:\nPurity = Completeness',
-                        transform=ax1.transAxes, fontsize=11, va='top',
+                        transform=ax1.transAxes, fontsize=FONTS['small'], va='top',
                         bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.7))
         else:
             ax1.text(0.5, 0.5, 'Insufficient redshift data', ha='center', va='center',
-                    transform=ax1.transAxes, fontsize=14)
-            ax1.set_xlabel(r'$z$', fontsize=18)
-            ax1.set_ylabel('Completeness / Purity (%)', fontsize=18)
+                    transform=ax1.transAxes, fontsize=FONTS['tick'])
+            ax1.set_xlabel(r'$z$', fontsize=FONTS['label'])
+            ax1.set_ylabel('Completeness / Purity (%)', fontsize=FONTS['label'])
     else:
         ax1.text(0.5, 0.5, 'No redshift data available', ha='center', va='center',
-                transform=ax1.transAxes, fontsize=14)
-        ax1.set_xlabel(r'$z$', fontsize=18)
-        ax1.set_ylabel('Completeness / Purity (%)', fontsize=18)
+                transform=ax1.transAxes, fontsize=FONTS['tick'])
+        ax1.set_xlabel(r'$z$', fontsize=FONTS['label'])
+        ax1.set_ylabel('Completeness / Purity (%)', fontsize=FONTS['label'])
 
     # ============================================================================
     # Plot 2: Completeness and Purity vs Delta M* z
@@ -311,7 +306,7 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
         if len(bin_centers_dm) > 0:
             # Plot completeness
             ax2.plot(bin_centers_dm, completeness_dm * 100, 'o-', color=color_completeness,
-                    linewidth=2, markersize=8, label='Completeness')
+                    linewidth=SIZES['linewidth'], markersize=SIZES['markersize'], label='Completeness')
 
             # Add error bars
             completeness_err = np.sqrt(completeness_dm * (1 - completeness_dm) / n_samples_dm) * 100
@@ -324,11 +319,11 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
             # Add overall completeness line
             overall_completeness = np.nanmean(completeness_dm) * 100
             ax2.axhline(overall_completeness, color=color_completeness, linestyle=':',
-                       alpha=0.5, linewidth=2, label=f'Overall: {overall_completeness:.1f}%')
+                       alpha=0.5, linewidth=SIZES['linewidth'], label=f'Overall: {overall_completeness:.1f}%')
 
             # Plot purity
             ax2.plot(bin_centers_dm, purity_dm * 100, 's-', color=color_purity,
-                    linewidth=2, markersize=8, label='Purity')
+                    linewidth=SIZES['linewidth'], markersize=SIZES['markersize'], label='Purity')
 
             # Add error bars for purity
             if use_multi_detection:
@@ -345,43 +340,43 @@ def plot_completeness_purity(evaluation_csv, output_dir=None, bcg_csv=None,
             # Add overall purity line
             overall_purity = np.nanmean(purity_dm) * 100
             ax2.axhline(overall_purity, color=color_purity, linestyle=':',
-                       alpha=0.5, linewidth=2, label=f'Overall: {overall_purity:.1f}%')
+                       alpha=0.5, linewidth=SIZES['linewidth'], label=f'Overall: {overall_purity:.1f}%')
 
-            ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-            ax2.set_ylabel('Completeness / Purity (%)', fontsize=18)
-            ax2.tick_params(axis='both', labelsize=14)
+            ax2.set_xlabel(r'$\delta m^*_z$', fontsize=FONTS['label'])
+            ax2.set_ylabel('Completeness / Purity (%)', fontsize=FONTS['label'])
+            ax2.tick_params(axis='both', labelsize=FONTS['tick'])
             ax2.set_ylim([0, 105])
             if delta_min is not None and delta_max is not None:
                 ax2.set_xlim([delta_min, delta_max])
-            ax2.legend(fontsize='x-large', loc='lower left')
+            ax2.legend(fontsize=FONTS['legend'], loc='lower left')
 
             # Add note about single-prediction vs multi-detection
             if not use_multi_detection:
                 ax2.text(0.02, 0.98, 'Single-prediction:\nPurity = Completeness',
-                        transform=ax2.transAxes, fontsize=11, va='top',
+                        transform=ax2.transAxes, fontsize=FONTS['small'], va='top',
                         bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.7))
         else:
             ax2.text(0.5, 0.5, 'Insufficient delta_mstar_z data', ha='center', va='center',
-                    transform=ax2.transAxes, fontsize=14)
-            ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-            ax2.set_ylabel('Completeness / Purity (%)', fontsize=18)
+                    transform=ax2.transAxes, fontsize=FONTS['tick'])
+            ax2.set_xlabel(r'$\delta m^*_z$', fontsize=FONTS['label'])
+            ax2.set_ylabel('Completeness / Purity (%)', fontsize=FONTS['label'])
     else:
         ax2.text(0.5, 0.5, 'No delta_mstar_z data available', ha='center', va='center',
-                transform=ax2.transAxes, fontsize=14)
-        ax2.set_xlabel(r'$\delta m^*_z$', fontsize=18)
-        ax2.set_ylabel('Completeness / Purity (%)', fontsize=18)
+                transform=ax2.transAxes, fontsize=FONTS['tick'])
+        ax2.set_xlabel(r'$\delta m^*_z$', fontsize=FONTS['label'])
+        ax2.set_ylabel('Completeness / Purity (%)', fontsize=FONTS['label'])
 
     # Adjust layout and save
     plt.tight_layout()
 
     # Save the plot
     output_file = os.path.join(output_dir, 'completeness_purity_plots.png')
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    plt.savefig(output_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Completeness and purity plots saved to: {output_file}")
 
     # Also save as PDF for publication quality
     pdf_file = os.path.join(output_dir, 'completeness_purity_plots.pdf')
-    plt.savefig(pdf_file, dpi=300, bbox_inches='tight')
+    plt.savefig(pdf_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"High-quality PDF saved to: {pdf_file}")
 
     plt.close()

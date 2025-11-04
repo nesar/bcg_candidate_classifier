@@ -34,6 +34,7 @@ from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loade
                                         collate_bcg_candidate_samples)
 from utils.candidate_based_bcg import extract_patch_features, extract_context_features
 from utils.color_features import ColorFeatureExtractor
+from plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 
 # ============================================================================
@@ -514,7 +515,10 @@ def save_model(model, feature_scaler, output_dir, name, color_extractor=None):
 def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_dir):
     """Plot and save training curves as separate plots and save CSV data."""
     import pandas as pd
-    
+
+    # Apply consistent plot style
+    setup_plot_style()
+
     epochs = range(1, len(train_losses) + 1)
     
     # Save training data as CSV
@@ -530,18 +534,18 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     print(f"Training data saved to: {csv_path}")
     
     # Plot 1: Loss curves
-    plt.figure(figsize=(10, 6))
-    plt.plot(epochs, train_losses, 'b-', label='Training Loss', linewidth=2)
-    plt.plot(epochs, val_losses, 'r-', label='Validation Loss', linewidth=2)
-    plt.xlabel('Epoch', fontsize=12)
-    plt.ylabel('Loss', fontsize=12)
-    plt.title('Training and Validation Loss', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=12)
-    # plt.grid(True, alpha=0.3)
+    plt.figure(figsize=SIZES['figsize_single'])
+    plt.plot(epochs, train_losses, '-', color=COLORS['train'], label='Training Loss', linewidth=SIZES['linewidth'])
+    plt.plot(epochs, val_losses, '-', color=COLORS['validation'], label='Validation Loss', linewidth=SIZES['linewidth'])
+    plt.xlabel('Epoch', fontsize=FONTS['label'])
+    plt.ylabel('Loss', fontsize=FONTS['label'])
+    plt.title('Training and Validation Loss', fontsize=FONTS['title'])
+    plt.legend(fontsize=FONTS['legend'])
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    
+
     loss_plot_path = os.path.join(output_dir, 'training_loss_curves.png')
-    plt.savefig(loss_plot_path, dpi=300, bbox_inches='tight')
+    plt.savefig(loss_plot_path, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Loss curves saved to: {loss_plot_path}")
     
     if plt.get_backend() != 'Agg':  # Only show if display is available
@@ -549,18 +553,18 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     plt.close()
     
     # Plot 2: Accuracy curves
-    plt.figure(figsize=(10, 6))
-    plt.plot(epochs, train_accs, 'b-', label='Training Accuracy', linewidth=2)
-    plt.plot(epochs, val_accs, 'r-', label='Validation Accuracy', linewidth=2)
-    plt.xlabel('Epoch', fontsize=12)
-    plt.ylabel('Accuracy', fontsize=12)
-    plt.title('Training and Validation Accuracy', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=12)
-    # plt.grid(True, alpha=0.3)
+    plt.figure(figsize=SIZES['figsize_single'])
+    plt.plot(epochs, train_accs, '-', color=COLORS['train'], label='Training Accuracy', linewidth=SIZES['linewidth'])
+    plt.plot(epochs, val_accs, '-', color=COLORS['validation'], label='Validation Accuracy', linewidth=SIZES['linewidth'])
+    plt.xlabel('Epoch', fontsize=FONTS['label'])
+    plt.ylabel('Accuracy', fontsize=FONTS['label'])
+    plt.title('Training and Validation Accuracy', fontsize=FONTS['title'])
+    plt.legend(fontsize=FONTS['legend'])
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    
+
     acc_plot_path = os.path.join(output_dir, 'training_accuracy_curves.png')
-    plt.savefig(acc_plot_path, dpi=300, bbox_inches='tight')
+    plt.savefig(acc_plot_path, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Accuracy curves saved to: {acc_plot_path}")
     
     if plt.get_backend() != 'Agg':  # Only show if display is available
@@ -568,29 +572,29 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     plt.close()
     
     # Also create the combined plot for backward compatibility
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=SIZES['figsize_double'])
+
     # Loss curves
-    ax1.plot(epochs, train_losses, 'b-', label='Training Loss')
-    ax1.plot(epochs, val_losses, 'r-', label='Validation Loss')
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Loss')
-    ax1.set_title('Training and Validation Loss')
-    ax1.legend()
-    # ax1.grid(True)
-    
+    ax1.plot(epochs, train_losses, '-', color=COLORS['train'], label='Training Loss', linewidth=SIZES['linewidth'])
+    ax1.plot(epochs, val_losses, '-', color=COLORS['validation'], label='Validation Loss', linewidth=SIZES['linewidth'])
+    ax1.set_xlabel('Epoch', fontsize=FONTS['label'])
+    ax1.set_ylabel('Loss', fontsize=FONTS['label'])
+    ax1.set_title('Training and Validation Loss', fontsize=FONTS['title'])
+    ax1.legend(fontsize=FONTS['legend'])
+    ax1.grid(True, alpha=SIZES.get('grid_alpha', 0.3))
+
     # Accuracy curves
-    ax2.plot(epochs, train_accs, 'b-', label='Training Accuracy')
-    ax2.plot(epochs, val_accs, 'r-', label='Validation Accuracy')
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('Accuracy')
-    ax2.set_title('Training and Validation Accuracy')
-    ax2.legend()
-    # ax2.grid(True)
-    
+    ax2.plot(epochs, train_accs, '-', color=COLORS['train'], label='Training Accuracy', linewidth=SIZES['linewidth'])
+    ax2.plot(epochs, val_accs, '-', color=COLORS['validation'], label='Validation Accuracy', linewidth=SIZES['linewidth'])
+    ax2.set_xlabel('Epoch', fontsize=FONTS['label'])
+    ax2.set_ylabel('Accuracy', fontsize=FONTS['label'])
+    ax2.set_title('Training and Validation Accuracy', fontsize=FONTS['title'])
+    ax2.legend(fontsize=FONTS['legend'])
+    ax2.grid(True, alpha=SIZES.get('grid_alpha', 0.3))
+
     plt.tight_layout()
     combined_plot_path = os.path.join(output_dir, 'training_curves.png')
-    plt.savefig(combined_plot_path, dpi=300, bbox_inches='tight')
+    plt.savefig(combined_plot_path, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Combined training curves saved to: {combined_plot_path}")
     
     if plt.get_backend() != 'Agg':  # Only show if display is available

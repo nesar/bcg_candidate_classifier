@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+from plot_config import setup_plot_style, COLORS, FONTS, SIZES, get_rank_colors
 
 
 def load_evaluation_results(results_file):
@@ -143,22 +144,11 @@ def create_rank_histograms(results_file, output_dir=None, image_size=512,
     # Check if we have p_RM data
     has_p_RM = 'bcg_prob' in df.columns and not df['bcg_prob'].isna().all()
 
-    # Set style consistent with plot_sectors_hardcoded.py
-    plt.rcParams.update({
-        "text.usetex": False,
-        "font.family": "serif",
-        "mathtext.fontset": "cm",
-        "axes.linewidth": 1.2
-    })
+    # Apply consistent plot style
+    setup_plot_style()
 
-    # Define colors for each rank category (using Paired colormap like sectors plot)
-    colors = plt.cm.Paired.colors
-    rank_colors = {
-        'Rank-1': colors[0],
-        'Rank-2': colors[2],
-        'Rank-3': colors[4],
-        'Rest': colors[6]
-    }
+    # Get consistent rank colors from plot_config
+    rank_colors = get_rank_colors()
 
     # Create figure with 2 subplots
     if has_p_RM:
@@ -172,13 +162,13 @@ def create_rank_histograms(results_file, output_dir=None, image_size=512,
             r_center_data = histogram_data[category]['r_center']
             ax1.hist(r_center_data, bins=20, alpha=0.6,
                     label=f"{category} (n={histogram_data[category]['count']})",
-                    color=rank_colors[category], edgecolor='black', linewidth=1.2)
+                    color=rank_colors[category], edgecolor='black', linewidth=SIZES['linewidth_thin'])
 
-    ax1.set_xlabel(r'$r_{\rm center}$ (arcmin)', fontsize=22)
-    ax1.set_ylabel('Count', fontsize=22)
-    ax1.set_title('Radial Distance from Image Center', fontsize=24, pad=15)
-    ax1.tick_params(axis='both', labelsize=20)
-    ax1.legend(fontsize=18, frameon=True, loc='best')
+    ax1.set_xlabel(r'$r_{\rm center}$ (arcmin)', fontsize=FONTS['label'])
+    ax1.set_ylabel('Count', fontsize=FONTS['label'])
+    ax1.set_title('Radial Distance from Image Center', fontsize=FONTS['title'], pad=15)
+    ax1.tick_params(axis='both', labelsize=FONTS['tick'])
+    ax1.legend(fontsize=FONTS['legend'], frameon=True, loc='best')
     ax1.grid(True, alpha=0.3, linestyle='--')
 
     # Subplot 2: p_RM histogram (if available)
@@ -191,13 +181,13 @@ def create_rank_histograms(results_file, output_dir=None, image_size=512,
                 if len(p_RM_data) > 0:
                     ax2.hist(p_RM_data, bins=20, alpha=0.6,
                             label=f"{category} (n={len(p_RM_data)})",
-                            color=rank_colors[category], edgecolor='black', linewidth=1.2)
+                            color=rank_colors[category], edgecolor='black', linewidth=SIZES['linewidth_thin'])
 
-        ax2.set_xlabel(r'$p_{\rm RM}$ (RedMapper Probability)', fontsize=22)
-        ax2.set_ylabel('Count', fontsize=22)
-        ax2.set_title('RedMapper BCG Probability', fontsize=24, pad=15)
-        ax2.tick_params(axis='both', labelsize=20)
-        ax2.legend(fontsize=18, frameon=True, loc='best')
+        ax2.set_xlabel(r'$p_{\rm RM}$ (RedMapper Probability)', fontsize=FONTS['label'])
+        ax2.set_ylabel('Count', fontsize=FONTS['label'])
+        ax2.set_title('RedMapper BCG Probability', fontsize=FONTS['title'], pad=15)
+        ax2.tick_params(axis='both', labelsize=FONTS['tick'])
+        ax2.legend(fontsize=FONTS['legend'], frameon=True, loc='best')
         ax2.grid(True, alpha=0.3, linestyle='--')
         ax2.set_xlim(0, 1)  # Probabilities are 0-1
 
@@ -205,12 +195,12 @@ def create_rank_histograms(results_file, output_dir=None, image_size=512,
 
     # Save the plot
     output_file = os.path.join(output_dir, 'rank_histograms.png')
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    plt.savefig(output_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Rank histograms saved to: {output_file}")
 
     # Also save as PDF for publication quality
     pdf_file = os.path.join(output_dir, 'rank_histograms.pdf')
-    plt.savefig(pdf_file, dpi=300, bbox_inches='tight')
+    plt.savefig(pdf_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"High-quality PDF saved to: {pdf_file}")
 
     # Print statistics summary

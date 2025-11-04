@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+from plot_config import setup_plot_style, COLORS, FONTS, SIZES, get_rank_colors
 
 
 def load_evaluation_results(results_file):
@@ -87,9 +88,9 @@ def improved_donut(ax, values, labels, title, success, if_legend):
     """
     colors = plt.cm.Paired.colors
     wedges, _ = ax.pie(values, startangle=90, colors=colors, radius=1.05,
-                       wedgeprops={'edgecolor':'white','linewidth':1.2})
+                       wedgeprops={'edgecolor':'white','linewidth':SIZES['linewidth_thin']})
     ax.add_artist(plt.Circle((0,0),0.65,fc='white'))
-    ax.text(0,0, title + "\n" + f"Acc: {success:.1f}%",ha='center',va='center',fontsize=28)
+    ax.text(0,0, title + "\n" + f"Acc: {success:.1f}%",ha='center',va='center',fontsize=FONTS['title'])
 
     for i,(w,v) in enumerate(zip(wedges,values)):
         ang = (w.theta2 + w.theta1)/2
@@ -117,26 +118,26 @@ def improved_donut(ax, values, labels, title, success, if_legend):
 
                 ax.annotate(f"{labels[i]} ({v:.1f}%)",
                             xy=(r*x, r*y), xytext=(arrow_len*x_edit, arrow_len*y_edit),
-                            ha='center', va='center', fontsize=18,
-                            arrowprops=dict(arrowstyle='->', color=colors[i], lw=1.8,
+                            ha='center', va='center', fontsize=FONTS['annotation'],
+                            arrowprops=dict(arrowstyle='->', color=colors[i], lw=SIZES['linewidth'],
                                             shrinkA=0, shrinkB=2))
 
 
             else:
                 ax.annotate(f"{labels[i]} ({v:.1f}%)",
                             xy=(r*x, r*y), xytext=(arrow_len*x, arrow_len*y),
-                            ha='center', va='center', fontsize=18,
-                            arrowprops=dict(arrowstyle='->', color=colors[i], lw=1.8,
+                            ha='center', va='center', fontsize=FONTS['annotation'],
+                            arrowprops=dict(arrowstyle='->', color=colors[i], lw=SIZES['linewidth'],
                                             shrinkA=0, shrinkB=2))
 
 
         else:
-            ax.text(0.5*x, 0.85*y, f"{labels[i]} ({v:.1f}%)", ha='center', va='center', fontsize=18)
+            ax.text(0.5*x, 0.85*y, f"{labels[i]} ({v:.1f}%)", ha='center', va='center', fontsize=FONTS['annotation'])
 
     legend_elems = [Patch(facecolor=colors[i], label=l) for i,l in enumerate(labels)]
     if if_legend:
         ax.legend(handles=legend_elems, loc='center left', bbox_to_anchor=(1,0.5),
-                  fontsize=18, frameon=True)
+                  fontsize=FONTS['legend'], frameon=True)
 
 
 def create_sectors_plot(results_file, output_dir=None, figsize=(14, 7)):
@@ -151,6 +152,9 @@ def create_sectors_plot(results_file, output_dir=None, figsize=(14, 7)):
     Returns:
         fig: Matplotlib figure object
     """
+    # Apply consistent plot style
+    setup_plot_style()
+
     # Load data
     df = load_evaluation_results(results_file)
 
@@ -185,12 +189,12 @@ def create_sectors_plot(results_file, output_dir=None, figsize=(14, 7)):
 
     # Save the plot
     output_file = os.path.join(output_dir, 'diagnostic_plots_sectors.png')
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    plt.savefig(output_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Sectors plot saved to: {output_file}")
 
     # Also save as PDF for publication quality
     pdf_file = os.path.join(output_dir, 'diagnostic_plots_sectors.pdf')
-    plt.savefig(pdf_file, dpi=300, bbox_inches='tight')
+    plt.savefig(pdf_file, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"High-quality PDF saved to: {pdf_file}")
 
     # Print statistics summary

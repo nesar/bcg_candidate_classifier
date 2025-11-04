@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import numpy as np
+from plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 def load_csvs(csv_dir):
     files = [f for f in os.listdir(csv_dir) if f.endswith(".csv")]
@@ -13,6 +14,9 @@ def load_csvs(csv_dir):
     return breakdown_df, group_df
 
 def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
+    # Apply consistent plot style
+    setup_plot_style()
+
     # Normalize column names
     breakdown_df = breakdown_df.rename(columns={
         "group_title":"Group",
@@ -24,12 +28,11 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
         "total_importance":"Importance"
     })
 
-    # Color palette
+    # Color palette - use consistent colors from plot_config
     if "color" in group_df.columns:
         group_colors = dict(zip(group_df["Group"], group_df["color"]))
     else:
-        palette = ["#f48c8c","#7ddad1","#71c5e8","#f4d28c",
-                   "#dda0dd","#90ee90","#ffb347","#87cefa"]
+        palette = COLORS['group_palette']
         group_colors = {g:palette[i%len(palette)] for i,g in enumerate(group_df["Group"])}
 
     group_totals = dict(zip(group_df["Group"], group_df["Importance"]))
@@ -54,9 +57,6 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
     vals   = [breakdown_df[(breakdown_df["Group"]==g)&(breakdown_df["Feature"]==f)]["Importance"].values[0] for g,f in order]
     cols   = [group_colors[g] for g,f in order]
 
-    plt.rcParams.update({"text.usetex": False, "font.family": "serif",
-                        "mathtext.fontset": "cm", "axes.linewidth": 1.2})
-
     fig, ax = plt.subplots(figsize=(12, 24))
 
     # Define manual y positions
@@ -68,14 +68,14 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
 
     for b,v in zip(bars,vals):
         ax.text(b.get_width()+0.002, b.get_y()+b.get_height()/2,
-                f"{v:.3f}", va="center", fontsize=20)
+                f"{v:.3f}", va="center", fontsize=FONTS['annotation'])
 
     ax.set_xlim(0, max(vals)*1.19)
-    ax.set_xlabel(r"Importance Score", fontsize=20)
+    ax.set_xlabel(r"Importance Score", fontsize=FONTS['label'])
     ax.set_ylabel("")
     ax.grid(False)
-    ax.tick_params(axis='x', labelsize=20)
-    ax.tick_params(axis='y', labelsize=20)
+    ax.tick_params(axis='x', labelsize=FONTS['tick'])
+    ax.tick_params(axis='y', labelsize=FONTS['tick'])
 
     for s in ["top","right","left","bottom"]: ax.spines[s].set_visible(True)
     ax.xaxis.set_ticks_position("both"); ax.yaxis.set_ticks_position("both")
@@ -84,7 +84,7 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
     legend = [Patch(facecolor=group_colors[g], edgecolor="black",
                     label=f"{g}\n(total={group_totals[g]:.3f})") for g in group_df["Group"]]
     ax.legend(handles=legend, title=r"Groups (Total Importance)",
-              fontsize=20, title_fontsize=20, loc="upper right",
+              fontsize=FONTS['legend'], title_fontsize=FONTS['legend'], loc="upper right",
               bbox_to_anchor=(0.98,0.65), frameon=True)
     
     # Match y positions to labels
@@ -93,7 +93,8 @@ def plot_feature_breakdown(breakdown_df, group_df, output="feature_breakdown"):
 
     plt.tight_layout()
     for ext in ["png","pdf"]:
-        plt.savefig(f"{output}.{ext}", dpi=300, bbox_inches="tight")
+        plt.savefig(f"{output}.{ext}", dpi=SIZES['dpi'], bbox_inches="tight")
+    print(f"Saved: {output}.{ext}")
     plt.show()
 
 if __name__ == "__main__":
