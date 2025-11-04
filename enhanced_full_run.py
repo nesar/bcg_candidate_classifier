@@ -720,6 +720,14 @@ except Exception as e:
         else:
             print(f"Sectors plot saved to: {output_dir}/diagnostic_plots_sectors.png")
 
+        # Generate rank histogram plots (r_center and p_RM histograms by rank)
+        rank_histograms_command = f"python -c \"from plot_rank_histograms import create_rank_histograms; create_rank_histograms('{evaluation_csv}', '{output_dir}', dataset_type='{bcg_arcmin_type}')\""
+
+        if not run_command(rank_histograms_command, "Generating rank histograms"):
+            print("Rank histogram plotting failed, but continuing...")
+        else:
+            print(f"Rank histograms saved to: {output_dir}/rank_histograms.png")
+
         # Generate completeness and purity plots
         completeness_command = f"python -c \"from plot_completeness_purity import plot_completeness_purity; plot_completeness_purity('{evaluation_csv}', '{output_dir}', '{TRUTH_TABLE}')\""
 
@@ -805,6 +813,8 @@ except Exception as e:
     print(f"  Diagnostic plots (PDF): {output_dir}/diagnostic_plots.pdf")
     print(f"  Sectors plot: {output_dir}/diagnostic_plots_sectors.png")
     print(f"  Sectors plot (PDF): {output_dir}/diagnostic_plots_sectors.pdf")
+    print(f"  Rank histograms: {output_dir}/rank_histograms.png")
+    print(f"  Rank histograms (PDF): {output_dir}/rank_histograms.pdf")
     print(f"  Completeness & Purity plots: {output_dir}/completeness_purity_plots.png")
     print(f"  Completeness & Purity plots (PDF): {output_dir}/completeness_purity_plots.pdf")
     

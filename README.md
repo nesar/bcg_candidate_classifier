@@ -136,25 +136,119 @@ cluster001,123.456,-45.678,...
 
 ## Model Architecture
 
-### Candidate Detection
-- Local maxima detection with configurable parameters
-- Non-maximum suppression to avoid crowded candidates
-- Border exclusion to avoid edge artifacts
+The architecture consists of three main stages: candidate detection, feature extraction, and neural classification.
 
-### Feature Engineering
-30-dimensional feature vectors per candidate including:
-- **Intensity**: Mean, std, max, min, median of patch
-- **Structure**: Central/peripheral intensity ratios
-- **Edges**: Gradient magnitude statistics
-- **Position**: Relative location within image
-- **Shape**: Symmetry measures via image moments
-- **Context**: Multi-scale neighborhood features
+### 1. Candidate Detection Pipeline
 
-### Classification Network
-- Configurable MLP (default: 128→64→32→1)
-- ReLU activations with dropout (0.2)
-- Output: Single score per candidate
+**Local Maxima Detection:**
+- Uses 3×3 maximum filter to find bright spots in grayscale image
+- Applies relative intensity threshold (default: 12% of max intensity)
+- Excludes border regions (default: 30 pixels) to avoid edge artifacts
+
+**Non-Maximum Suppression:**
+- Sorts candidates by brightness (descending)
+- Enforces minimum separation distance (default: 15 pixels)
+- Limits total candidates per image (default: 25 max)
+- Returns candidates sorted by brightness
+
+### 2. Feature Extraction
+
+**Morphological Features (30 dimensions):**
+
+1. **Intensity Statistics (5 features)**
+   - Mean, std, max, min, median intensity of 64×64 patch
+
+2. **Structural Features (3 features)**
+   - Central region mean intensity (16×16 center)
+   - Peripheral region mean intensity (annulus around center)
+   - Central/peripheral ratio (log-ratio for robustness)
+
+3. **Gradient Features (3 features)**
+   - Mean gradient magnitude (edge strength)
+   - Std of gradient magnitude (texture variation)
+   - Maximum gradient magnitude (sharp edges)
+
+4. **Position Features (3 features)**
+   - Normalized x position relative to image center (-1 to 1)
+   - Normalized y position relative to image center (-1 to 1)
+   - Euclidean distance from image center
+
+5. **Shape/Symmetry Features (3 features)**
+   - Normalized centroid offset x (asymmetry measure)
+   - Normalized centroid offset y (asymmetry measure)
+   - Eccentricity from second-order image moments
+
+6. **Multi-Scale Context Features (9 features)**
+   - Mean/std/pixel count at 3 radii: 32px, 64px, 128px
+   - Captures neighborhood characteristics at multiple scales
+
+7. **Directional Context Features (4 features)**
+   - Mean intensity sampled along 4 directions: up, right, down, left
+   - Detects asymmetric brightness patterns
+
+**Optional Color Features (30-56 dimensions before PCA, 8 after):**
+
+When enabled (`include_color=True`), extracts:
+
+1. **Basic Color Statistics (9 features)**
+   - Mean R, G, B values
+   - Std R, G, B values
+   - Relative R, G, B contributions
+
+2. **Color Ratio Features (7 features)**
+   - R/G ratio and normalized difference
+   - R/B ratio and normalized difference
+   - G/B ratio
+   - Color magnitude (deviation from white)
+   - Red-sequence score (redness indicator)
+
+3. **Spatial Color Features (3 features)**
+   - Spatial variation of R/G and R/B ratios
+   - Central vs peripheral color difference
+
+4. **Color Gradient Features (8 features)**
+   - Mean and std of gradient magnitude per channel (R, G, B)
+   - Cross-channel gradient correlations (coherence indicators)
+
+5. **Convolution-Based Features (27 features)**
+   - Edge, smooth, and Laplacian kernel responses
+   - Per-channel statistics (mean, std, max response)
+
+**PCA Reduction (optional):**
+- Reduces 30-56 raw color features to 8 principal components
+- Preserves ~90%+ of variance while reducing dimensionality
+- Fitted on training set, applied to validation/test
+
+### 3. Classification Network
+
+**Architecture: BCGCandidateClassifier**
+- Input: 30D (morphological only) or 38D (with color PCA)
+- Hidden layers: [128, 64, 32] (configurable)
+- Activations: ReLU
+- Regularization: Dropout (rate=0.2) after each hidden layer
+- Output: Single score per candidate (unbounded)
+
+**Forward Pass:**
+```
+Input features → Linear(in, 128) → ReLU → Dropout(0.2) →
+Linear(128, 64) → ReLU → Dropout(0.2) →
+Linear(64, 32) → ReLU → Dropout(0.2) →
+Linear(32, 1) → Raw score
+```
+
+**Training Details:**
 - Loss: Cross-entropy over candidates per image
+  - Softmax applied across all candidates in same image
+  - True label: index of candidate closest to ground truth BCG
+  - Handles variable numbers of candidates per image
+- Optimizer: Adam (default lr=0.001)
+- Feature scaling: StandardScaler (fitted on training set)
+- Batch processing: Processes all candidates from one image together
+
+**Inference:**
+- Computes scores for all candidates in test image
+- Selects candidate with highest score as predicted BCG
+- Returns: (x, y) coordinates of best candidate
 
 ## Performance Metrics
 
