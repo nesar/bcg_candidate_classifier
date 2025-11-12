@@ -1,6 +1,6 @@
-# BCG Candidate Classifier
+# CCG Candidate Classifier
 
-A streamlined implementation of candidate-based Brightest Cluster Galaxy (BCG) detection using deep learning. This repository focuses exclusively on the candidate-based classification approach, where local bright spots are first identified and then ranked/classified to find the best BCG.
+Implementation of candidate-based Cluster Central Galaxy (CCG) detection using deep learning. This repository focuses exclusively on the candidate-based classification approach, where local bright spots are first identified and then ranked/classified to find the best BCG.
 
 ## Overview
 
@@ -8,9 +8,8 @@ Instead of direct coordinate regression, this approach:
 
 1. **Finds Candidates**: Identifies bright spots (local maxima) in astronomical images
 2. **Extracts Features**: Computes rich feature vectors around each candidate location
-3. **Classifies/Ranks**: Uses a neural network to score candidates and select the best BCG
+3. **Classifies/Ranks**: Uses a neural network to score candidates and select the best CCG
 
-This method is more robust as it constrains predictions to actual bright regions in the image.
 
 ## Repository Structure
 
