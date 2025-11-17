@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-Unified Plot Configuration for BCG Candidate Classifier
+Plot Configuration
 ========================================================
-
-Minimal configuration for consistent plotting styles across all visualization routines.
 
 Usage:
     from plot_config import setup_plot_style, COLORS, FONTS, SIZES
@@ -15,7 +13,6 @@ Usage:
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-# ============================================================================
 # COLORS
 # ============================================================================
 
@@ -48,8 +45,6 @@ COLORS = {
 # Paired colormap (for sectors/histograms)
 PAIRED_COLORS = plt.cm.Paired.colors
 
-
-# ============================================================================
 # FONTS
 # ============================================================================
 
@@ -65,7 +60,6 @@ FONTS = {
 }
 
 
-# ============================================================================
 # SIZES
 # ============================================================================
 
@@ -90,7 +84,6 @@ SIZES = {
 }
 
 
-# ============================================================================
 # STYLE SETTINGS
 # ============================================================================
 
@@ -111,7 +104,6 @@ STYLE = {
 }
 
 
-# ============================================================================
 # SETUP FUNCTION
 # ============================================================================
 
@@ -187,7 +179,6 @@ def setup_plot_style(use_latex=False, use_seaborn=False, seaborn_style='whitegri
         sns.set_style(seaborn_style)
 
 
-# ============================================================================
 # UTILITY FUNCTION
 # ============================================================================
 
