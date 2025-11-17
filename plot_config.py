@@ -380,7 +380,7 @@ if __name__ == "__main__":
     y2 = np.cos(x)
 
     # Create plot with consistent styling
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=SIZES['figsize_double'])
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3))
 
     # Plot 1: Line plot
     ax1.plot(x, y1, color=COLORS['primary'], linewidth=SIZES['linewidth'],
