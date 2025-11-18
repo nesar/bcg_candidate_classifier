@@ -81,6 +81,7 @@ SIZES = {
     # Output
     'dpi': 300,
     'figsize_single': (10, 7),
+    'figsize_double': (16, 7),
 }
 
 
