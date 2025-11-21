@@ -284,19 +284,21 @@ class BCGDatasetManager:
                     candidate_dec = candidate['dec']
                     delta_mstar = candidate['delta_mstar']
                     starflag = candidate['starflag']
-                    
+                    rz = candidate['rz']
+                    cluster_redshift = candidate['cluster_redshift']
+
                     # Convert RA/Dec to pixel coordinates
                     x_pixel, y_pixel = wcs.world_to_pixel_values(candidate_ra, candidate_dec)
-                    
+
                     # Y-coordinate inversion to match image coordinate system
                     y_pixel_corrected = 512 - y_pixel
-                    
+
                     # Check if candidate is within image bounds
                     is_inside = (0 <= x_pixel <= 512) and (0 <= y_pixel_corrected <= 512)
-                    
+
                     if not is_inside:
                         candidates_outside_image += 1
-                    
+
                     # Create result row
                     result_row = {
                         'cluster': cluster_name,
@@ -307,6 +309,8 @@ class BCGDatasetManager:
                         'y': y_pixel_corrected,
                         'delta_mstar': delta_mstar,
                         'starflag': starflag,
+                        'rz': rz,
+                        'cluster_redshift': cluster_redshift,
                         'is_inside_image': is_inside
                     }
                     
