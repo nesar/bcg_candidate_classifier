@@ -56,12 +56,12 @@ class BCGDatasetManager:
             '2p2arcmin': os.path.join(self.output_dir, 'bcgs_2p2arcmin_clean_matched.csv'),
             '3p8arcmin': os.path.join(self.output_dir, 'bcgs_3p8arcmin_clean_matched.csv')
         }
-        # self.clean_desprior_files = { #pre-purge
+        # self.clean_desprior_files = { # pre-purge
         #     '2p2arcmin': os.path.join(self.output_dir, 'desprior_candidates_2p2arcmin_clean_matched.csv'),
         #     '3p8arcmin': os.path.join(self.output_dir, 'desprior_candidates_3p8arcmin_clean_matched.csv')
         # }
 
-        self.clean_desprior_files = { #post-purge
+        self.clean_desprior_files = { # post-purge
             '2p2arcmin': os.path.join(self.output_dir, 'desprior_candidates_2p2arcmin_purge_matched.csv'),
             '3p8arcmin': os.path.join(self.output_dir, 'desprior_candidates_3p8arcmin_purge_matched.csv')
         }
