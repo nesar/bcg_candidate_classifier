@@ -32,6 +32,7 @@ Thumbs.db
 *.pkl
 *.pth
 trained_models/*
+purge_comparison_analysis/*
 *.png
 
 # API keys and secrets
