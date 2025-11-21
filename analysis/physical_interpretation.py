@@ -232,8 +232,8 @@ class PhysicalFeatureInterpreter:
                 'color': '#45B7D1'
             },
             'candidate_properties': {
-                'description': 'Candidate-level properties from DESprior catalog (2 features: delta_mstar useful, starflag always 0)',
-                'technical_features': ['delta_mstar', 'starflag'],
+                'description': 'Candidate-level properties from DESprior catalog (4 features: delta_mstar, starflag, rz color, cluster redshift)',
+                'technical_features': ['delta_mstar', 'starflag', 'rz', 'cluster_redshift'],
                 'combination_method': 'weighted_sum',
                 'color': '#FECA57'
             }
@@ -325,9 +325,11 @@ class PhysicalFeatureInterpreter:
             'neighbor_count': 'Nearby Galaxy Count',
             'local_density': 'Cluster Core Density',
             
-            # Candidate-level features from DESprior catalog (2 features)
+            # Candidate-level features from DESprior catalog (4 features)
             'delta_mstar': 'Candidate $\\Delta m_{\\star}$',
             'starflag': 'Star Flag (always 0)',
+            'rz': 'Color $(r-z)$',
+            'cluster_redshift': 'Cluster Redshift $z_c$',
 
             # Additional photometric features (if present)
             'mag_auto_g': 'g-band Magnitude',
