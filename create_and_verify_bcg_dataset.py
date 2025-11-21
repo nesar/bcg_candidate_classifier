@@ -34,8 +34,9 @@ class BCGDatasetManager:
     
     def __init__(self):
         # Data paths
-        self.truth_table_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_parsed_for_truth_table_post_human_inspect.csv'
-        self.prior_locations_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/prior_locations.csv'
+        self.truth_table_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/bcgs_parsed_for_truth_table_post_human_inspect.csv' 
+        # self.prior_locations_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/prior_locations.csv' #pre-purge
+        self.prior_locations_path = '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/prior_locations_more_info_PURGED_111925.csv' #removed a bunch of candidates
         self.image_dirs = {
             '2p2arcmin': '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/2p2arcmin/',
             '3p8arcmin': '/lcrc/project/cosmo_ai/nramachandra/Projects/BCGs_swing/data/lbleem/bcgs/3p8arcmin/'
@@ -55,9 +56,14 @@ class BCGDatasetManager:
             '2p2arcmin': os.path.join(self.output_dir, 'bcgs_2p2arcmin_clean_matched.csv'),
             '3p8arcmin': os.path.join(self.output_dir, 'bcgs_3p8arcmin_clean_matched.csv')
         }
-        self.clean_desprior_files = {
-            '2p2arcmin': os.path.join(self.output_dir, 'desprior_candidates_2p2arcmin_clean_matched.csv'),
-            '3p8arcmin': os.path.join(self.output_dir, 'desprior_candidates_3p8arcmin_clean_matched.csv')
+        # self.clean_desprior_files = { #pre-purge
+        #     '2p2arcmin': os.path.join(self.output_dir, 'desprior_candidates_2p2arcmin_clean_matched.csv'),
+        #     '3p8arcmin': os.path.join(self.output_dir, 'desprior_candidates_3p8arcmin_clean_matched.csv')
+        # }
+
+        self.clean_desprior_files = { #post-purge
+            '2p2arcmin': os.path.join(self.output_dir, 'desprior_candidates_2p2arcmin_purge_matched.csv'),
+            '3p8arcmin': os.path.join(self.output_dir, 'desprior_candidates_3p8arcmin_purge_matched.csv')
         }
         
         # Analysis storage

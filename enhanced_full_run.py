@@ -41,7 +41,8 @@ class BCGPathConfig:
                 'bcg_csv_clean': f"{self.base_data_dir}/bcgs_2p2arcmin_clean_matched.csv",
                 'bcg_csv_coords': f"{self.base_data_dir}/bcgs_2p2arcmin_with_coordinates.csv",
                 'desprior_csv_clean': f"{self.base_data_dir}/desprior_candidates_2p2arcmin_clean_matched.csv",
-                'desprior_csv_coords': f"{self.base_data_dir}/desprior_candidates_2p2arcmin_with_coordinates.csv"
+                'desprior_csv_coords': f"{self.base_data_dir}/desprior_candidates_2p2arcmin_with_coordinates.csv",
+                'desprior_csv_purged': f"{self.base_data_dir}/desprior_candidates_2p2arcmin_purge_matched.csv"
             }
         elif dataset_type == "3p8arcmin":
             return {
@@ -49,7 +50,8 @@ class BCGPathConfig:
                 'bcg_csv_clean': f"{self.base_data_dir}/bcgs_3p8arcmin_clean_matched.csv",
                 'bcg_csv_coords': f"{self.base_data_dir}/bcgs_3p8arcmin_with_coordinates.csv",
                 'desprior_csv_clean': f"{self.base_data_dir}/desprior_candidates_3p8arcmin_clean_matched.csv",
-                'desprior_csv_coords': f"{self.base_data_dir}/desprior_candidates_3p8arcmin_with_coordinates.csv"
+                'desprior_csv_coords': f"{self.base_data_dir}/desprior_candidates_3p8arcmin_with_coordinates.csv",
+                'desprior_csv_purged': f"{self.base_data_dir}/desprior_candidates_3p8arcmin_purge_matched.csv"
             }
         else:
             raise ValueError(f"Unknown dataset type: {dataset_type}")
@@ -65,8 +67,10 @@ class BCGPathConfig:
     def get_preferred_desprior_csv(self, dataset_type):
         """Get preferred DESprior CSV path (clean version if available, otherwise with_coordinates)."""
         paths = self.get_paths(dataset_type)
-        if os.path.exists(paths['desprior_csv_clean']):
-            return paths['desprior_csv_clean']
+        # if os.path.exists(paths['desprior_csv_clean']): # pre-purge
+        #     return paths['desprior_csv_clean']
+        if os.path.exists(paths['desprior_csv_purged']): #post-purge
+            return paths['desprior_csv_purged']
         else:
             return paths['desprior_csv_coords']
 
