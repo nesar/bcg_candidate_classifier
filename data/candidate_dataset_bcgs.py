@@ -197,7 +197,7 @@ class DESpriorBCGCandidateDataset(Dataset):
         candidates_coords : list of numpy.ndarray
             List of candidate coordinates for each image. Each element is array of shape (n_candidates_i, 2)
         candidate_features : list of numpy.ndarray or None
-            List of additional features for each candidate (e.g., delta_mstar, starflag)
+            List of additional features for each candidate (delta_mstar, starflag, rz, cluster_redshift)
         additional_features : numpy.ndarray or None
             Additional features like [redshift, delta_mstar_z] of shape (N, n_features)
         filter_inside_image : bool
@@ -576,14 +576,24 @@ def create_desprior_candidate_dataset_from_files(dataset_type='2p2arcmin', z_ran
         
         if len(file_candidates) == 0:
             print(f"Warning: No DESprior candidates found for {filename}")
-            # Add dummy candidates to avoid skipping
-            candidates_coords.append(np.array([[256, 256]]))  # Center pixel
-            candidate_features.append(np.array([[0.0, 0]]))  # Dummy delta_mstar, starflag
+            print("ERROR: Cannot proceed without DESprior candidates. Exiting.")
+            import sys
+            sys.exit(1)
         else:
             # Extract coordinates and features
             coords = file_candidates[['x', 'y']].values
-            feats = file_candidates[['delta_mstar', 'starflag']].values
-            
+
+            # Extract all auxiliary features: delta_mstar, starflag, rz, cluster_redshift
+            required_cols = ['delta_mstar', 'starflag', 'rz', 'cluster_redshift']
+            for col in required_cols:
+                if col not in file_candidates.columns:
+                    print(f"ERROR: Required column '{col}' not found in DESprior candidates CSV")
+                    print(f"Available columns: {list(file_candidates.columns)}")
+                    import sys
+                    sys.exit(1)
+
+            feats = file_candidates[required_cols].values
+
             candidates_coords.append(coords)
             candidate_features.append(feats)
     

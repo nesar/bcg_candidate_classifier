@@ -136,8 +136,10 @@ def create_bcg_feature_names(use_color_features=True, use_auxiliary_features=Tru
     # Image-level features (redshift_z, delta_m_star_z) are loaded but NOT used in training
     if use_auxiliary_features:
         candidate_level_features = [
-            'delta_mstar',   # Magnitude difference from candidate to brightest cluster member
-            'starflag'       # Star/galaxy flag (NOTE: always 0 in DESprior, provides no information)
+            'delta_mstar',       # Magnitude difference from candidate to brightest cluster member
+            'starflag',          # Star/galaxy flag (NOTE: always 0 in DESprior, provides no information)
+            'rz',                # r-z color of the candidate
+            'cluster_redshift'   # Redshift of the cluster
         ]
         feature_names.extend(candidate_level_features)
 
@@ -180,7 +182,7 @@ def get_feature_groups_mapping(feature_names: List[str]) -> Dict[str, List[str]]
     
     # Auxiliary features
     auxiliary_keywords = [
-        'redshift', 'delta_m'
+        'redshift', 'delta_m', 'starflag', 'rz', 'cluster_redshift'
     ]
     
     # Classify features
@@ -315,7 +317,9 @@ def get_feature_descriptions() -> Dict[str, str]:
 
         # Candidate-level features from DESprior catalog
         'delta_mstar': 'Magnitude difference from candidate to brightest cluster member (candidate-level)',
-        'starflag': 'Star/galaxy classification flag (always 0 in DESprior catalog, provides no information)'
+        'starflag': 'Star/galaxy classification flag (always 0 in DESprior catalog, provides no information)',
+        'rz': 'r-z color of the candidate galaxy',
+        'cluster_redshift': 'Redshift of the parent cluster'
     }
 
     # Add convolution feature descriptions (27 features)

@@ -111,10 +111,17 @@ def predict_bcg_with_probabilities(image, model, feature_scaler=None,
             else:
                 # Extract coordinates and candidate features
                 all_candidates = file_candidates[['x', 'y']].values
-                # NOTE: Currently using candidate-level features from DESprior CSV
-                # SHOULD use image-level auxiliary features (redshift_z, delta_m_star_z) instead
-                # starflag is always 0 and provides no information
-                candidate_specific_features = file_candidates[['delta_mstar', 'starflag']].values
+
+                # Extract all auxiliary features: delta_mstar, starflag, rz, cluster_redshift
+                required_cols = ['delta_mstar', 'starflag', 'rz', 'cluster_redshift']
+                for col in required_cols:
+                    if col not in file_candidates.columns:
+                        print(f"ERROR: Required column '{col}' not found in DESprior candidates CSV")
+                        print(f"Available columns: {list(file_candidates.columns)}")
+                        import sys
+                        sys.exit(1)
+
+                candidate_specific_features = file_candidates[required_cols].values
 
                 # Extract visual features and combine with candidate features
                 from utils.candidate_based_bcg import extract_candidate_features
@@ -636,10 +643,17 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                     else:
                         # Extract coordinates and candidate features
                         all_candidates = file_candidates[['x', 'y']].values
-                        # NOTE: Currently using candidate-level features from DESprior CSV
-                        # SHOULD use image-level auxiliary features (redshift_z, delta_m_star_z) instead
-                        # starflag is always 0 and provides no information
-                        candidate_specific_features = file_candidates[['delta_mstar', 'starflag']].values
+
+                        # Extract all auxiliary features: delta_mstar, starflag, rz, cluster_redshift
+                        required_cols = ['delta_mstar', 'starflag', 'rz', 'cluster_redshift']
+                        for col in required_cols:
+                            if col not in file_candidates.columns:
+                                print(f"ERROR: Required column '{col}' not found in DESprior candidates CSV")
+                                print(f"Available columns: {list(file_candidates.columns)}")
+                                import sys
+                                sys.exit(1)
+
+                        candidate_specific_features = file_candidates[required_cols].values
 
                         # Extract visual features and combine with candidate features
                         from utils.candidate_based_bcg import extract_candidate_features
@@ -1014,8 +1028,17 @@ def main(args):
 
             if len(file_candidates) > 0:
                 candidates = file_candidates[['x', 'y']].values
-                # Model was trained with candidate-level features: delta_mstar, starflag
-                candidate_features = file_candidates[['delta_mstar', 'starflag']].values
+
+                # Extract all auxiliary features: delta_mstar, starflag, rz, cluster_redshift
+                required_cols = ['delta_mstar', 'starflag', 'rz', 'cluster_redshift']
+                for col in required_cols:
+                    if col not in file_candidates.columns:
+                        print(f"ERROR: Required column '{col}' not found in DESprior candidates CSV")
+                        print(f"Available columns: {list(file_candidates.columns)}")
+                        import sys
+                        sys.exit(1)
+
+                candidate_features = file_candidates[required_cols].values
 
                 # Extract visual features WITH color if enabled (to get actual dimension)
                 from utils.candidate_based_bcg import extract_candidate_features
