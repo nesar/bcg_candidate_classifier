@@ -578,8 +578,8 @@ def main():
         --exclude_border {exclude_border} \\
         --max_candidates {max_candidates} \\
         --patch_size {patch_size} \\
-        --show_samples 10 \\
-        --show_failures 20 \\
+        --show_samples 500 \\
+        --show_failures 100 \\
         --output_dir "{test_output_dir}" \\
         --save_results"""
     
