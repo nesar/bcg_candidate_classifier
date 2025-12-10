@@ -14,6 +14,7 @@ os.environ['NUMEXPR_MAX_THREADS'] = '128'
 os.environ['OMP_NUM_THREADS'] = '1'  # Prevent numpy threading conflicts
 os.environ['MKL_NUM_THREADS'] = '1'  # Intel MKL threading limit
 
+import json
 import subprocess
 import sys
 from datetime import datetime
@@ -716,8 +717,29 @@ except Exception as e:
         else:
             print(f"Diagnostic plots saved to: {output_dir}/diagnostic_plots.png")
 
+        # Build config dict for hyperparameter display in plots
+        plot_config = {
+            'epochs': epochs,
+            'batch_size': batch_size,
+            'lr': lr,
+            'dataset': bcg_arcmin_type,
+            'additional_features': use_additional_features,
+            'redmapper_probs': use_redmapper_probs,
+            'z_range': z_range if z_range else 'None',
+            'delta_mstar_z_range': delta_mstar_z_range if delta_mstar_z_range else 'None',
+            'desprior_candidates': use_desprior_candidates,
+        }
+        if candidate_delta_mstar_range:
+            plot_config['candidate_delta_mstar_range'] = candidate_delta_mstar_range
+
+        # Save config to file for plotting functions to use
+        config_file = os.path.join(output_dir, 'experiment_config.json')
+        with open(config_file, 'w') as f:
+            json.dump(plot_config, f, indent=2)
+        print(f"Experiment config saved to: {config_file}")
+
         # Generate sectors plot (donut charts for rank analysis)
-        sectors_command = f"python -c \"from plot_sectors_hardcoded import create_sectors_plot; create_sectors_plot('{evaluation_csv}', '{output_dir}')\""
+        sectors_command = f"python -c \"import json; from plot_sectors_hardcoded import create_sectors_plot; config = json.load(open('{config_file}')); create_sectors_plot('{evaluation_csv}', '{output_dir}', config=config)\""
 
         if not run_command(sectors_command, "Generating sectors plot"):
             print("Sectors plotting failed, but continuing...")

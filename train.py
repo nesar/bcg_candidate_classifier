@@ -487,7 +487,28 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
     
     # Plot training curves
     if args.plot:
-        plot_training_curves(train_losses, train_accuracies, val_losses, val_accuracies, args.output_dir)
+        # Build config dict from args for display in plots
+        config = {
+            'epochs': args.epochs,
+            'batch_size': args.batch_size,
+            'lr': args.lr,
+        }
+        if hasattr(args, 'bcg_arcmin_type') and args.bcg_arcmin_type:
+            config['dataset'] = args.bcg_arcmin_type
+        if hasattr(args, 'use_additional_features'):
+            config['additional_features'] = args.use_additional_features
+        if hasattr(args, 'use_redmapper_probs'):
+            config['redmapper_probs'] = args.use_redmapper_probs
+        if hasattr(args, 'z_range') and args.z_range:
+            config['z_range'] = args.z_range
+        if hasattr(args, 'delta_mstar_z_range') and args.delta_mstar_z_range:
+            config['delta_mstar_z_range'] = args.delta_mstar_z_range
+        if hasattr(args, 'use_desprior_candidates'):
+            config['desprior_candidates'] = args.use_desprior_candidates
+        if hasattr(args, 'candidate_delta_mstar_range') and args.candidate_delta_mstar_range:
+            config['candidate_delta_mstar_range'] = args.candidate_delta_mstar_range
+
+        plot_training_curves(train_losses, train_accuracies, val_losses, val_accuracies, args.output_dir, config=config)
     
     return model, feature_scaler, {
         'train_losses': train_losses,
@@ -520,8 +541,63 @@ def save_model(model, feature_scaler, output_dir, name, color_extractor=None):
     print(f"Scaler saved to: {scaler_path}")
 
 
-def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_dir):
-    """Plot and save training curves as separate plots and save CSV data."""
+def format_config_text(config):
+    """Format configuration dictionary into a readable text block for plot annotations.
+
+    Args:
+        config: Dictionary containing hyperparameters and BCG configuration
+
+    Returns:
+        Formatted string for display in text box
+    """
+    lines = []
+
+    # Training parameters section
+    if any(k in config for k in ['epochs', 'batch_size', 'lr']):
+        lines.append("Training Parameters:")
+        if 'epochs' in config:
+            lines.append(f"  Epochs: {config['epochs']}")
+        if 'batch_size' in config:
+            lines.append(f"  Batch size: {config['batch_size']}")
+        if 'lr' in config:
+            lines.append(f"  Learning rate: {config['lr']}")
+
+    # BCG Configuration section
+    bcg_keys = ['dataset', 'additional_features', 'redmapper_probs', 'z_range',
+                'delta_mstar_z_range', 'desprior_candidates', 'candidate_delta_mstar_range']
+    if any(k in config for k in bcg_keys):
+        if lines:
+            lines.append("")
+        lines.append("BCG Configuration:")
+        if 'dataset' in config:
+            lines.append(f"  Dataset: {config['dataset']}")
+        if 'additional_features' in config:
+            lines.append(f"  Additional features: {config['additional_features']}")
+        if 'redmapper_probs' in config:
+            lines.append(f"  RedMapper probs: {config['redmapper_probs']}")
+        if 'z_range' in config:
+            lines.append(f"  Redshift filter: {config['z_range']}")
+        if 'delta_mstar_z_range' in config:
+            lines.append(f"  Delta M* z filter: {config['delta_mstar_z_range']}")
+        if 'desprior_candidates' in config:
+            lines.append(f"  DESprior candidates: {config['desprior_candidates']}")
+        if 'candidate_delta_mstar_range' in config:
+            lines.append(f"  Candidate delta_mstar: {config['candidate_delta_mstar_range']}")
+
+    return '\n'.join(lines) if lines else ""
+
+
+def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_dir, config=None):
+    """Plot and save training curves as separate plots and save CSV data.
+
+    Args:
+        train_losses: List of training losses per epoch
+        train_accs: List of training accuracies per epoch
+        val_losses: List of validation losses per epoch
+        val_accs: List of validation accuracies per epoch
+        output_dir: Directory to save plots
+        config: Optional dict with hyperparameters to display in text box
+    """
     import pandas as pd
 
     # Apply consistent plot style
@@ -600,11 +676,22 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     ax2.legend(fontsize=FONTS['legend'])
     ax2.grid(True, alpha=SIZES.get('grid_alpha', 0.3))
 
+    # Add hyperparameter text box if config is provided
+    if config is not None:
+        config_text = format_config_text(config)
+        # Add text box at the bottom of the figure
+        fig.text(0.02, 0.02, config_text, fontsize=7, fontfamily='monospace',
+                 verticalalignment='bottom', horizontalalignment='left',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow', alpha=0.8, edgecolor='gray'))
+
     plt.tight_layout()
+    # Adjust bottom margin to accommodate text box
+    if config is not None:
+        plt.subplots_adjust(bottom=0.22)
     combined_plot_path = os.path.join(output_dir, 'training_curves.png')
     plt.savefig(combined_plot_path, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Combined training curves saved to: {combined_plot_path}")
-    
+
     if plt.get_backend() != 'Agg':  # Only show if display is available
         plt.show()
     plt.close()
