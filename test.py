@@ -35,6 +35,7 @@ from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loade
                                         create_desprior_candidate_dataset_from_files,
                                         collate_bcg_candidate_samples)
 from ml_models.uq_classifier import BCGProbabilisticClassifier
+from utils.reproducibility import set_global_seed, make_deterministic
 
 
 
@@ -923,6 +924,10 @@ def print_enhanced_evaluation_report(metrics, failed_predictions, use_uq=False):
 
 def main(args):
     """Main evaluation function."""
+    # REPRODUCIBILITY: Set global seed and enable deterministic mode
+    set_global_seed(42)
+    make_deterministic(warn=True)
+
     print("=" * 60)
     print("ENHANCED BCG CLASSIFIER EVALUATION")
     print("=" * 60)

@@ -34,6 +34,7 @@ from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loade
                                         collate_bcg_candidate_samples)
 from utils.candidate_based_bcg import extract_patch_features, extract_context_features
 from utils.color_features import ColorFeatureExtractor
+from utils.reproducibility import set_global_seed, make_deterministic, seed_worker, get_generator, reset_model_weights
 from plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 
@@ -251,19 +252,23 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
     if collate_fn is None:
         collate_fn = collate_candidate_samples
     
-    # Create data loaders
+    # Create data loaders with reproducibility settings
     train_loader = DataLoader(
-        train_dataset, 
+        train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        worker_init_fn=seed_worker,
+        generator=get_generator(42)
     )
-    
+
     val_loader = DataLoader(
         val_dataset,
-        batch_size=args.batch_size, 
+        batch_size=args.batch_size,
         shuffle=False,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        worker_init_fn=seed_worker,
+        generator=get_generator(42)
     )
     
     # Determine feature dimension from first batch
@@ -374,6 +379,9 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
     
     device = torch.device('cuda' if torch.cuda.is_available() and args.use_gpu else 'cpu')
     print(f"Using device: {device}")
+
+    # REPRODUCIBILITY: Reset model weights for consistent initialization
+    reset_model_weights(model, seed=42)
 
     # Print model architecture
     print("\n" + "="*80)
@@ -604,6 +612,10 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
 
 def main(args):
     """Main training function."""
+    # REPRODUCIBILITY: Set global seed and enable deterministic mode
+    set_global_seed(42)
+    make_deterministic(warn=True)
+
     print("=" * 60)
     print("ENHANCED BCG CLASSIFIER TRAINING")
     print("=" * 60)
@@ -648,9 +660,10 @@ def main(args):
         # Split training set into train/val (70% train, 10% val, 20% test total)
         train_size = int(0.875 * len(train_dataset))  # 0.875 * 0.8 = 0.7 total
         val_size = len(train_dataset) - train_size
-        
+
         train_subset, val_subset = torch.utils.data.random_split(
-            train_dataset, [train_size, val_size]
+            train_dataset, [train_size, val_size],
+            generator=get_generator(42)
         )
         test_subset = test_dataset
         
@@ -699,9 +712,10 @@ def main(args):
         total_samples = len(full_train_candidate_dataset)
         train_size = int(0.875 * total_samples)  # Match the BCG dataset split
         val_size = total_samples - train_size
-        
+
         train_candidate_dataset, val_candidate_dataset = torch.utils.data.random_split(
-            full_train_candidate_dataset, [train_size, val_size]
+            full_train_candidate_dataset, [train_size, val_size],
+            generator=get_generator(42)
         )
         
         # Use DESprior-specific collate function
