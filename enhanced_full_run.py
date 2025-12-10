@@ -399,13 +399,13 @@ def main():
     modify_training = input("Modify training parameters? (y/N): ").strip().lower()
     
     if modify_training in ['y', 'yes']:
-        epochs = int(input("Number of epochs (default 128): ") or "128")
-        batch_size = int(input("Batch size (default 16): ") or "16")
-        lr = float(input("Learning rate (default 0.0002): ") or "0.0002")
+        epochs = int(input("Number of epochs (default 256): ") or "256")
+        batch_size = int(input("Batch size (default 32): ") or "32")
+        lr = float(input("Learning rate (default 0.0001): ") or "0.0001")
     else:
-        epochs = 128
-        batch_size = 16
-        lr = 0.0002
+        epochs = 256
+        batch_size = 32
+        lr = 0.0001
         print(f"Using defaults: epochs={epochs}, batch_size={batch_size}, lr={lr}")
     
     # Feature extraction parameters
