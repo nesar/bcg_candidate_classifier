@@ -708,14 +708,14 @@ def plot_cluster_comparison(cluster_name, rm_members, priors, bcg_matched, outpu
 
 
 # =============================================================================
-# BCG Probability vs pmem Analysis
+# p_RM vs p_mem Analysis (Candidates vs Members)
 # =============================================================================
 
-def analyze_bcg_probability_vs_pmem(rm_members, bcg_matched, tol_arcsec=2.0):
+def analyze_prm_vs_pmem(rm_members, bcg_matched, tol_arcsec=2.0):
     """
-    Compare classifier's BCG Probability with pmem for all BCG candidates.
+    Compare p_RM (candidate probability) with p_mem (member probability).
 
-    Returns DataFrame with matched BCG candidates containing both probabilities.
+    Returns DataFrame with matched candidates containing both probabilities.
     """
     if bcg_matched is None or rm_members is None:
         return None
@@ -732,7 +732,7 @@ def analyze_bcg_probability_vs_pmem(rm_members, bcg_matched, tol_arcsec=2.0):
         for _, bcg_row in cluster_bcgs.iterrows():
             bcg_ra = bcg_row['BCG RA']
             bcg_dec = bcg_row['BCG Dec']
-            bcg_prob = bcg_row['BCG Probability']
+            p_rm = bcg_row['BCG Probability']  # p_RM = candidate probability
             delta_mstar_z = bcg_row['delta_mstar_z']
             cluster_z = bcg_row['Cluster z']
 
@@ -751,8 +751,8 @@ def analyze_bcg_probability_vs_pmem(rm_members, bcg_matched, tol_arcsec=2.0):
                     'cluster': cluster_name,
                     'ra': bcg_ra,
                     'dec': bcg_dec,
-                    'bcg_probability': bcg_prob,
-                    'pmem': pmem,
+                    'p_rm': p_rm,  # Candidate probability
+                    'p_mem': pmem,  # Member probability
                     'delta_mstar_z': delta_mstar_z,
                     'cluster_z': cluster_z,
                     'separation_arcsec': separation,
@@ -763,21 +763,21 @@ def analyze_bcg_probability_vs_pmem(rm_members, bcg_matched, tol_arcsec=2.0):
     return None
 
 
-def plot_bcg_probability_vs_pmem(matched_df, output_dir):
+def plot_prm_vs_pmem(matched_df, output_dir):
     """
-    Create comprehensive plots comparing BCG Probability with pmem.
+    Create comprehensive plots comparing p_RM (candidates) with p_mem (members).
     """
     if matched_df is None or len(matched_df) == 0:
-        print("No matched data for BCG Probability vs pmem comparison")
+        print("No matched data for p_RM vs p_mem comparison")
         return
 
     fig, axes = plt.subplots(2, 3, figsize=(16, 10))
 
     # =========================================================================
-    # Plot 1: Scatter plot of BCG Probability vs pmem
+    # Plot 1: Scatter plot of p_RM vs p_mem
     # =========================================================================
     ax = axes[0, 0]
-    scatter = ax.scatter(matched_df['pmem'], matched_df['bcg_probability'],
+    scatter = ax.scatter(matched_df['p_mem'], matched_df['p_rm'],
                          c=matched_df['cluster_z'], cmap='viridis',
                          alpha=0.5, s=20, edgecolors='none')
     plt.colorbar(scatter, ax=ax, label='Cluster Redshift')
@@ -786,14 +786,14 @@ def plot_bcg_probability_vs_pmem(matched_df, output_dir):
     ax.plot([0, 1], [0, 1], 'r--', alpha=0.5, label='1:1 line')
 
     # Correlation
-    corr = np.corrcoef(matched_df['pmem'], matched_df['bcg_probability'])[0, 1]
+    corr = np.corrcoef(matched_df['p_mem'], matched_df['p_rm'])[0, 1]
     ax.text(0.05, 0.95, f'Pearson r = {corr:.3f}\nN = {len(matched_df)}',
             transform=ax.transAxes, ha='left', va='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
 
-    ax.set_xlabel('pmem (RedMapper membership)')
-    ax.set_ylabel('BCG Probability (Classifier)')
-    ax.set_title('BCG Probability vs pmem\n(colored by redshift)')
+    ax.set_xlabel('$p_{\\mathrm{mem}}$ (Members)')
+    ax.set_ylabel('$p_{\\mathrm{RM}}$ (Candidates)')
+    ax.set_title('$p_{RM}$ vs $p_{mem}$\n(colored by redshift)')
     ax.set_xlim(-0.05, 1.05)
     ax.set_ylim(-0.05, 1.05)
     ax.legend(loc='lower right')
@@ -803,13 +803,13 @@ def plot_bcg_probability_vs_pmem(matched_df, output_dir):
     # Plot 2: 2D Histogram / Density plot
     # =========================================================================
     ax = axes[0, 1]
-    h = ax.hist2d(matched_df['pmem'], matched_df['bcg_probability'],
+    h = ax.hist2d(matched_df['p_mem'], matched_df['p_rm'],
                   bins=30, cmap='Blues', cmin=1)
     plt.colorbar(h[3], ax=ax, label='Count')
     ax.plot([0, 1], [0, 1], 'r--', alpha=0.7, label='1:1 line')
-    ax.set_xlabel('pmem (RedMapper membership)')
-    ax.set_ylabel('BCG Probability (Classifier)')
-    ax.set_title('Density: BCG Probability vs pmem')
+    ax.set_xlabel('$p_{\\mathrm{mem}}$ (Members)')
+    ax.set_ylabel('$p_{\\mathrm{RM}}$ (Candidates)')
+    ax.set_title('Density: $p_{RM}$ vs $p_{mem}$')
     ax.set_xlim(-0.05, 1.05)
     ax.set_ylim(-0.05, 1.05)
     ax.legend(loc='lower right')
@@ -819,19 +819,19 @@ def plot_bcg_probability_vs_pmem(matched_df, output_dir):
     # =========================================================================
     ax = axes[0, 2]
     bins = np.linspace(0, 1, 31)
-    ax.hist(matched_df['pmem'], bins=bins, alpha=0.6, label='pmem', edgecolor='black')
-    ax.hist(matched_df['bcg_probability'], bins=bins, alpha=0.6, label='BCG Prob', edgecolor='black')
+    ax.hist(matched_df['p_mem'], bins=bins, alpha=0.6, label='$p_{mem}$', edgecolor='black')
+    ax.hist(matched_df['p_rm'], bins=bins, alpha=0.6, label='$p_{RM}$', edgecolor='black')
     ax.set_xlabel('Probability')
     ax.set_ylabel('Count')
     ax.set_title('Distribution Comparison')
     ax.legend()
 
     # Add statistics
-    pmem_median = matched_df['pmem'].median()
-    bcg_prob_median = matched_df['bcg_probability'].median()
+    pmem_median = matched_df['p_mem'].median()
+    prm_median = matched_df['p_rm'].median()
     ax.axvline(pmem_median, color='C0', linestyle='--', alpha=0.7)
-    ax.axvline(bcg_prob_median, color='C1', linestyle='--', alpha=0.7)
-    ax.text(0.95, 0.95, f'pmem median: {pmem_median:.3f}\nBCG Prob median: {bcg_prob_median:.3f}',
+    ax.axvline(prm_median, color='C1', linestyle='--', alpha=0.7)
+    ax.text(0.95, 0.95, f'$p_{{mem}}$ median: {pmem_median:.3f}\n$p_{{RM}}$ median: {prm_median:.3f}',
             transform=ax.transAxes, ha='right', va='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
 
@@ -841,16 +841,16 @@ def plot_bcg_probability_vs_pmem(matched_df, output_dir):
     ax = axes[1, 0]
 
     # Define agreement categories
-    high_both = (matched_df['pmem'] > 0.8) & (matched_df['bcg_probability'] > 0.8)
-    low_both = (matched_df['pmem'] < 0.5) & (matched_df['bcg_probability'] < 0.5)
-    high_pmem_low_bcg = (matched_df['pmem'] > 0.8) & (matched_df['bcg_probability'] < 0.5)
-    low_pmem_high_bcg = (matched_df['pmem'] < 0.5) & (matched_df['bcg_probability'] > 0.8)
+    high_both = (matched_df['p_mem'] > 0.8) & (matched_df['p_rm'] > 0.8)
+    low_both = (matched_df['p_mem'] < 0.5) & (matched_df['p_rm'] < 0.5)
+    high_pmem_low_prm = (matched_df['p_mem'] > 0.8) & (matched_df['p_rm'] < 0.5)
+    low_pmem_high_prm = (matched_df['p_mem'] < 0.5) & (matched_df['p_rm'] > 0.8)
 
-    categories = ['High Both\n(pmem>0.8, BCG>0.8)',
-                  'Low Both\n(pmem<0.5, BCG<0.5)',
-                  'High pmem, Low BCG\n(pmem>0.8, BCG<0.5)',
-                  'Low pmem, High BCG\n(pmem<0.5, BCG>0.8)']
-    counts = [high_both.sum(), low_both.sum(), high_pmem_low_bcg.sum(), low_pmem_high_bcg.sum()]
+    categories = ['High Both\n($p_{mem}$>0.8, $p_{RM}$>0.8)',
+                  'Low Both\n($p_{mem}$<0.5, $p_{RM}$<0.5)',
+                  'High $p_{mem}$, Low $p_{RM}$',
+                  'Low $p_{mem}$, High $p_{RM}$']
+    counts = [high_both.sum(), low_both.sum(), high_pmem_low_prm.sum(), low_pmem_high_prm.sum()]
     colors = ['green', 'gray', 'orange', 'red']
 
     bars = ax.bar(categories, counts, color=colors, edgecolor='black')
@@ -867,17 +867,17 @@ def plot_bcg_probability_vs_pmem(matched_df, output_dir):
                 ha='center', va='bottom', fontsize=9)
 
     # =========================================================================
-    # Plot 5: Residuals (BCG Prob - pmem) vs redshift
+    # Plot 5: Residuals (p_RM - p_mem) vs redshift
     # =========================================================================
     ax = axes[1, 1]
-    residuals = matched_df['bcg_probability'] - matched_df['pmem']
+    residuals = matched_df['p_rm'] - matched_df['p_mem']
     scatter = ax.scatter(matched_df['cluster_z'], residuals,
-                         c=matched_df['pmem'], cmap='viridis',
+                         c=matched_df['p_mem'], cmap='viridis',
                          alpha=0.5, s=20, edgecolors='none')
-    plt.colorbar(scatter, ax=ax, label='pmem')
+    plt.colorbar(scatter, ax=ax, label='$p_{mem}$')
     ax.axhline(0, color='red', linestyle='--', alpha=0.5)
     ax.set_xlabel('Cluster Redshift')
-    ax.set_ylabel('BCG Probability - pmem')
+    ax.set_ylabel('$p_{RM}$ - $p_{mem}$')
     ax.set_title('Residuals vs Redshift')
 
     # Add trend line
@@ -900,11 +900,11 @@ def plot_bcg_probability_vs_pmem(matched_df, output_dir):
     plt.colorbar(scatter, ax=ax, label='Cluster Redshift')
     ax.axhline(0, color='red', linestyle='--', alpha=0.5)
     ax.set_xlabel('delta_mstar_z')
-    ax.set_ylabel('BCG Probability - pmem')
+    ax.set_ylabel('$p_{RM}$ - $p_{mem}$')
     ax.set_title('Residuals vs delta_mstar_z')
 
     plt.tight_layout()
-    output_path = output_dir / "bcg_probability_vs_pmem.png"
+    output_path = output_dir / "prm_vs_pmem.png"
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"Saved: {output_path}")
@@ -912,59 +912,59 @@ def plot_bcg_probability_vs_pmem(matched_df, output_dir):
     return matched_df
 
 
-def print_bcg_prob_vs_pmem_summary(matched_df):
-    """Print detailed summary statistics for BCG Probability vs pmem comparison."""
+def print_prm_vs_pmem_summary(matched_df):
+    """Print detailed summary statistics for p_RM vs p_mem comparison."""
     if matched_df is None or len(matched_df) == 0:
         return
 
     print("\n" + "=" * 70)
-    print("BCG PROBABILITY vs PMEM COMPARISON")
+    print("p_RM (CANDIDATES) vs p_mem (MEMBERS) COMPARISON")
     print("=" * 70)
 
-    print(f"\nTotal BCG candidates matched to RM members: {len(matched_df)}")
+    print(f"\nTotal candidates matched to members: {len(matched_df)}")
     print(f"Unique clusters: {matched_df['cluster'].nunique()}")
 
     print("\n--- Basic Statistics ---")
-    print(f"  BCG Probability: mean={matched_df['bcg_probability'].mean():.3f}, "
-          f"median={matched_df['bcg_probability'].median():.3f}, "
-          f"std={matched_df['bcg_probability'].std():.3f}")
-    print(f"  pmem:            mean={matched_df['pmem'].mean():.3f}, "
-          f"median={matched_df['pmem'].median():.3f}, "
-          f"std={matched_df['pmem'].std():.3f}")
+    print(f"  p_RM (Candidates): mean={matched_df['p_rm'].mean():.3f}, "
+          f"median={matched_df['p_rm'].median():.3f}, "
+          f"std={matched_df['p_rm'].std():.3f}")
+    print(f"  p_mem (Members):   mean={matched_df['p_mem'].mean():.3f}, "
+          f"median={matched_df['p_mem'].median():.3f}, "
+          f"std={matched_df['p_mem'].std():.3f}")
 
     print("\n--- Correlation ---")
-    corr = np.corrcoef(matched_df['pmem'], matched_df['bcg_probability'])[0, 1]
+    corr = np.corrcoef(matched_df['p_mem'], matched_df['p_rm'])[0, 1]
     print(f"  Pearson correlation: {corr:.4f}")
 
     # Spearman correlation
     from scipy.stats import spearmanr
-    spearman_corr, spearman_p = spearmanr(matched_df['pmem'], matched_df['bcg_probability'])
+    spearman_corr, spearman_p = spearmanr(matched_df['p_mem'], matched_df['p_rm'])
     print(f"  Spearman correlation: {spearman_corr:.4f} (p={spearman_p:.2e})")
 
     print("\n--- Agreement Analysis ---")
-    high_both = (matched_df['pmem'] > 0.8) & (matched_df['bcg_probability'] > 0.8)
-    low_both = (matched_df['pmem'] < 0.5) & (matched_df['bcg_probability'] < 0.5)
-    high_pmem_low_bcg = (matched_df['pmem'] > 0.8) & (matched_df['bcg_probability'] < 0.5)
-    low_pmem_high_bcg = (matched_df['pmem'] < 0.5) & (matched_df['bcg_probability'] > 0.8)
+    high_both = (matched_df['p_mem'] > 0.8) & (matched_df['p_rm'] > 0.8)
+    low_both = (matched_df['p_mem'] < 0.5) & (matched_df['p_rm'] < 0.5)
+    high_pmem_low_prm = (matched_df['p_mem'] > 0.8) & (matched_df['p_rm'] < 0.5)
+    low_pmem_high_prm = (matched_df['p_mem'] < 0.5) & (matched_df['p_rm'] > 0.8)
 
     total = len(matched_df)
     print(f"  High agreement (both > 0.8): {high_both.sum()} ({high_both.sum()/total*100:.1f}%)")
     print(f"  Low agreement (both < 0.5):  {low_both.sum()} ({low_both.sum()/total*100:.1f}%)")
-    print(f"  High pmem, Low BCG Prob:     {high_pmem_low_bcg.sum()} ({high_pmem_low_bcg.sum()/total*100:.1f}%)")
-    print(f"  Low pmem, High BCG Prob:     {low_pmem_high_bcg.sum()} ({low_pmem_high_bcg.sum()/total*100:.1f}%)")
+    print(f"  High p_mem, Low p_RM:        {high_pmem_low_prm.sum()} ({high_pmem_low_prm.sum()/total*100:.1f}%)")
+    print(f"  Low p_mem, High p_RM:        {low_pmem_high_prm.sum()} ({low_pmem_high_prm.sum()/total*100:.1f}%)")
 
     print("\n--- Threshold Analysis ---")
     for thresh in [0.5, 0.7, 0.9, 0.95, 0.99]:
-        pmem_above = (matched_df['pmem'] >= thresh).sum()
-        bcg_above = (matched_df['bcg_probability'] >= thresh).sum()
-        both_above = ((matched_df['pmem'] >= thresh) & (matched_df['bcg_probability'] >= thresh)).sum()
-        print(f"  >= {thresh}: pmem={pmem_above} ({pmem_above/total*100:.1f}%), "
-              f"BCG Prob={bcg_above} ({bcg_above/total*100:.1f}%), "
+        pmem_above = (matched_df['p_mem'] >= thresh).sum()
+        prm_above = (matched_df['p_rm'] >= thresh).sum()
+        both_above = ((matched_df['p_mem'] >= thresh) & (matched_df['p_rm'] >= thresh)).sum()
+        print(f"  >= {thresh}: p_mem={pmem_above} ({pmem_above/total*100:.1f}%), "
+              f"p_RM={prm_above} ({prm_above/total*100:.1f}%), "
               f"both={both_above} ({both_above/total*100:.1f}%)")
 
     # Cases where they strongly disagree
     print("\n--- Strong Disagreements (|diff| > 0.5) ---")
-    disagreements = matched_df[np.abs(matched_df['bcg_probability'] - matched_df['pmem']) > 0.5]
+    disagreements = matched_df[np.abs(matched_df['p_rm'] - matched_df['p_mem']) > 0.5]
     print(f"  Total: {len(disagreements)} ({len(disagreements)/total*100:.1f}%)")
     if len(disagreements) > 0:
         print(f"  Mean redshift of disagreements: {disagreements['cluster_z'].mean():.3f}")
@@ -1089,29 +1089,29 @@ def main():
         plot_cluster_comparison(cluster, rm_members, priors, bcg_matched, output_path)
 
     # =========================================================================
-    # NEW: BCG Probability vs pmem comparison
+    # p_RM vs p_mem comparison (Candidates vs Members)
     # =========================================================================
-    print("\n--- BCG Probability vs pmem Analysis ---")
-    bcg_pmem_df = analyze_bcg_probability_vs_pmem(rm_members, bcg_matched)
+    print("\n--- p_RM vs p_mem Analysis (Candidates vs Members) ---")
+    prm_pmem_df = analyze_prm_vs_pmem(rm_members, bcg_matched)
 
-    if bcg_pmem_df is not None:
+    if prm_pmem_df is not None:
         # Save the matched data
-        bcg_pmem_file = OUTPUT_DIR / "bcg_probability_vs_pmem.csv"
-        bcg_pmem_df.to_csv(bcg_pmem_file, index=False)
-        print(f"Saved BCG Probability vs pmem data to: {bcg_pmem_file}")
+        prm_pmem_file = OUTPUT_DIR / "prm_vs_pmem.csv"
+        prm_pmem_df.to_csv(prm_pmem_file, index=False)
+        print(f"Saved p_RM vs p_mem data to: {prm_pmem_file}")
 
         # Generate plots
-        plot_bcg_probability_vs_pmem(bcg_pmem_df, PLOTS_DIR)
+        plot_prm_vs_pmem(prm_pmem_df, PLOTS_DIR)
 
         # Print summary
-        print_bcg_prob_vs_pmem_summary(bcg_pmem_df)
+        print_prm_vs_pmem_summary(prm_pmem_df)
 
     print("\n" + "=" * 70)
     print("Analysis Complete!")
     print("=" * 70)
 
-    return all_results, summary, bcg_pmem_df
+    return all_results, summary, prm_pmem_df
 
 
 if __name__ == "__main__":
-    all_results, summary, bcg_pmem_df = main()
+    all_results, summary, prm_pmem_df = main()
