@@ -34,7 +34,7 @@ Thumbs.db
 trained_models/*
 purge_comparison_analysis/*
 *.png
-
+*.csv
 # API keys and secrets
 .env
 .env.local
