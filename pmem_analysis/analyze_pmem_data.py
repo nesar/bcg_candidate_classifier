@@ -635,15 +635,15 @@ def plot_cluster_comparison(cluster_name, rm_members, priors, bcg_matched, outpu
     ax.legend(fontsize=8)
 
     # =========================================================================
-    # Plot 3: p_RM vs p_mem for ALL matched candidates and members
+    # Plot 3: p_RM vs p_mem for candidates that have BOTH probabilities
     # =========================================================================
     ax = axes[2]
 
-    # Get ALL priors/candidates that match to RM members
+    # Only show candidates that have both p_RM (from bcg_matched) and p_mem (from rm_members)
     matched_prm = []  # p_RM values (from bcg_matched)
     matched_pmem = []  # p_mem values (from rm_members)
 
-    # First add BCG candidates (those in bcg_matched file)
+    # Add BCG candidates that match to RM members
     for bcg in all_bcg_candidates:
         idx_b, idx_r, _ = match_coordinates(
             [bcg['ra']], [bcg['dec']],
@@ -654,11 +654,10 @@ def plot_cluster_comparison(cluster_name, rm_members, priors, bcg_matched, outpu
             matched_prm.append(bcg['prob'])
             matched_pmem.append(cluster_rm.iloc[idx_r[0]]['pmem'])
 
-    # Also add other priors that have pmem matches (with p_RM = 0 since they're not BCG candidates)
-    # These are candidates in prior list but not selected as BCG candidates
+    # Count priors matched to members but NOT in bcg_candidates (for info only)
+    n_other_matched = 0
     for i in range(len(cluster_priors)):
         if i in prior_pmem:
-            # Check if this prior is already in bcg_candidates
             prior_ra = cluster_priors.iloc[i]['ra']
             prior_dec = cluster_priors.iloc[i]['dec']
             is_bcg_candidate = False
@@ -667,39 +666,40 @@ def plot_cluster_comparison(cluster_name, rm_members, priors, bcg_matched, outpu
                     is_bcg_candidate = True
                     break
             if not is_bcg_candidate:
-                matched_prm.append(0)  # No p_RM for non-BCG priors
-                matched_pmem.append(prior_pmem[i])
+                n_other_matched += 1
 
     if matched_prm:
-        # Plot all matched points
-        # Separate BCG candidates (p_RM > 0) from other priors (p_RM = 0)
-        bcg_mask = np.array(matched_prm) > 0
-        other_mask = ~bcg_mask
+        # Plot candidates with both p_RM and p_mem
+        ax.scatter(matched_pmem, matched_prm, s=150, c='red', edgecolors='black',
+                  linewidths=2, zorder=5, label=f'Candidates ({len(matched_prm)})')
 
-        # Plot other matched priors as gray
-        if np.any(other_mask):
-            ax.scatter(np.array(matched_pmem)[other_mask], np.array(matched_prm)[other_mask],
-                      s=60, c='gray', alpha=0.5, edgecolors='black', linewidths=0.5,
-                      zorder=3, label=f'Other matched ({np.sum(other_mask)})')
-
-        # Plot BCG candidates as red
-        if np.any(bcg_mask):
-            ax.scatter(np.array(matched_pmem)[bcg_mask], np.array(matched_prm)[bcg_mask],
-                      s=150, c='red', edgecolors='black', linewidths=2,
-                      zorder=5, label=f'Candidates ({np.sum(bcg_mask)})')
+        # Add labels for each candidate
+        for i, (pm, pr) in enumerate(zip(matched_pmem, matched_prm)):
+            ax.annotate(f'{i+1}', (pm, pr), xytext=(5, 5),
+                       textcoords='offset points', fontsize=9, fontweight='bold')
 
         ax.plot([0, 1], [0, 1], 'k--', alpha=0.3, label='1:1 line')
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.05, 1.05)
         ax.set_xlabel('$p_{\\mathrm{mem}}$ (Members)')
         ax.set_ylabel('$p_{\\mathrm{RM}}$ (Candidates)')
-        ax.set_title(f'$p_{{RM}}$ vs $p_{{mem}}$\n({len(matched_prm)} matched)')
-        ax.legend(fontsize=8)
+
+        # Show info about other matched priors (without p_RM)
+        title = f'$p_{{RM}}$ vs $p_{{mem}}$\n({len(matched_prm)} candidates'
+        if n_other_matched > 0:
+            title += f', {n_other_matched} other priors matched'
+        title += ')'
+        ax.set_title(title)
+        ax.legend(fontsize=8, loc='lower right')
         ax.set_aspect('equal')
     else:
-        ax.text(0.5, 0.5, 'No matched\ncandidates/members',
-               ha='center', va='center', transform=ax.transAxes)
+        ax.text(0.5, 0.5, f'No candidates with\nboth $p_{{RM}}$ and $p_{{mem}}$\n({n_other_matched} priors matched)',
+               ha='center', va='center', transform=ax.transAxes, fontsize=10)
         ax.set_title('$p_{RM}$ vs $p_{mem}$')
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_xlabel('$p_{\\mathrm{mem}}$ (Members)')
+        ax.set_ylabel('$p_{\\mathrm{RM}}$ (Candidates)')
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
