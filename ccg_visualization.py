@@ -37,6 +37,25 @@ plt.rcParams.update({
 # ============================================================================
 # Physical Images with Members Visualization (matching physical_images style)
 # ============================================================================
+def format_ra_hms(ra_deg):
+    """Format RA in degrees to hours:minutes:seconds notation."""
+    hours = ra_deg / 15.0  # 1 hour = 15 degrees
+    h = int(hours)
+    m = int((hours - h) * 60)
+    s = ((hours - h) * 60 - m) * 60
+    return f"{h:02d}h{m:02d}m{s:04.1f}s"
+
+
+def format_dec_dms(dec_deg):
+    """Format Dec in degrees to degrees:arcminutes:arcseconds notation."""
+    sign = '+' if dec_deg >= 0 else '-'
+    abs_deg = abs(dec_deg)
+    deg = int(abs_deg)
+    arcmin = int((abs_deg - deg) * 60)
+    arcsec = ((abs_deg - deg) * 60 - arcmin) * 60
+    return f"{sign}{deg:02d}°{arcmin:02d}'{arcsec:04.1f}\""
+
+
 def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
                                    candidate_probs, p_ccg_values, member_counts,
                                    redshift, radius_kpc=300.0, wcs=None,
@@ -45,8 +64,15 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
                                    target_coords=None, target_prob=None,
                                    pmem_cutoff=0.2, show_top_n=5):
     """
-    Create enhanced visualization showing candidates with both bar_p and p_{CCG}.
-    Uses SQUARE markers for candidates and actual RA/Dec coordinates on axes.
+    Create enhanced visualization matching ProbabilisticTesting_prediction style.
+
+    Style matching:
+    - RA in h:m:s, Dec in °:':"
+    - BCG candidates: squares with alpha (gray)
+    - Top CCG: red solid circle labeled "Top CCG"
+    - Target: blue dashed circle
+    - Members: circles colored by p_mem
+    - Search radius: dashed gray circle
 
     Args:
         cluster_name: Cluster name
@@ -152,73 +178,85 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
                       facecolors='none', edgecolors='green',
                       linewidths=1.5, alpha=0.7, zorder=3)
 
-    # Plot radius circles around top candidates
+    # Plot radius circles around top CCG candidate only
     if redshift > 0 and not np.isnan(redshift):
         radius_arcsec = physical_to_angular_arcsec(radius_kpc, redshift)
         radius_pixels = radius_arcsec / (arcmin_per_pixel * 60)
 
-        # Only draw for top candidates
-        sorted_indices = np.argsort(candidate_probs)[::-1]
-        for rank, idx in enumerate(sorted_indices[:show_top_n]):
-            x, y = candidates_pixel[idx]
+        # Only draw for top CCG candidate (highest p_CCG)
+        if len(p_ccg_values) > 0:
+            top_ccg_idx = np.argmax(p_ccg_values)
+            x, y = candidates_pixel[top_ccg_idx]
             circle = plt.Circle((x, y), radius_pixels, fill=False,
-                               color='gray', linestyle='--', alpha=0.4, linewidth=1)
+                               color='gray', linestyle='--', alpha=0.5, linewidth=1.5)
             ax.add_patch(circle)
-
-    # Color scheme for ranked candidates
-    colors = ["#FF0000", "#FF6600", "#FFAA00", "#FFD700", "#9ACD32",
-             "#32CD32", "#00CED1", "#4169E1", "#9370DB", "#FF69B4"]
 
     legend_elements = []
 
-    # Sort candidates by bar_p and show top candidates as SQUARES
-    sorted_indices = np.argsort(candidate_probs)[::-1]
+    # =========================================================================
+    # Plot ALL BCG candidates as SQUARES with alpha (like ProbabilisticTesting)
+    # =========================================================================
+    if len(candidates_pixel) > 0:
+        candidates_array = np.array(candidates_pixel)
+        ax.scatter(candidates_array[:, 0], candidates_array[:, 1],
+                  marker='s', s=250, facecolors='none', edgecolors='#E0E0E0',
+                  linewidths=2, alpha=0.5, zorder=5)
+        legend_elements.append(plt.Line2D([0], [0], marker='s', color='w',
+                                         markeredgecolor='#E0E0E0', markersize=10,
+                                         markeredgewidth=2, linestyle='None',
+                                         markerfacecolor='None', alpha=0.5,
+                                         label='Candidates'))
 
-    for rank, idx in enumerate(sorted_indices[:show_top_n]):
-        x, y = candidates_pixel[idx]
-        bar_p = candidate_probs[idx]
-        p_ccg = p_ccg_values[idx] if idx < len(p_ccg_values) else np.nan
-        n_mem = member_counts[idx] if idx < len(member_counts) else 0
+    # =========================================================================
+    # Plot TOP CCG as RED SOLID CIRCLE (highest p_CCG)
+    # =========================================================================
+    if len(p_ccg_values) > 0 and len(candidates_pixel) > 0:
+        top_ccg_idx = np.argmax(p_ccg_values)
+        top_x, top_y = candidates_pixel[top_ccg_idx]
+        top_bar_p = candidate_probs[top_ccg_idx]
+        top_p_ccg = p_ccg_values[top_ccg_idx]
+        top_n_mem = member_counts[top_ccg_idx] if top_ccg_idx < len(member_counts) else 0
 
-        color = colors[rank % len(colors)]
+        # Red solid circle for Top CCG
+        ax.scatter(top_x, top_y, marker='o', s=800,
+                  facecolors='none', edgecolors='red', linewidths=3,
+                  alpha=0.95, zorder=10)
 
-        # Plot candidate as SQUARE marker (like original physical_images)
-        ax.scatter(x, y, marker='s', s=600, facecolors='none',
-                  edgecolors=color, linewidths=3, alpha=0.95, zorder=10)
-
-        # Add probability labels
-        if not np.isnan(p_ccg):
-            label_text = f'$\\bar{{p}}$={bar_p:.2f}\n$p_{{CCG}}$={p_ccg:.2f}\n$n_{{mem}}$={int(n_mem)}'
-        else:
-            label_text = f'$\\bar{{p}}$={bar_p:.2f}'
-
-        # Position label offset from marker
-        ax.text(x + 15, y - 15, label_text, fontsize=9, color='black',
+        # Add probability label for Top CCG
+        label_text = f'$\\bar{{p}}$={top_bar_p:.2f}\n$p_{{CCG}}$={top_p_ccg:.2f}\n$n_{{mem}}$={int(top_n_mem)}'
+        ax.text(top_x + 15, top_y - 15, label_text, fontsize=10, color='black',
                bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.85),
                zorder=11)
 
-        # Legend entry
-        legend_label = f'Rank {rank+1}: $\\bar{{p}}$={bar_p:.2f}'
-        if not np.isnan(p_ccg):
-            legend_label += f', $p_{{CCG}}$={p_ccg:.2f}'
-        legend_elements.append(plt.Line2D([0], [0], marker='s', color='w',
-                                         markeredgecolor=color, markersize=12,
+        # Legend entry for Top CCG
+        legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                         markeredgecolor='red', markersize=12,
                                          markeredgewidth=3, linestyle='None',
-                                         markerfacecolor='None', label=legend_label))
+                                         markerfacecolor='None',
+                                         label=f'Top CCG ($p_{{CCG}}$={top_p_ccg:.2f})'))
 
-    # Plot target BCG if provided (CYAN dashed square)
+    # =========================================================================
+    # Plot Target BCG as BLUE DASHED CIRCLE (like ProbabilisticTesting)
+    # =========================================================================
     if target_coords is not None:
         tx, ty = target_coords
         if not np.isnan(tx) and not np.isnan(ty):
-            target_label = 'Target BCG'
+            target_label = 'Target'
             if target_prob is not None and not np.isnan(target_prob):
-                target_label = f'Target ($p_{{RM}}$={target_prob:.2f})'
+                target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {target_prob:.2f})'
 
-            ax.scatter(tx, ty, marker='s', s=700, facecolors='none',
-                      edgecolors="#00FFFF", linewidths=3, alpha=1.0,
-                      linestyle='dashed', zorder=9)
-            legend_elements.append(plt.Line2D([0], [0], marker='s', color='w',
-                                             markeredgecolor="#00FFFF", markersize=12,
+            # Blue dashed circle for Target (matching ProbabilisticTesting style)
+            ax.scatter(tx, ty, marker='o', s=950, facecolors='none',
+                      edgecolors='#59F5ED', linewidths=3, alpha=1.0, zorder=9)
+            # Note: scatter doesn't support linestyle, so we use a circle patch for dashed
+            from matplotlib.patches import Circle
+            target_circle = Circle((tx, ty), 15, fill=False,
+                                   edgecolor='#59F5ED', linewidth=3,
+                                   linestyle='--', alpha=1.0, zorder=9)
+            ax.add_patch(target_circle)
+
+            legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                             markeredgecolor='#59F5ED', markersize=12,
                                              markeredgewidth=3, linestyle='None',
                                              markerfacecolor='None', label=target_label))
 
@@ -235,37 +273,33 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
                                          alpha=0.5, label=f'r={radius_kpc:.0f} kpc'))
 
     # =========================================================================
-    # Set up RA/Dec axis labels (like original physical_images)
+    # Set up RA/Dec axis labels (h:m:s for RA, °:':" for Dec)
     # =========================================================================
-    # Get corner coordinates
-    corner_pixels = [(0, 0), (img_width, 0), (0, img_height), (img_width, img_height)]
-    corner_radec = [pixel_to_radec(px, py, wcs, img_height) for px, py in corner_pixels]
+    # Create tick positions
+    n_ticks = 3
+    pixel_ticks = np.linspace(128-32, 384+32, n_ticks)
 
-    # Create tick positions and labels using actual RA/Dec
-    n_ticks = 5
-    x_ticks = np.linspace(0, img_width, n_ticks)
-    y_ticks = np.linspace(0, img_height, n_ticks)
-
+    # Get RA/Dec at tick positions
     x_labels = []
     y_labels = []
-    for xt in x_ticks:
-        ra, _ = pixel_to_radec(xt, img_height/2, wcs, img_height)
-        x_labels.append(f'{ra:.4f}')
-    for yt in y_ticks:
-        _, dec = pixel_to_radec(img_width/2, yt, wcs, img_height)
-        y_labels.append(f'{dec:.4f}')
+    for pt in pixel_ticks:
+        ra, _ = pixel_to_radec(pt, img_height/2, wcs, img_height)
+        x_labels.append(format_ra_hms(ra))
+    for pt in pixel_ticks:
+        _, dec = pixel_to_radec(img_width/2, pt, wcs, img_height)
+        y_labels.append(format_dec_dms(dec))
 
-    ax.set_xticks(x_ticks)
-    ax.set_yticks(y_ticks)
-    ax.set_xticklabels(x_labels, fontsize=10)
-    ax.set_yticklabels(y_labels, fontsize=10)
-    ax.set_xlabel("RA (deg)", fontsize=14)
-    ax.set_ylabel("Dec (deg)", fontsize=14)
+    ax.set_xticks(pixel_ticks)
+    ax.set_yticks(pixel_ticks)
+    ax.set_xticklabels(x_labels, fontsize=12)
+    ax.set_yticklabels(y_labels, fontsize=12)
+    ax.set_xlabel("RA", fontsize=14)
+    ax.set_ylabel("Dec", fontsize=14)
 
     # Cluster info text box
     display_text = cluster_name
     if redshift > 0 and not np.isnan(redshift):
-        display_text = f"{cluster_name}\nz={redshift:.3f}"
+        display_text = f"{cluster_name}, z={redshift:.2f}"
 
     ax.text(0.02, 0.98, display_text, transform=ax.transAxes, fontsize=12,
            verticalalignment='top', horizontalalignment='left',
@@ -274,8 +308,8 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
     # Legend
     ncol = min(2, len(legend_elements))
     ax.legend(handles=legend_elements, loc='lower left',
-             bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=9,
-             frameon=True, fancybox=True, shadow=False, framealpha=0.9,
+             bbox_to_anchor=(0.02, 0.02), ncol=ncol, fontsize=10,
+             frameon=True, fancybox=True, shadow=False, framealpha=0.8,
              columnspacing=0.5, handletextpad=0.3)
 
     plt.tight_layout()
