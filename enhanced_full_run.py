@@ -369,23 +369,31 @@ def main():
     print("identification using cluster member density. True central galaxies should")
     print("be located near the center of the cluster member distribution.")
     print("\nThis is a POST-PROCESSING step that runs AFTER testing.")
+    print("\nNew ADAPTIVE method: p_CCG is based on member fractions (n_i / N_total)")
+    print("normalized by each cluster's total member count.")
 
     run_ccg_analysis = input("\nRun p_{CCG} cluster member analysis after testing? (Y/n): ").strip().lower()
     if run_ccg_analysis == "":
         run_ccg_analysis = "y"  # Default to Y
     run_ccg_analysis = run_ccg_analysis not in ['n', 'no']
 
-    # CCG analysis parameters
+    # CCG analysis parameters - new adaptive method defaults
     ccg_radius_kpc = 300.0
-    ccg_relative_threshold = 5.0
     ccg_pmem_cutoff = 0.2
     ccg_n_images = 20
+    ccg_use_adaptive = True
+    ccg_dominance_fraction = 0.4
+    ccg_min_member_fraction = 0.05
+    ccg_distribution_mode = 'proportional'
+    ccg_relative_threshold = 5.0  # Legacy method parameter
 
     if run_ccg_analysis:
-        print("\nCCG analysis parameters:")
+        print("\nCCG analysis parameters (ADAPTIVE method):")
         print(f"  Search radius: {ccg_radius_kpc} kpc (200-400 kpc typical)")
-        print(f"  Relative threshold: {ccg_relative_threshold} (for dominance determination)")
         print(f"  p_mem cutoff: {ccg_pmem_cutoff} (minimum membership probability)")
+        print(f"  Dominance fraction: {ccg_dominance_fraction} ({ccg_dominance_fraction*100:.0f}% of cluster members)")
+        print(f"  Min member fraction: {ccg_min_member_fraction} ({ccg_min_member_fraction*100:.0f}% threshold)")
+        print(f"  Distribution mode: {ccg_distribution_mode}")
         print(f"  Number of images: {ccg_n_images}")
 
         modify_ccg_params = input("Modify CCG analysis parameters? (y/N): ").strip().lower()
@@ -394,22 +402,32 @@ def main():
             if ccg_radius_input:
                 ccg_radius_kpc = float(ccg_radius_input)
 
-            ccg_threshold_input = input(f"Relative threshold for dominance (default {ccg_relative_threshold}): ").strip()
-            if ccg_threshold_input:
-                ccg_relative_threshold = float(ccg_threshold_input)
-
             ccg_pmem_input = input(f"p_mem cutoff (default {ccg_pmem_cutoff}): ").strip()
             if ccg_pmem_input:
                 ccg_pmem_cutoff = float(ccg_pmem_input)
+
+            ccg_dom_input = input(f"Dominance fraction (default {ccg_dominance_fraction}, e.g. 0.4 = 40%): ").strip()
+            if ccg_dom_input:
+                ccg_dominance_fraction = float(ccg_dom_input)
+
+            ccg_min_input = input(f"Min member fraction (default {ccg_min_member_fraction}, e.g. 0.05 = 5%): ").strip()
+            if ccg_min_input:
+                ccg_min_member_fraction = float(ccg_min_input)
+
+            ccg_dist_input = input(f"Distribution mode [proportional/equal] (default {ccg_distribution_mode}): ").strip().lower()
+            if ccg_dist_input in ['proportional', 'equal']:
+                ccg_distribution_mode = ccg_dist_input
 
             ccg_images_input = input(f"Number of physical images to generate (default {ccg_n_images}): ").strip()
             if ccg_images_input:
                 ccg_n_images = int(ccg_images_input)
 
-        print(f"\nCCG Analysis Configuration:")
+        print(f"\nCCG Analysis Configuration (ADAPTIVE):")
         print(f"  Search radius: {ccg_radius_kpc} kpc")
-        print(f"  Relative threshold: {ccg_relative_threshold}")
         print(f"  p_mem cutoff: {ccg_pmem_cutoff}")
+        print(f"  Dominance fraction: {ccg_dominance_fraction} ({ccg_dominance_fraction*100:.0f}%)")
+        print(f"  Min member fraction: {ccg_min_member_fraction} ({ccg_min_member_fraction*100:.0f}%)")
+        print(f"  Distribution mode: {ccg_distribution_mode}")
         print(f"  Images to generate: {ccg_n_images}")
     else:
         print("Skipping CCG probability analysis")
@@ -879,19 +897,25 @@ except Exception as e:
     ccg_output_dir = None
     if run_ccg_analysis:
         print("Computing p_{CCG} based on cluster member density around top candidates...")
+        print(f"  Method: ADAPTIVE (per-image member fractions)")
         print(f"  Search radius: {ccg_radius_kpc} kpc")
-        print(f"  Relative threshold: {ccg_relative_threshold}")
         print(f"  p_mem cutoff: {ccg_pmem_cutoff}")
+        print(f"  Dominance fraction: {ccg_dominance_fraction} ({ccg_dominance_fraction*100:.0f}%)")
+        print(f"  Min member fraction: {ccg_min_member_fraction} ({ccg_min_member_fraction*100:.0f}%)")
+        print(f"  Distribution mode: {ccg_distribution_mode}")
         print(f"  Images to generate: {ccg_n_images}")
 
-        # Run CCG analysis
+        # Run CCG analysis with adaptive method
         ccg_analysis_command = f"""python run_ccg_analysis.py \\
             --experiment_dir "{output_dir}" \\
             --image_dir "{IMAGE_DIR}" \\
             --dataset_type {bcg_arcmin_type} \\
             --radius_kpc {ccg_radius_kpc} \\
-            --relative_threshold {ccg_relative_threshold} \\
             --pmem_cutoff {ccg_pmem_cutoff} \\
+            --use_adaptive true \\
+            --dominance_fraction {ccg_dominance_fraction} \\
+            --min_member_fraction {ccg_min_member_fraction} \\
+            --distribution_mode {ccg_distribution_mode} \\
             --n_images {ccg_n_images}"""
 
         if run_command(ccg_analysis_command, "Running p_{CCG} cluster member analysis"):

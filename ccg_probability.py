@@ -271,7 +271,7 @@ def count_members_around_candidates_batch(candidates_radec, members_df, radius_k
 # ============================================================================
 def assign_p_ccg(member_counts, relative_threshold=2.0):
     """
-    Assign p_{CCG} values based on member counts.
+    Assign p_{CCG} values based on member counts (legacy fixed threshold method).
 
     Rules:
     - C1: If only 1 candidate, p_{CCG} = 1
@@ -333,10 +333,93 @@ def assign_p_ccg(member_counts, relative_threshold=2.0):
     return p_ccg
 
 
+def assign_p_ccg_adaptive(member_counts, total_members, dominance_fraction=0.4,
+                          min_member_fraction=0.05, distribution_mode='proportional'):
+    """
+    Assign p_{CCG} using adaptive per-image criterion based on member fractions.
+
+    This method normalizes by the total number of cluster members, making the
+    criterion adaptive to each cluster's richness.
+
+    Args:
+        member_counts: Array of member counts for each top candidate
+        total_members: Total number of cluster members (with pmem >= cutoff)
+        dominance_fraction: Fraction threshold for a candidate to be considered
+                           dominant (default 0.4 = 40% of total members)
+        min_member_fraction: Minimum fraction to be considered a viable candidate
+                            (default 0.05 = 5% of total members)
+        distribution_mode: How to distribute p_CCG among non-dominant candidates:
+                          - 'proportional': p_CCG proportional to member fractions
+                          - 'equal': Equal distribution among candidates above min_fraction
+
+    Returns:
+        p_ccg: Array of p_{CCG} values for each candidate
+        fractions: Array of member fractions (n_i / N_total) for diagnostics
+    """
+    n_candidates = len(member_counts)
+
+    if n_candidates == 0:
+        return np.array([]), np.array([])
+
+    if n_candidates == 1:
+        return np.array([1.0]), np.array([1.0]) if total_members > 0 else np.array([0.0])
+
+    # Calculate member fractions
+    if total_members <= 0:
+        # No members in cluster - equal probability
+        fractions = np.zeros(n_candidates)
+        p_ccg = np.ones(n_candidates) / n_candidates
+        return p_ccg, fractions
+
+    fractions = member_counts / total_members
+
+    # Initialize p_ccg
+    p_ccg = np.zeros(n_candidates)
+
+    # Find the maximum fraction
+    max_fraction = np.max(fractions)
+    max_idx = np.argmax(fractions)
+
+    # Check for dominant candidate
+    if max_fraction >= dominance_fraction:
+        # One candidate dominates (has > dominance_fraction of all members)
+        p_ccg[max_idx] = 1.0
+        return p_ccg, fractions
+
+    # No single dominant candidate - distribute based on fractions
+    # Filter candidates above minimum fraction threshold
+    viable_mask = fractions >= min_member_fraction
+    n_viable = np.sum(viable_mask)
+
+    if n_viable == 0:
+        # All candidates below threshold - use all of them equally
+        p_ccg[:] = 1.0 / n_candidates
+        return p_ccg, fractions
+
+    if n_viable == 1:
+        # Only one viable candidate
+        p_ccg[viable_mask] = 1.0
+        return p_ccg, fractions
+
+    # Multiple viable candidates - distribute probability
+    if distribution_mode == 'proportional':
+        # Proportional to member fractions among viable candidates
+        viable_fractions = fractions[viable_mask]
+        viable_sum = np.sum(viable_fractions)
+        if viable_sum > 0:
+            p_ccg[viable_mask] = viable_fractions / viable_sum
+        else:
+            p_ccg[viable_mask] = 1.0 / n_viable
+    else:  # 'equal'
+        p_ccg[viable_mask] = 1.0 / n_viable
+
+    return p_ccg, fractions
+
+
 def assign_p_ccg_weighted(member_counts, weighted_counts, relative_threshold=2.0,
                           use_weighted=True):
     """
-    Assign p_{CCG} using optional pmem-weighted counts.
+    Assign p_{CCG} using optional pmem-weighted counts (legacy method).
 
     Args:
         member_counts: Array of raw member counts
@@ -353,29 +436,79 @@ def assign_p_ccg_weighted(member_counts, weighted_counts, relative_threshold=2.0
         return assign_p_ccg(member_counts, relative_threshold)
 
 
+def assign_p_ccg_adaptive_weighted(member_counts, weighted_counts, total_members,
+                                   total_weighted_members, dominance_fraction=0.4,
+                                   min_member_fraction=0.05, use_weighted=True,
+                                   distribution_mode='proportional'):
+    """
+    Assign p_{CCG} using adaptive method with optional pmem weighting.
+
+    Args:
+        member_counts: Array of raw member counts for each candidate
+        weighted_counts: Array of pmem-weighted member counts
+        total_members: Total number of cluster members (raw count)
+        total_weighted_members: Total pmem-weighted count of cluster members
+        dominance_fraction: Fraction threshold for dominance
+        min_member_fraction: Minimum fraction for viable candidate
+        use_weighted: Whether to use pmem-weighted counts
+        distribution_mode: 'proportional' or 'equal'
+
+    Returns:
+        p_ccg: Array of p_{CCG} values
+        fractions: Array of member fractions used
+    """
+    if use_weighted:
+        return assign_p_ccg_adaptive(
+            weighted_counts, total_weighted_members,
+            dominance_fraction, min_member_fraction, distribution_mode
+        )
+    else:
+        return assign_p_ccg_adaptive(
+            member_counts, total_members,
+            dominance_fraction, min_member_fraction, distribution_mode
+        )
+
+
 # ============================================================================
 # Main CCG Probability Computation
 # ============================================================================
 class CCGProbabilityCalculator:
     """
     Calculator for p_{CCG} based on cluster member density.
+
+    Supports two methods:
+    1. Legacy method: Fixed relative threshold comparing member counts between candidates
+    2. Adaptive method: Uses member fractions (n_i / N_total) for per-cluster normalization
     """
 
     def __init__(self, radius_kpc=300.0, relative_threshold=5.0,
-                 use_weighted_counts=True, rm_member_dir=None, pmem_cutoff=0.2):
+                 use_weighted_counts=True, rm_member_dir=None, pmem_cutoff=0.2,
+                 use_adaptive_method=True, dominance_fraction=0.4,
+                 min_member_fraction=0.05, distribution_mode='proportional'):
         """
         Args:
             radius_kpc: Physical radius in kpc for member counting (default 300 kpc)
-            relative_threshold: Threshold for determining dominant candidate (default 5.0)
+            relative_threshold: Threshold for determining dominant candidate (legacy method)
             use_weighted_counts: Use pmem-weighted member counts
             rm_member_dir: Directory containing RedMapper member catalogs
             pmem_cutoff: Minimum pmem value to consider a member (default 0.2)
+            use_adaptive_method: Use adaptive per-image criterion (default True)
+            dominance_fraction: Fraction of total members for dominance (default 0.4)
+                               A candidate with > 40% of cluster members is dominant
+            min_member_fraction: Minimum fraction to be considered viable (default 0.05)
+                                Candidates with < 5% of members get p_CCG = 0
+            distribution_mode: How to distribute p_CCG among non-dominant candidates:
+                              'proportional' (default) or 'equal'
         """
         self.radius_kpc = radius_kpc
         self.relative_threshold = relative_threshold
         self.use_weighted_counts = use_weighted_counts
         self.rm_member_dir = rm_member_dir or get_data_paths()['rm_member_dir']
         self.pmem_cutoff = pmem_cutoff
+        self.use_adaptive_method = use_adaptive_method
+        self.dominance_fraction = dominance_fraction
+        self.min_member_fraction = min_member_fraction
+        self.distribution_mode = distribution_mode
 
     def compute_for_cluster(self, cluster_name, candidates_pixel, candidate_probs,
                            wcs=None, image_path=None, redshift=None,
@@ -397,19 +530,23 @@ class CCGProbabilityCalculator:
                 'p_ccg': Array of p_{CCG} values for top candidates
                 'member_counts': Array of member counts
                 'weighted_counts': Array of pmem-weighted counts
+                'member_fractions': Array of member fractions (n_i / N_total)
                 'top_indices': Indices of top candidates in original array
                 'candidates_radec': RA/Dec of top candidates
                 'radius_kpc': Search radius used
                 'members_in_fov': Total members loaded for this cluster
+                'total_weighted_members': Sum of pmem for all cluster members
         """
         result = {
             'p_ccg': np.array([]),
             'member_counts': np.array([]),
             'weighted_counts': np.array([]),
+            'member_fractions': np.array([]),
             'top_indices': np.array([]),
             'candidates_radec': np.array([]),
             'radius_kpc': self.radius_kpc,
             'members_in_fov': 0,
+            'total_weighted_members': 0.0,
             'cluster_name': cluster_name,
             'redshift': redshift,
             'error': None
@@ -450,6 +587,12 @@ class CCGProbabilityCalculator:
         result['members_in_fov'] = len(members_df)
         result['pmem_cutoff'] = self.pmem_cutoff
 
+        # Calculate total weighted members for adaptive method
+        if 'pmem' in members_df.columns:
+            result['total_weighted_members'] = members_df['pmem'].sum()
+        else:
+            result['total_weighted_members'] = float(len(members_df))
+
         # Check redshift
         if redshift is None or np.isnan(redshift) or redshift <= 0:
             result['error'] = 'invalid_redshift'
@@ -480,11 +623,31 @@ class CCGProbabilityCalculator:
         result['member_counts'] = member_counts
         result['weighted_counts'] = weighted_counts
 
-        # Assign p_{CCG}
-        p_ccg = assign_p_ccg_weighted(
-            member_counts, weighted_counts,
-            self.relative_threshold, self.use_weighted_counts
-        )
+        # Assign p_{CCG} using selected method
+        if self.use_adaptive_method:
+            # Adaptive method: use member fractions relative to total cluster members
+            p_ccg, fractions = assign_p_ccg_adaptive_weighted(
+                member_counts, weighted_counts,
+                result['members_in_fov'], result['total_weighted_members'],
+                dominance_fraction=self.dominance_fraction,
+                min_member_fraction=self.min_member_fraction,
+                use_weighted=self.use_weighted_counts,
+                distribution_mode=self.distribution_mode
+            )
+            result['member_fractions'] = fractions
+        else:
+            # Legacy method: fixed relative threshold
+            p_ccg = assign_p_ccg_weighted(
+                member_counts, weighted_counts,
+                self.relative_threshold, self.use_weighted_counts
+            )
+            # Calculate fractions for diagnostics even in legacy mode
+            total = result['total_weighted_members'] if self.use_weighted_counts else result['members_in_fov']
+            if total > 0:
+                counts = weighted_counts if self.use_weighted_counts else member_counts
+                result['member_fractions'] = counts / total
+            else:
+                result['member_fractions'] = np.zeros_like(member_counts)
 
         result['p_ccg'] = p_ccg
 

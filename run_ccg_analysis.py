@@ -45,17 +45,25 @@ class CCGAnalysisRunner:
 
     def __init__(self, experiment_dir, image_dir, dataset_type='3p8arcmin',
                  radius_kpc=300.0, relative_threshold=5.0, top_n_candidates=3,
-                 rm_member_dir=None, pmem_cutoff=0.2):
+                 rm_member_dir=None, pmem_cutoff=0.2, use_adaptive_method=True,
+                 dominance_fraction=0.4, min_member_fraction=0.05,
+                 distribution_mode='proportional'):
         """
         Args:
             experiment_dir: Root experiment directory (e.g., trained_models/candidate_classifier_*)
             image_dir: Directory containing cluster images
             dataset_type: '2p2arcmin' or '3p8arcmin'
             radius_kpc: Physical radius for member counting (default 300 kpc)
-            relative_threshold: Threshold for p_{CCG} dominance (default 5.0)
+            relative_threshold: Threshold for p_{CCG} dominance (legacy method)
             top_n_candidates: Number of top candidates to consider
             rm_member_dir: Directory with RedMapper member catalogs
             pmem_cutoff: Minimum pmem value to consider a member (default 0.2)
+            use_adaptive_method: Use adaptive per-image criterion (default True)
+            dominance_fraction: Fraction of total members for dominance (default 0.4)
+                               A candidate with > 40% of cluster members is dominant
+            min_member_fraction: Minimum fraction to be considered viable (default 0.05)
+                                Candidates with < 5% of members get p_CCG = 0
+            distribution_mode: How to distribute p_CCG: 'proportional' or 'equal'
         """
         self.experiment_dir = experiment_dir
         self.image_dir = image_dir
@@ -65,6 +73,10 @@ class CCGAnalysisRunner:
         self.top_n_candidates = top_n_candidates
         self.rm_member_dir = rm_member_dir or get_data_paths()['rm_member_dir']
         self.pmem_cutoff = pmem_cutoff
+        self.use_adaptive_method = use_adaptive_method
+        self.dominance_fraction = dominance_fraction
+        self.min_member_fraction = min_member_fraction
+        self.distribution_mode = distribution_mode
 
         # Set up paths
         self.eval_dir = os.path.join(experiment_dir, 'evaluation_results')
@@ -76,7 +88,11 @@ class CCGAnalysisRunner:
             relative_threshold=relative_threshold,
             use_weighted_counts=True,
             rm_member_dir=self.rm_member_dir,
-            pmem_cutoff=pmem_cutoff
+            pmem_cutoff=pmem_cutoff,
+            use_adaptive_method=use_adaptive_method,
+            dominance_fraction=dominance_fraction,
+            min_member_fraction=min_member_fraction,
+            distribution_mode=distribution_mode
         )
 
         # Results storage
@@ -178,8 +194,10 @@ class CCGAnalysisRunner:
                 'p_ccg': result['p_ccg'],
                 'member_counts': result['member_counts'],
                 'weighted_counts': result['weighted_counts'],
+                'member_fractions': result.get('member_fractions', np.array([])),
                 'radius_kpc': self.radius_kpc,
                 'members_in_fov': result['members_in_fov'],
+                'total_weighted_members': result.get('total_weighted_members', 0),
                 'target_coords': (true_x, true_y) if not np.isnan(true_x) else None,
                 'target_prob': bcg_prob,
                 'error': result.get('error')
@@ -187,6 +205,7 @@ class CCGAnalysisRunner:
             self.detailed_results.append(detailed)
 
             # Store summary result
+            member_frac = result.get('member_fractions', np.array([]))
             summary = {
                 'cluster_name': cluster_name,
                 'z': redshift,
@@ -199,7 +218,9 @@ class CCGAnalysisRunner:
                 'p_ccg': result['p_ccg'][0] if len(result['p_ccg']) > 0 else np.nan,
                 'n_members': result['member_counts'][0] if len(result['member_counts']) > 0 else 0,
                 'weighted_members': result['weighted_counts'][0] if len(result['weighted_counts']) > 0 else 0,
+                'member_fraction': member_frac[0] if len(member_frac) > 0 else np.nan,
                 'members_in_fov': result['members_in_fov'],
+                'total_weighted_members': result.get('total_weighted_members', 0),
                 'radius_kpc': self.radius_kpc,
                 'error': result.get('error')
             }
@@ -348,8 +369,17 @@ class CCGAnalysisRunner:
             print(f"Total clusters processed: {len(self.summary_df)}")
             print(f"Valid p_CCG results: {len(valid_df)}")
             print(f"Search radius: {self.radius_kpc} kpc")
-            print(f"Relative threshold: {self.relative_threshold}")
             print(f"p_mem cutoff: {self.pmem_cutoff}")
+            print()
+            print("Assignment method:")
+            if self.use_adaptive_method:
+                print(f"  Mode: ADAPTIVE (per-image member fractions)")
+                print(f"  Dominance fraction: {self.dominance_fraction} ({self.dominance_fraction*100:.0f}% of cluster members)")
+                print(f"  Min member fraction: {self.min_member_fraction} ({self.min_member_fraction*100:.0f}% threshold)")
+                print(f"  Distribution mode: {self.distribution_mode}")
+            else:
+                print(f"  Mode: LEGACY (fixed relative threshold)")
+                print(f"  Relative threshold: {self.relative_threshold}")
             print()
 
             # Agreement statistics
@@ -420,8 +450,10 @@ class CCGAnalysisRunner:
 
 
 def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p8arcmin',
-                                     radius_kpc=300.0, relative_threshold=5.0,
-                                     pmem_cutoff=0.2, n_images=20):
+                                     radius_kpc=300.0, pmem_cutoff=0.2, n_images=20,
+                                     use_adaptive_method=True, dominance_fraction=0.4,
+                                     min_member_fraction=0.05, distribution_mode='proportional',
+                                     relative_threshold=5.0):
     """
     Convenience function to run CCG analysis from an experiment directory.
 
@@ -430,9 +462,13 @@ def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p
         image_dir: Path to image directory
         dataset_type: Dataset type
         radius_kpc: Search radius in kpc
-        relative_threshold: Threshold for p_{CCG} dominance
         pmem_cutoff: Minimum pmem value to consider a member
         n_images: Number of images to generate
+        use_adaptive_method: Use adaptive per-image criterion (default True)
+        dominance_fraction: Fraction of total members for dominance (default 0.4)
+        min_member_fraction: Minimum fraction to be considered viable (default 0.05)
+        distribution_mode: 'proportional' or 'equal'
+        relative_threshold: Threshold for p_{CCG} dominance (legacy method)
 
     Returns:
         DataFrame with p_{CCG} results
@@ -443,7 +479,11 @@ def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p
         dataset_type=dataset_type,
         radius_kpc=radius_kpc,
         relative_threshold=relative_threshold,
-        pmem_cutoff=pmem_cutoff
+        pmem_cutoff=pmem_cutoff,
+        use_adaptive_method=use_adaptive_method,
+        dominance_fraction=dominance_fraction,
+        min_member_fraction=min_member_fraction,
+        distribution_mode=distribution_mode
     )
 
     return runner.run_complete_analysis(n_images=n_images)
@@ -463,8 +503,6 @@ if __name__ == "__main__":
                        help='Dataset type')
     parser.add_argument('--radius_kpc', type=float, default=300.0,
                        help='Physical radius for member counting (kpc)')
-    parser.add_argument('--relative_threshold', type=float, default=5.0,
-                       help='Threshold for p_{CCG} dominance')
     parser.add_argument('--pmem_cutoff', type=float, default=0.2,
                        help='Minimum pmem value to consider a member')
     parser.add_argument('--n_images', type=int, default=20,
@@ -472,7 +510,25 @@ if __name__ == "__main__":
     parser.add_argument('--max_clusters', type=int, default=None,
                        help='Maximum clusters to process (for testing)')
 
+    # Adaptive method parameters (new)
+    parser.add_argument('--use_adaptive', type=str, default='true',
+                       choices=['true', 'false'],
+                       help='Use adaptive per-image method (default: true)')
+    parser.add_argument('--dominance_fraction', type=float, default=0.4,
+                       help='Fraction of total members for dominance (default: 0.4 = 40%%)')
+    parser.add_argument('--min_member_fraction', type=float, default=0.05,
+                       help='Minimum fraction to be considered viable (default: 0.05 = 5%%)')
+    parser.add_argument('--distribution_mode', type=str, default='proportional',
+                       choices=['proportional', 'equal'],
+                       help='How to distribute p_CCG among non-dominant candidates')
+
+    # Legacy method parameter (only used if --use_adaptive=false)
+    parser.add_argument('--relative_threshold', type=float, default=5.0,
+                       help='Threshold for p_{CCG} dominance (legacy method only)')
+
     args = parser.parse_args()
+
+    use_adaptive = args.use_adaptive.lower() == 'true'
 
     runner = CCGAnalysisRunner(
         experiment_dir=args.experiment_dir,
@@ -480,7 +536,11 @@ if __name__ == "__main__":
         dataset_type=args.dataset_type,
         radius_kpc=args.radius_kpc,
         relative_threshold=args.relative_threshold,
-        pmem_cutoff=args.pmem_cutoff
+        pmem_cutoff=args.pmem_cutoff,
+        use_adaptive_method=use_adaptive,
+        dominance_fraction=args.dominance_fraction,
+        min_member_fraction=args.min_member_fraction,
+        distribution_mode=args.distribution_mode
     )
 
     results = runner.run_complete_analysis(
