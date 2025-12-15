@@ -817,8 +817,64 @@ except Exception as e:
         print(f"Warning: Literature comparison script not found: {lit_analysis_script}")
         print("Skipping literature comparison analysis")
 
+    # Step 7 (or 6): CCG Probability Analysis
+    ccg_step_number = 7 if run_analysis else 6
+    print(f"\n" + "="*80)
+    print(f"STEP {ccg_step_number}: CCG PROBABILITY ANALYSIS (p_{{CCG}})")
+    print("="*80)
+    print("Computing p_{CCG} based on cluster member density around top candidates...")
+    print("This provides an independent estimate of which candidate is the true CCG.")
+
+    # Ask user if they want to run CCG analysis
+    run_ccg_analysis = input("\nRun p_{CCG} cluster member analysis? (Y/n): ").strip().lower()
+    if run_ccg_analysis == "":
+        run_ccg_analysis = "y"  # Default to Y
+    run_ccg_analysis = run_ccg_analysis not in ['n', 'no']
+
+    ccg_output_dir = None
+    if run_ccg_analysis:
+        # CCG analysis parameters
+        ccg_radius_kpc = 300.0
+        ccg_relative_threshold = 2.0
+        ccg_n_images = 20
+
+        modify_ccg_params = input("Modify CCG analysis parameters? (y/N): ").strip().lower()
+        if modify_ccg_params in ['y', 'yes']:
+            ccg_radius_input = input(f"Search radius in kpc (default {ccg_radius_kpc}): ").strip()
+            if ccg_radius_input:
+                ccg_radius_kpc = float(ccg_radius_input)
+
+            ccg_threshold_input = input(f"Relative threshold for dominance (default {ccg_relative_threshold}): ").strip()
+            if ccg_threshold_input:
+                ccg_relative_threshold = float(ccg_threshold_input)
+
+            ccg_images_input = input(f"Number of physical images to generate (default {ccg_n_images}): ").strip()
+            if ccg_images_input:
+                ccg_n_images = int(ccg_images_input)
+
+        # Run CCG analysis
+        ccg_analysis_command = f"""python run_ccg_analysis.py \\
+            --experiment_dir "{output_dir}" \\
+            --image_dir "{IMAGE_DIR}" \\
+            --dataset_type {bcg_arcmin_type} \\
+            --radius_kpc {ccg_radius_kpc} \\
+            --relative_threshold {ccg_relative_threshold} \\
+            --n_images {ccg_n_images}"""
+
+        if run_command(ccg_analysis_command, "Running p_{CCG} cluster member analysis"):
+            ccg_output_dir = os.path.join(test_output_dir, "physical_images_with_members")
+            print(f"CCG analysis complete!")
+            print(f"  Results saved to: {ccg_output_dir}/")
+            print(f"  p_CCG results: {ccg_output_dir}/p_ccg_results.csv")
+            print(f"  Diagnostic plots: {ccg_output_dir}/pccg_diagnostic_plots.png")
+        else:
+            print("CCG analysis failed, but continuing...")
+            ccg_output_dir = None
+    else:
+        print("Skipping CCG probability analysis")
+
     # Final Step: Summary
-    final_step_number = 7 if run_analysis else 6
+    final_step_number = ccg_step_number + 1
     print(f"\n" + "="*80)
     print("ENHANCED WORKFLOW COMPLETED SUCCESSFULLY!")
     print("="*80)
@@ -878,6 +934,17 @@ except Exception as e:
             print(f"  SHAP individual explanations: {analysis_output_dir}/individual_plots/shap_individual_*.png")
     elif run_analysis:
         print(f"\n  ⚠️  Feature importance analysis was requested but failed to complete")
+
+    # CCG probability analysis results
+    if run_ccg_analysis and ccg_output_dir and os.path.exists(ccg_output_dir):
+        print(f"\n  === CCG Probability Analysis Results ===")
+        print(f"  Analysis directory: {ccg_output_dir}/")
+        print(f"  p_CCG results: {ccg_output_dir}/p_ccg_results.csv")
+        print(f"  Diagnostic plots: {ccg_output_dir}/pccg_diagnostic_plots.png")
+        print(f"  Summary scatter: {ccg_output_dir}/pccg_vs_barp_scatter.png")
+        print(f"  Physical images with members: {ccg_output_dir}/*.png")
+    elif run_ccg_analysis:
+        print(f"\n  ⚠️  CCG probability analysis was requested but failed to complete")
     
     print(f"\nApproach: Enhanced candidate-based BCG classification")
     print(f"Dataset: {DATASET_TYPE}")
@@ -971,6 +1038,20 @@ except Exception as e:
         print("   - Automatic candidate detection")
     if z_range or delta_mstar_z_range:
         print("   - Data filtering by physical properties")
+    enhancement_num += 1
+
+    # CCG probability analysis enhancement
+    if run_ccg_analysis and ccg_output_dir and os.path.exists(ccg_output_dir):
+        print(f"{enhancement_num}. ✓ CCG Probability Analysis (p_{{CCG}}):")
+        print("   - Member-based cluster central galaxy probability")
+        print(f"   - Search radius: {ccg_radius_kpc} kpc")
+        print(f"   - Relative threshold: {ccg_relative_threshold}")
+        print("   - Physical images with member overlays")
+        print("   - Diagnostic plots comparing p_CCG vs bar_p")
+    elif run_ccg_analysis:
+        print(f"{enhancement_num}. ⚠️ CCG Probability Analysis: requested but failed")
+    else:
+        print(f"{enhancement_num}. ✗ CCG Probability Analysis (skipped)")
 
     print(f"\nTo re-run evaluation with different parameters:")
     test_cmd_simple = f"python {test_script} --model_path '{model_path}' --scaler_path '{scaler_path}'"
@@ -1012,6 +1093,15 @@ except Exception as e:
         print(f"      • Tian et al. (2024) - COSMIC Cluster Finding")
         print(f"      • Marini et al. (2022) - ICL and BCG Identification")
         print(f"\n   Use these plots for publications and presentations!")
+
+    if run_ccg_analysis and ccg_output_dir and os.path.exists(ccg_output_dir):
+        print(f"\n🌌 CCG PROBABILITY ANALYSIS (p_{{CCG}}):")
+        print(f"   📊 Results: {ccg_output_dir}/p_ccg_results.csv")
+        print(f"   📈 Diagnostic plots: {ccg_output_dir}/pccg_diagnostic_plots.png")
+        print(f"   🖼️  Physical images: {ccg_output_dir}/*.png")
+        print(f"\n   The p_CCG probability uses cluster member density to verify CCG identification.")
+        print(f"   High agreement between bar_p and p_CCG indicates robust BCG detection.")
+        print(f"   Disagreements may indicate interesting merger systems or off-center BCGs.")
 
 
 if __name__ == "__main__":
