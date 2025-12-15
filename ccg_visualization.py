@@ -62,7 +62,8 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
                                    members_df=None, rm_member_dir=None,
                                    save_path=None, dataset_type='3p8arcmin',
                                    target_coords=None, target_prob=None,
-                                   pmem_cutoff=0.2, show_top_n=5):
+                                   pmem_cutoff=0.2, show_top_n=5,
+                                   all_candidates=None):
     """
     Create enhanced visualization matching ProbabilisticTesting_prediction style.
 
@@ -77,10 +78,10 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
     Args:
         cluster_name: Cluster name
         image_path: Path to cluster image
-        candidates_pixel: Array of (N, 2) candidate pixel coordinates
-        candidate_probs: Array of bar_p values
-        p_ccg_values: Array of p_{CCG} values
-        member_counts: Array of member counts around each candidate
+        candidates_pixel: Array of (N, 2) top candidate pixel coordinates (for p_CCG)
+        candidate_probs: Array of bar_p values for top candidates
+        p_ccg_values: Array of p_{CCG} values for top candidates
+        member_counts: Array of member counts around each top candidate
         redshift: Cluster redshift
         radius_kpc: Physical radius used for member counting
         wcs: WCS object (optional, will load from image if not provided)
@@ -92,6 +93,7 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
         target_prob: Target BCG RedMapper probability (optional)
         pmem_cutoff: Minimum pmem for display
         show_top_n: Number of top candidates to show with labels
+        all_candidates: Array of ALL detected BCG candidates to show as gray squares
     """
     # Load image
     pil_image = pillow.open(image_path)
@@ -196,8 +198,8 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
     # =========================================================================
     # Plot ALL BCG candidates as SQUARES with alpha (like ProbabilisticTesting)
     # =========================================================================
-    if len(candidates_pixel) > 0:
-        candidates_array = np.array(candidates_pixel)
+    if all_candidates is not None and len(all_candidates) > 0:
+        candidates_array = np.array(all_candidates)
         ax.scatter(candidates_array[:, 0], candidates_array[:, 1],
                   marker='s', s=250, facecolors='none', edgecolors='#E0E0E0',
                   linewidths=2, alpha=0.5, zorder=5)

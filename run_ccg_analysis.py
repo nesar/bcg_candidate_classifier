@@ -281,6 +281,14 @@ class CCGAnalysisRunner:
 
         os.makedirs(self.output_dir, exist_ok=True)
 
+        # Import candidate detection function for showing all BCG candidates
+        try:
+            from utils.candidate_based_bcg import find_bcg_candidates
+            can_detect_candidates = True
+        except ImportError:
+            print("  Warning: Could not import find_bcg_candidates, will only show top prediction")
+            can_detect_candidates = False
+
         # Use the diverse selection function for best mix of examples
         if selection == 'diverse':
             selected = select_diverse_images(self.detailed_results, n_images)
@@ -320,6 +328,28 @@ class CCGAnalysisRunner:
 
             save_path = os.path.join(self.output_dir, f'{cluster_name}_pccg.png')
 
+            # Detect ALL BCG candidates from the image (like ProbabilisticTesting plots)
+            all_candidates = None
+            if can_detect_candidates:
+                try:
+                    from PIL import Image as pillow_img
+                    pil_image = pillow_img.open(image_path)
+                    pil_image.seek(0)
+                    image_array = np.array(pil_image)
+                    pil_image.close()
+
+                    # Use default candidate detection parameters
+                    all_candidates, _ = find_bcg_candidates(
+                        image_array,
+                        min_distance=8,
+                        threshold_rel=0.1,
+                        exclude_border=0,
+                        max_candidates=50
+                    )
+                except Exception as e:
+                    print(f"  Warning: Could not detect candidates for {cluster_name}: {e}")
+                    all_candidates = None
+
             try:
                 plot_cluster_with_members_pccg(
                     cluster_name=cluster_name,
@@ -337,7 +367,8 @@ class CCGAnalysisRunner:
                     dataset_type=self.dataset_type,
                     target_coords=result.get('target_coords'),
                     target_prob=result.get('target_prob'),
-                    pmem_cutoff=self.pmem_cutoff
+                    pmem_cutoff=self.pmem_cutoff,
+                    all_candidates=all_candidates  # Pass all detected candidates
                 )
                 n_generated += 1
             except Exception as e:
