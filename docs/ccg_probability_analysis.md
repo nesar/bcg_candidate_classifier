@@ -43,16 +43,24 @@ Apply the following rules:
 | C3 | One candidate dominates (n_mem >> others) | Dominant: p_{CCG}=1.0, others: p_{CCG}=0.0 |
 | C4 | 2-3 candidates with similar n_mem | Distribute equally (0.5 or 0.33) |
 
-The "dominance" threshold is configurable (default: 2.0x). A candidate is considered dominant if its member count is ≥2x higher than the second-highest.
+The "dominance" threshold is configurable (default: 5.0x). A candidate is considered dominant if its member count is ≥5x higher than the second-highest.
 
 ## Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `radius_kpc` | 300.0 | Physical search radius in kpc |
-| `relative_threshold` | 2.0 | Threshold for determining dominance |
+| `relative_threshold` | 5.0 | Threshold for determining dominance |
 | `top_n_candidates` | 3 | Number of top candidates to consider |
 | `use_weighted_counts` | True | Use p_mem-weighted counts vs raw counts |
+| `pmem_cutoff` | 0.2 | Minimum membership probability to consider a galaxy as a cluster member |
+
+### p_mem Cutoff
+
+The `pmem_cutoff` parameter filters out low-probability cluster members before counting. This ensures that only reliable cluster members are used for the p_{CCG} calculation:
+- Default value of 0.2 removes galaxies with less than 20% probability of being cluster members
+- Higher values (e.g., 0.5) give more conservative member counts
+- Set to 0.0 to include all members regardless of probability
 
 ### Radius Selection
 
@@ -71,11 +79,15 @@ Users can adjust this from 200-400 kpc based on cluster properties.
 trained_models/candidate_classifier_*/
 └── evaluation_results/
     └── physical_images_with_members/
-        ├── p_ccg_results.csv          # Main results table
-        ├── pccg_diagnostic_plots.png  # 6-panel diagnostic figure
-        ├── pccg_diagnostic_plots.pdf  # PDF version
-        ├── pccg_vs_barp_scatter.png   # Summary scatter plot
-        └── <cluster_name>_pccg.png    # Individual cluster images
+        ├── p_ccg_results.csv              # Main results table
+        ├── pccg_diagnostic_plots.png      # 6-panel diagnostic figure
+        ├── pccg_diagnostic_plots.pdf      # PDF version
+        ├── pccg_vs_barp_scatter.png       # Summary scatter plot
+        ├── pccg_sectors.png               # Agreement sectors (donut + bar chart)
+        ├── pccg_sectors.pdf               # PDF version
+        ├── pccg_completeness_purity.png   # Completeness/purity curves
+        ├── pccg_completeness_purity.pdf   # PDF version
+        └── <cluster_name>_pccg.png        # Individual cluster images (diverse selection)
 ```
 
 ### p_ccg_results.csv Columns
@@ -97,7 +109,7 @@ trained_models/candidate_classifier_*/
 
 ## Diagnostic Plots
 
-### 6-Panel Diagnostic Figure
+### 6-Panel Diagnostic Figure (`pccg_diagnostic_plots.png`)
 
 1. **p_{CCG} vs bar_p Scatter**: Shows correlation between ML and member-based probabilities, colored by redshift
 2. **Distribution Comparison**: Histograms of both probability types
@@ -106,26 +118,59 @@ trained_models/candidate_classifier_*/
 5. **Agreement Analysis**: Bar chart showing agreement/disagreement categories
 6. **Mean Probabilities by Redshift**: How both probabilities vary with redshift
 
+### Sectors Plot (`pccg_sectors.png`)
+
+Similar to `diagnostic_plots_sectors.png` for the main classifier:
+- **Donut Chart**: Visual breakdown of agreement categories
+- **Bar Chart**: Count and percentage for each category:
+  - High Agreement (bar_p > 0.5 AND p_CCG > 0.5)
+  - High bar_p, Low p_CCG (ML confident, few members)
+  - Low bar_p, High p_CCG (ML uncertain, many members)
+  - Low Agreement (both <= 0.5)
+
+### Completeness/Purity Plots (`pccg_completeness_purity.png`)
+
+Similar to `completeness_purity_plots.png` for the main classifier:
+1. **Completeness vs p_{CCG} Threshold**: How well p_CCG recovers high bar_p or Rank-1 cases
+2. **Purity vs p_{CCG} Threshold**: Among high p_CCG cases, what fraction are truly good candidates
+3. **Selection Count vs Threshold**: Number of clusters selected at each threshold
+4. **Completeness vs Purity Trade-off**: Optimal threshold selection curve
+
 ### Physical Images with Members
 
-Each cluster image shows:
-- All detected cluster members (circles colored by p_mem)
-- Top BCG candidates (colored by rank, labeled with probabilities)
-- Search radius circles (dashed gray)
-- Both `bar_p` and `p_{CCG}` values in labels
-- Target BCG (if available)
+Each cluster image shows (matching the style of `ProbabilisticTesting_prediction_*.png`):
+- **SQUARE markers** for BCG candidates (colored by rank: red, orange, yellow, etc.)
+- **Circle markers** for cluster members (colored by p_mem using viridis colormap)
+- **Actual RA/Dec coordinates** on x- and y-axes
+- Search radius circles (dashed gray) around top candidates
+- Labels showing `bar_p`, `p_{CCG}`, and `n_mem` values
+- Target BCG indicated with cyan dashed square (if available)
+- p_mem colorbar for member probability reference
+
+### Image Selection Strategy
+
+Instead of random selection, images are chosen to show diverse cases:
+- **Best matches**: High agreement (bar_p > 0.7, p_CCG > 0.7)
+- **ML confident, few members**: bar_p > 0.7, p_CCG < 0.3
+- **ML uncertain, many members**: bar_p < 0.5, p_CCG > 0.7
+- **Redshift diversity**: Evenly sampled across the redshift range
 
 ## Usage
 
 ### From enhanced_full_run.py (Recommended)
 
-The analysis is integrated into the main workflow:
+The analysis is integrated into the main workflow. CCG analysis questions are asked at the **beginning** of the run (with other configuration options), before training starts:
 
 ```bash
 python enhanced_full_run.py
 ```
 
-When prompted, accept the default (Y) to run CCG analysis.
+Configuration prompts include:
+- Enable CCG analysis? (Y/n)
+- Search radius in kpc (default: 300)
+- Relative threshold for dominance (default: 5.0)
+- p_mem cutoff for member filtering (default: 0.2)
+- Number of diagnostic images (default: 20)
 
 ### Standalone
 
@@ -135,7 +180,8 @@ python run_ccg_analysis.py \
     --image_dir /path/to/images/3p8arcmin \
     --dataset_type 3p8arcmin \
     --radius_kpc 300.0 \
-    --relative_threshold 2.0 \
+    --relative_threshold 5.0 \
+    --pmem_cutoff 0.2 \
     --n_images 20
 ```
 
@@ -149,7 +195,8 @@ runner = CCGAnalysisRunner(
     image_dir="/path/to/images",
     dataset_type="3p8arcmin",
     radius_kpc=300.0,
-    relative_threshold=2.0
+    relative_threshold=5.0,
+    pmem_cutoff=0.2  # Filter out members with pmem < 0.2
 )
 
 results_df = runner.run_complete_analysis(n_images=20)
@@ -209,6 +256,12 @@ The member-based approach is inspired by:
 - Check that the cluster name matches files in `rm_member_catalogs/`
 - Verify cluster name format: `SPT-CLJ0001.5-1555`
 
+### "no_members_above_pmem_cutoff" Error
+
+- All members have p_mem below the cutoff threshold
+- Try lowering `pmem_cutoff` (e.g., 0.1 or 0.0)
+- Check the member catalog for that cluster
+
 ### "wcs_load_failed" Error
 
 - Ensure TIF files have valid WCS in the `ImageDescription` tag
@@ -217,9 +270,11 @@ The member-based approach is inspired by:
 ### Low Member Counts
 
 - Try increasing `radius_kpc` (e.g., 400 kpc)
+- Try lowering `pmem_cutoff` to include more marginal members
 - Check cluster redshift validity
 - Verify member catalog completeness
 
 ## Version History
 
+- **v1.1** (December 2024): Added p_mem cutoff, sectors plot, completeness/purity plots, improved image visualization with RA/Dec coordinates and square markers, diverse image selection
 - **v1.0** (December 2024): Initial implementation with C1-C4 rules
