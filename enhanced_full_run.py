@@ -353,14 +353,67 @@ def main():
         
         print(f"Analysis will use methods: {', '.join(analysis_methods)}")
         print(f"Analysis will process: {analysis_samples} samples")
-        
+
         # Check if SHAP is requested
         if 'shap' in analysis_methods:
             print("\nNote: SHAP analysis requires the 'shap' package.")
             print("Install with: pip install shap")
     else:
         print("Skipping feature importance analysis")
-    
+
+    # ENHANCEMENT 4: CCG Probability Analysis option
+    print("\n" + "="*60)
+    print("ENHANCEMENT 4: CCG PROBABILITY ANALYSIS (p_{CCG})")
+    print("="*60)
+    print("CCG probability analysis provides an independent verification of BCG")
+    print("identification using cluster member density. True central galaxies should")
+    print("be located near the center of the cluster member distribution.")
+    print("\nThis is a POST-PROCESSING step that runs AFTER testing.")
+
+    run_ccg_analysis = input("\nRun p_{CCG} cluster member analysis after testing? (Y/n): ").strip().lower()
+    if run_ccg_analysis == "":
+        run_ccg_analysis = "y"  # Default to Y
+    run_ccg_analysis = run_ccg_analysis not in ['n', 'no']
+
+    # CCG analysis parameters
+    ccg_radius_kpc = 300.0
+    ccg_relative_threshold = 5.0
+    ccg_pmem_cutoff = 0.2
+    ccg_n_images = 20
+
+    if run_ccg_analysis:
+        print("\nCCG analysis parameters:")
+        print(f"  Search radius: {ccg_radius_kpc} kpc (200-400 kpc typical)")
+        print(f"  Relative threshold: {ccg_relative_threshold} (for dominance determination)")
+        print(f"  p_mem cutoff: {ccg_pmem_cutoff} (minimum membership probability)")
+        print(f"  Number of images: {ccg_n_images}")
+
+        modify_ccg_params = input("Modify CCG analysis parameters? (y/N): ").strip().lower()
+        if modify_ccg_params in ['y', 'yes']:
+            ccg_radius_input = input(f"Search radius in kpc (default {ccg_radius_kpc}): ").strip()
+            if ccg_radius_input:
+                ccg_radius_kpc = float(ccg_radius_input)
+
+            ccg_threshold_input = input(f"Relative threshold for dominance (default {ccg_relative_threshold}): ").strip()
+            if ccg_threshold_input:
+                ccg_relative_threshold = float(ccg_threshold_input)
+
+            ccg_pmem_input = input(f"p_mem cutoff (default {ccg_pmem_cutoff}): ").strip()
+            if ccg_pmem_input:
+                ccg_pmem_cutoff = float(ccg_pmem_input)
+
+            ccg_images_input = input(f"Number of physical images to generate (default {ccg_n_images}): ").strip()
+            if ccg_images_input:
+                ccg_n_images = int(ccg_images_input)
+
+        print(f"\nCCG Analysis Configuration:")
+        print(f"  Search radius: {ccg_radius_kpc} kpc")
+        print(f"  Relative threshold: {ccg_relative_threshold}")
+        print(f"  p_mem cutoff: {ccg_pmem_cutoff}")
+        print(f"  Images to generate: {ccg_n_images}")
+    else:
+        print("Skipping CCG probability analysis")
+
     # Traditional candidate detection parameters (only for automatic candidate detection)
     if not use_desprior_candidates:
         print("\n" + "="*60)
@@ -822,35 +875,14 @@ except Exception as e:
     print(f"\n" + "="*80)
     print(f"STEP {ccg_step_number}: CCG PROBABILITY ANALYSIS (p_{{CCG}})")
     print("="*80)
-    print("Computing p_{CCG} based on cluster member density around top candidates...")
-    print("This provides an independent estimate of which candidate is the true CCG.")
-
-    # Ask user if they want to run CCG analysis
-    run_ccg_analysis = input("\nRun p_{CCG} cluster member analysis? (Y/n): ").strip().lower()
-    if run_ccg_analysis == "":
-        run_ccg_analysis = "y"  # Default to Y
-    run_ccg_analysis = run_ccg_analysis not in ['n', 'no']
 
     ccg_output_dir = None
     if run_ccg_analysis:
-        # CCG analysis parameters
-        ccg_radius_kpc = 300.0
-        ccg_relative_threshold = 2.0
-        ccg_n_images = 20
-
-        modify_ccg_params = input("Modify CCG analysis parameters? (y/N): ").strip().lower()
-        if modify_ccg_params in ['y', 'yes']:
-            ccg_radius_input = input(f"Search radius in kpc (default {ccg_radius_kpc}): ").strip()
-            if ccg_radius_input:
-                ccg_radius_kpc = float(ccg_radius_input)
-
-            ccg_threshold_input = input(f"Relative threshold for dominance (default {ccg_relative_threshold}): ").strip()
-            if ccg_threshold_input:
-                ccg_relative_threshold = float(ccg_threshold_input)
-
-            ccg_images_input = input(f"Number of physical images to generate (default {ccg_n_images}): ").strip()
-            if ccg_images_input:
-                ccg_n_images = int(ccg_images_input)
+        print("Computing p_{CCG} based on cluster member density around top candidates...")
+        print(f"  Search radius: {ccg_radius_kpc} kpc")
+        print(f"  Relative threshold: {ccg_relative_threshold}")
+        print(f"  p_mem cutoff: {ccg_pmem_cutoff}")
+        print(f"  Images to generate: {ccg_n_images}")
 
         # Run CCG analysis
         ccg_analysis_command = f"""python run_ccg_analysis.py \\
@@ -859,6 +891,7 @@ except Exception as e:
             --dataset_type {bcg_arcmin_type} \\
             --radius_kpc {ccg_radius_kpc} \\
             --relative_threshold {ccg_relative_threshold} \\
+            --pmem_cutoff {ccg_pmem_cutoff} \\
             --n_images {ccg_n_images}"""
 
         if run_command(ccg_analysis_command, "Running p_{CCG} cluster member analysis"):
@@ -867,11 +900,13 @@ except Exception as e:
             print(f"  Results saved to: {ccg_output_dir}/")
             print(f"  p_CCG results: {ccg_output_dir}/p_ccg_results.csv")
             print(f"  Diagnostic plots: {ccg_output_dir}/pccg_diagnostic_plots.png")
+            print(f"  Sectors plot: {ccg_output_dir}/pccg_sectors.png")
+            print(f"  Completeness/Purity: {ccg_output_dir}/pccg_completeness_purity.png")
         else:
             print("CCG analysis failed, but continuing...")
             ccg_output_dir = None
     else:
-        print("Skipping CCG probability analysis")
+        print("Skipping CCG probability analysis (disabled at start)")
 
     # Final Step: Summary
     final_step_number = ccg_step_number + 1

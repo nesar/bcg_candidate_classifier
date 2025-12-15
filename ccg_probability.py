@@ -361,19 +361,21 @@ class CCGProbabilityCalculator:
     Calculator for p_{CCG} based on cluster member density.
     """
 
-    def __init__(self, radius_kpc=300.0, relative_threshold=2.0,
-                 use_weighted_counts=True, rm_member_dir=None):
+    def __init__(self, radius_kpc=300.0, relative_threshold=5.0,
+                 use_weighted_counts=True, rm_member_dir=None, pmem_cutoff=0.2):
         """
         Args:
             radius_kpc: Physical radius in kpc for member counting (default 300 kpc)
-            relative_threshold: Threshold for determining dominant candidate
+            relative_threshold: Threshold for determining dominant candidate (default 5.0)
             use_weighted_counts: Use pmem-weighted member counts
             rm_member_dir: Directory containing RedMapper member catalogs
+            pmem_cutoff: Minimum pmem value to consider a member (default 0.2)
         """
         self.radius_kpc = radius_kpc
         self.relative_threshold = relative_threshold
         self.use_weighted_counts = use_weighted_counts
         self.rm_member_dir = rm_member_dir or get_data_paths()['rm_member_dir']
+        self.pmem_cutoff = pmem_cutoff
 
     def compute_for_cluster(self, cluster_name, candidates_pixel, candidate_probs,
                            wcs=None, image_path=None, redshift=None,
@@ -436,7 +438,17 @@ class CCGProbabilityCalculator:
             result['top_indices'] = np.argsort(candidate_probs)[-top_n_candidates:][::-1]
             return result
 
+        # Apply pmem cutoff - filter out low probability members
+        if 'pmem' in members_df.columns and self.pmem_cutoff > 0:
+            members_df = members_df[members_df['pmem'] >= self.pmem_cutoff].copy()
+            if len(members_df) == 0:
+                result['error'] = f'no_members_above_pmem_cutoff_{self.pmem_cutoff}'
+                result['p_ccg'] = np.ones(min(len(candidates_pixel), top_n_candidates)) / min(len(candidates_pixel), top_n_candidates)
+                result['top_indices'] = np.argsort(candidate_probs)[-top_n_candidates:][::-1]
+                return result
+
         result['members_in_fov'] = len(members_df)
+        result['pmem_cutoff'] = self.pmem_cutoff
 
         # Check redshift
         if redshift is None or np.isnan(redshift) or redshift <= 0:

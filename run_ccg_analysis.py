@@ -33,7 +33,8 @@ from ccg_probability import (
 )
 from ccg_visualization import (
     plot_pccg_vs_barp_diagnostic, plot_pccg_summary_scatter,
-    plot_cluster_with_members_pccg
+    plot_cluster_with_members_pccg, plot_pccg_sectors,
+    plot_pccg_completeness_purity, select_diverse_images
 )
 
 
@@ -43,17 +44,18 @@ class CCGAnalysisRunner:
     """
 
     def __init__(self, experiment_dir, image_dir, dataset_type='3p8arcmin',
-                 radius_kpc=300.0, relative_threshold=2.0, top_n_candidates=3,
-                 rm_member_dir=None):
+                 radius_kpc=300.0, relative_threshold=5.0, top_n_candidates=3,
+                 rm_member_dir=None, pmem_cutoff=0.2):
         """
         Args:
             experiment_dir: Root experiment directory (e.g., trained_models/candidate_classifier_*)
             image_dir: Directory containing cluster images
             dataset_type: '2p2arcmin' or '3p8arcmin'
             radius_kpc: Physical radius for member counting (default 300 kpc)
-            relative_threshold: Threshold for p_{CCG} dominance
+            relative_threshold: Threshold for p_{CCG} dominance (default 5.0)
             top_n_candidates: Number of top candidates to consider
             rm_member_dir: Directory with RedMapper member catalogs
+            pmem_cutoff: Minimum pmem value to consider a member (default 0.2)
         """
         self.experiment_dir = experiment_dir
         self.image_dir = image_dir
@@ -62,6 +64,7 @@ class CCGAnalysisRunner:
         self.relative_threshold = relative_threshold
         self.top_n_candidates = top_n_candidates
         self.rm_member_dir = rm_member_dir or get_data_paths()['rm_member_dir']
+        self.pmem_cutoff = pmem_cutoff
 
         # Set up paths
         self.eval_dir = os.path.join(experiment_dir, 'evaluation_results')
@@ -72,7 +75,8 @@ class CCGAnalysisRunner:
             radius_kpc=radius_kpc,
             relative_threshold=relative_threshold,
             use_weighted_counts=True,
-            rm_member_dir=self.rm_member_dir
+            rm_member_dir=self.rm_member_dir,
+            pmem_cutoff=pmem_cutoff
         )
 
         # Results storage
@@ -233,6 +237,12 @@ class CCGAnalysisRunner:
         # Generate summary scatter plot
         plot_pccg_summary_scatter(self.summary_df, self.output_dir)
 
+        # Generate sectors plot (like diagnostic_plots_sectors.png)
+        plot_pccg_sectors(self.summary_df, self.output_dir, self.dataset_type)
+
+        # Generate completeness/purity plots (like completeness_purity_plots.png)
+        plot_pccg_completeness_purity(self.summary_df, self.output_dir, self.dataset_type)
+
     def generate_physical_images(self, n_images=20, selection='diverse'):
         """
         Generate physical images with member overlays and p_{CCG} values.
@@ -240,7 +250,7 @@ class CCGAnalysisRunner:
         Args:
             n_images: Number of images to generate
             selection: How to select images:
-                - 'diverse': Mix of high/low p_CCG vs bar_p agreement
+                - 'diverse': Mix of high/low p_CCG vs bar_p agreement (best matches, mismatches)
                 - 'disagreement': Focus on cases where p_CCG != bar_p
                 - 'random': Random selection
         """
@@ -250,52 +260,36 @@ class CCGAnalysisRunner:
 
         os.makedirs(self.output_dir, exist_ok=True)
 
-        # Select images based on criteria
-        valid_results = [r for r in self.detailed_results
-                        if r.get('error') is None and
-                        len(r.get('p_ccg', [])) > 0 and
-                        not np.isnan(r.get('redshift', np.nan))]
+        # Use the diverse selection function for best mix of examples
+        if selection == 'diverse':
+            selected = select_diverse_images(self.detailed_results, n_images)
+        else:
+            # Fallback to old method for other selection types
+            valid_results = [r for r in self.detailed_results
+                            if r.get('error') is None and
+                            len(r.get('p_ccg', [])) > 0 and
+                            not np.isnan(r.get('redshift', np.nan))]
 
-        if len(valid_results) == 0:
+            if selection == 'disagreement':
+                sorted_by_disagreement = sorted(
+                    valid_results,
+                    key=lambda r: abs(r['p_ccg'][0] - r['candidate_probs'][0]),
+                    reverse=True
+                )
+                selected = sorted_by_disagreement[:n_images]
+            else:  # random
+                np.random.shuffle(valid_results)
+                selected = valid_results[:n_images]
+
+        if len(selected) == 0:
             print("No valid results for image generation")
             return
 
-        selected = []
-
-        if selection == 'diverse':
-            # Get diverse sample: high agreement, disagreement, low agreement
-            sorted_by_agreement = sorted(
-                valid_results,
-                key=lambda r: abs(r['p_ccg'][0] - r['candidate_probs'][0])
-            )
-
-            # Take some with low difference (high agreement)
-            n_agree = n_images // 3
-            selected.extend(sorted_by_agreement[:n_agree])
-
-            # Take some with high difference (disagreement)
-            selected.extend(sorted_by_agreement[-n_agree:])
-
-            # Fill rest randomly
-            remaining = [r for r in valid_results if r not in selected]
-            np.random.shuffle(remaining)
-            selected.extend(remaining[:n_images - len(selected)])
-
-        elif selection == 'disagreement':
-            # Sort by disagreement
-            sorted_by_disagreement = sorted(
-                valid_results,
-                key=lambda r: abs(r['p_ccg'][0] - r['candidate_probs'][0]),
-                reverse=True
-            )
-            selected = sorted_by_disagreement[:n_images]
-
-        else:  # random
-            np.random.shuffle(valid_results)
-            selected = valid_results[:n_images]
-
         print(f"Generating {len(selected)} physical images with members...")
+        print(f"  Selection strategy: {selection}")
+        print(f"  pmem cutoff: {self.pmem_cutoff}")
 
+        n_generated = 0
         for result in selected:
             cluster_name = result['cluster_name']
             image_path = find_cluster_image(cluster_name, self.image_dir)
@@ -321,12 +315,14 @@ class CCGAnalysisRunner:
                     save_path=save_path,
                     dataset_type=self.dataset_type,
                     target_coords=result.get('target_coords'),
-                    target_prob=result.get('target_prob')
+                    target_prob=result.get('target_prob'),
+                    pmem_cutoff=self.pmem_cutoff
                 )
+                n_generated += 1
             except Exception as e:
                 print(f"  Warning: Failed to generate image for {cluster_name}: {e}")
 
-        print(f"Saved physical images to: {self.output_dir}")
+        print(f"Generated {n_generated} physical images to: {self.output_dir}")
 
     def save_results(self):
         """Save p_{CCG} results to CSV."""
@@ -353,6 +349,7 @@ class CCGAnalysisRunner:
             print(f"Valid p_CCG results: {len(valid_df)}")
             print(f"Search radius: {self.radius_kpc} kpc")
             print(f"Relative threshold: {self.relative_threshold}")
+            print(f"p_mem cutoff: {self.pmem_cutoff}")
             print()
 
             # Agreement statistics
@@ -423,8 +420,8 @@ class CCGAnalysisRunner:
 
 
 def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p8arcmin',
-                                     radius_kpc=300.0, relative_threshold=2.0,
-                                     n_images=20):
+                                     radius_kpc=300.0, relative_threshold=5.0,
+                                     pmem_cutoff=0.2, n_images=20):
     """
     Convenience function to run CCG analysis from an experiment directory.
 
@@ -434,6 +431,7 @@ def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p
         dataset_type: Dataset type
         radius_kpc: Search radius in kpc
         relative_threshold: Threshold for p_{CCG} dominance
+        pmem_cutoff: Minimum pmem value to consider a member
         n_images: Number of images to generate
 
     Returns:
@@ -444,7 +442,8 @@ def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p
         image_dir=image_dir,
         dataset_type=dataset_type,
         radius_kpc=radius_kpc,
-        relative_threshold=relative_threshold
+        relative_threshold=relative_threshold,
+        pmem_cutoff=pmem_cutoff
     )
 
     return runner.run_complete_analysis(n_images=n_images)
@@ -464,8 +463,10 @@ if __name__ == "__main__":
                        help='Dataset type')
     parser.add_argument('--radius_kpc', type=float, default=300.0,
                        help='Physical radius for member counting (kpc)')
-    parser.add_argument('--relative_threshold', type=float, default=2.0,
+    parser.add_argument('--relative_threshold', type=float, default=5.0,
                        help='Threshold for p_{CCG} dominance')
+    parser.add_argument('--pmem_cutoff', type=float, default=0.2,
+                       help='Minimum pmem value to consider a member')
     parser.add_argument('--n_images', type=int, default=20,
                        help='Number of physical images to generate')
     parser.add_argument('--max_clusters', type=int, default=None,
@@ -478,7 +479,8 @@ if __name__ == "__main__":
         image_dir=args.image_dir,
         dataset_type=args.dataset_type,
         radius_kpc=args.radius_kpc,
-        relative_threshold=args.relative_threshold
+        relative_threshold=args.relative_threshold,
+        pmem_cutoff=args.pmem_cutoff
     )
 
     results = runner.run_complete_analysis(
