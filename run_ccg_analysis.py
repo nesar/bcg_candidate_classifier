@@ -338,6 +338,17 @@ class CCGAnalysisRunner:
                     image_array = np.array(pil_image)
                     pil_image.close()
 
+                    # Ensure image is in correct format (convert 16-bit to 8-bit if needed)
+                    if image_array.dtype == np.uint16:
+                        image_array = (image_array / 256).astype(np.uint8)
+                    elif image_array.dtype != np.uint8:
+                        # Normalize to 0-255 range
+                        img_min, img_max = image_array.min(), image_array.max()
+                        if img_max > img_min:
+                            image_array = ((image_array - img_min) / (img_max - img_min) * 255).astype(np.uint8)
+                        else:
+                            image_array = np.zeros_like(image_array, dtype=np.uint8)
+
                     # Use default candidate detection parameters
                     all_candidates, _ = find_bcg_candidates(
                         image_array,
@@ -346,6 +357,12 @@ class CCGAnalysisRunner:
                         exclude_border=0,
                         max_candidates=50
                     )
+
+                    if all_candidates is not None and len(all_candidates) > 0:
+                        print(f"    Detected {len(all_candidates)} BCG candidates for {cluster_name}")
+                    else:
+                        print(f"    No candidates detected for {cluster_name}")
+
                 except Exception as e:
                     print(f"  Warning: Could not detect candidates for {cluster_name}: {e}")
                     all_candidates = None
