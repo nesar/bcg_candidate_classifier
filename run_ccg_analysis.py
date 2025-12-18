@@ -130,7 +130,54 @@ class CCGAnalysisRunner:
             self.features_data = None
             print("Note: test_features.npz not found, using evaluation results only")
 
+        # Load probability analysis file with all candidate coordinates and bar_p values
+        prob_analysis_file = os.path.join(self.eval_dir, 'probability_analysis.csv')
+        if os.path.exists(prob_analysis_file):
+            self.prob_analysis_df = pd.read_csv(prob_analysis_file)
+            print(f"Loaded probability analysis: {len(self.prob_analysis_df)} candidate entries")
+            # Check if coordinates are available (new format)
+            if 'x' in self.prob_analysis_df.columns and 'y' in self.prob_analysis_df.columns:
+                print(f"  Contains x,y coordinates for ranked candidate visualization")
+            else:
+                print("  Note: x,y coordinates not found - re-run test.py to update format")
+        else:
+            self.prob_analysis_df = None
+            print("Note: probability_analysis.csv not found - will use single candidate per cluster")
+
         return self.eval_df
+
+    def get_top_candidates_for_cluster(self, cluster_name, top_n=5):
+        """
+        Get top-N ranked candidates for a cluster from probability_analysis.csv.
+
+        Args:
+            cluster_name: Cluster name (sample_name in probability_analysis.csv)
+            top_n: Number of top candidates to return
+
+        Returns:
+            tuple: (candidates_pixel, candidate_probs) arrays sorted by probability (descending)
+        """
+        if self.prob_analysis_df is None:
+            return None, None
+
+        # Filter by cluster name
+        cluster_df = self.prob_analysis_df[self.prob_analysis_df['sample_name'] == cluster_name]
+
+        if len(cluster_df) == 0:
+            return None, None
+
+        # Check if coordinates are available
+        if 'x' not in cluster_df.columns or 'y' not in cluster_df.columns:
+            return None, None
+
+        # Sort by probability descending
+        cluster_df = cluster_df.sort_values('probability', ascending=False).head(top_n)
+
+        # Extract coordinates and probabilities
+        candidates_pixel = cluster_df[['x', 'y']].values
+        candidate_probs = cluster_df['probability'].values
+
+        return candidates_pixel, candidate_probs
 
     def compute_pccg_for_all_clusters(self, max_clusters=None, verbose=True):
         """
@@ -181,16 +228,25 @@ class CCGAnalysisRunner:
                 n_errors += 1
                 continue
 
-            # For now, we work with the single predicted candidate
-            # In future, this could be extended to load all candidates from test_features.npz
-            candidates_pixel = np.array([[pred_x, pred_y]])
-            candidate_probs = np.array([bar_p])
+            # Try to get top-N candidates from probability_analysis.csv (ranked by bar_p)
+            top_candidates, top_probs = self.get_top_candidates_for_cluster(
+                cluster_name, top_n=self.top_n_candidates
+            )
 
-            # Compute p_{CCG}
+            if top_candidates is not None and len(top_candidates) > 0:
+                # Use ranked candidates from probability_analysis.csv
+                candidates_pixel = top_candidates
+                candidate_probs = top_probs
+            else:
+                # Fallback: use single predicted candidate from evaluation_results.csv
+                candidates_pixel = np.array([[pred_x, pred_y]])
+                candidate_probs = np.array([bar_p])
+
+            # Compute p_{CCG} for all top candidates
             result = self.calculator.compute_for_cluster(
                 cluster_name, candidates_pixel, candidate_probs,
                 image_path=image_path, redshift=redshift,
-                top_n_candidates=1
+                top_n_candidates=len(candidates_pixel)
             )
 
             # Get target info
@@ -201,9 +257,11 @@ class CCGAnalysisRunner:
             # Store detailed result
             detailed = {
                 'cluster_name': cluster_name,
+                'filename': os.path.basename(image_path) if image_path else None,
                 'redshift': redshift,
                 'candidates_pixel': candidates_pixel,
                 'candidate_probs': candidate_probs,
+                'n_ranked_candidates': len(candidates_pixel),
                 'p_ccg': result['p_ccg'],
                 'member_counts': result['member_counts'],
                 'weighted_counts': result['weighted_counts'],

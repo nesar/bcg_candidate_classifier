@@ -1509,31 +1509,39 @@ def main(args):
         # Save UQ-specific analysis if enabled
         if args.use_uq:
             uq_analysis_file = os.path.join(args.output_dir, 'probability_analysis.csv')
-            
-            # Compile probability analysis
+
+            # Compile probability analysis with candidate coordinates
             prob_analysis_data = []
             for i, (probs, uncs) in enumerate(zip(all_probabilities_list, all_uncertainties_list)):
                 sample_name = sample_metadata[i].get('cluster_name', f'sample_{i}') if i < len(sample_metadata) else f'sample_{i}'
-                
+                candidates = all_candidates_list[i] if i < len(all_candidates_list) else np.array([])
+
                 for j, prob in enumerate(probs):
                     unc = uncs[j] if j < len(uncs) else np.nan
                     is_detection = prob >= args.detection_threshold
                     is_best = j == np.argmax(probs) if len(probs) > 0 else False
-                    
+
+                    # Get candidate coordinates
+                    x = candidates[j, 0] if j < len(candidates) else np.nan
+                    y = candidates[j, 1] if j < len(candidates) else np.nan
+
                     prob_analysis_data.append({
                         'sample_name': sample_name,
                         'candidate_idx': j,
+                        'x': x,
+                        'y': y,
                         'probability': prob,
                         'uncertainty': unc,
                         'is_detection': is_detection,
                         'is_best_candidate': is_best,
                         'distance_error': distances[i] if i < len(distances) else np.nan
                     })
-            
+
             if prob_analysis_data:
                 prob_df = pd.DataFrame(prob_analysis_data)
                 prob_df.to_csv(uq_analysis_file, index=False)
                 print(f"Probability analysis saved to: {uq_analysis_file}")
+                print(f"  Contains {len(prob_df)} candidate entries with x,y coordinates")
 
 
 if __name__ == "__main__":

@@ -210,32 +210,49 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
                                          label='Candidates'))
 
     # =========================================================================
-    # Plot TOP CCG as RED SOLID CIRCLE (highest p_CCG)
+    # Plot TOP RANKED CANDIDATES as colored circles (like ProbabilisticTesting)
+    # Rank-1 (highest bar_p) = RED, Rank-2 = ORANGE, Rank-3 = YELLOW, etc.
     # =========================================================================
-    if len(p_ccg_values) > 0 and len(candidates_pixel) > 0:
-        top_ccg_idx = np.argmax(p_ccg_values)
-        top_x, top_y = candidates_pixel[top_ccg_idx]
-        top_bar_p = candidate_probs[top_ccg_idx]
-        top_p_ccg = p_ccg_values[top_ccg_idx]
-        top_n_mem = member_counts[top_ccg_idx] if top_ccg_idx < len(member_counts) else 0
+    # Colors for ranked candidates (matching ProbabilisticTesting style)
+    rank_colors = ['red', 'orange', 'gold', 'limegreen', 'deepskyblue']
+    rank_labels = ['Rank-1', 'Rank-2', 'Rank-3', 'Rank-4', 'Rank-5']
 
-        # Red solid circle for Top CCG
-        ax.scatter(top_x, top_y, marker='o', s=800,
-                  facecolors='none', edgecolors='red', linewidths=3,
-                  alpha=0.95, zorder=10)
+    if len(candidates_pixel) > 0 and len(candidate_probs) > 0:
+        n_to_show = min(len(candidates_pixel), len(rank_colors))
 
-        # Add probability label for Top CCG
-        label_text = f'$\\bar{{p}}$={top_bar_p:.2f}\n$p_{{CCG}}$={top_p_ccg:.2f}\n$n_{{mem}}$={int(top_n_mem)}'
-        ax.text(top_x + 15, top_y - 15, label_text, fontsize=10, color='black',
-               bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.85),
-               zorder=11)
+        for rank_idx in range(n_to_show):
+            x, y = candidates_pixel[rank_idx]
+            bar_p = candidate_probs[rank_idx]
+            p_ccg = p_ccg_values[rank_idx] if rank_idx < len(p_ccg_values) else 0.0
+            n_mem = member_counts[rank_idx] if rank_idx < len(member_counts) else 0
+            color = rank_colors[rank_idx]
 
-        # Legend entry for Top CCG
-        legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
-                                         markeredgecolor='red', markersize=12,
-                                         markeredgewidth=3, linestyle='None',
-                                         markerfacecolor='None',
-                                         label=f'Top CCG ($p_{{CCG}}$={top_p_ccg:.2f})'))
+            # Circle size decreases with rank
+            size = 800 - rank_idx * 80  # 800, 720, 640, 560, 480
+            linewidth = 3 - rank_idx * 0.3  # 3.0, 2.7, 2.4, 2.1, 1.8
+
+            # Draw the ranked candidate circle
+            ax.scatter(x, y, marker='o', s=size,
+                      facecolors='none', edgecolors=color, linewidths=linewidth,
+                      alpha=0.95, zorder=10 - rank_idx)
+
+            # Add probability label only for top 3 candidates (to avoid clutter)
+            if rank_idx < 3:
+                label_text = f'$\\bar{{p}}$={bar_p:.2f}\n$p_{{CCG}}$={p_ccg:.2f}\n$n_{{mem}}$={int(n_mem)}'
+                # Offset labels differently to avoid overlap
+                offset_x = 15 + rank_idx * 5
+                offset_y = -15 - rank_idx * 25
+                ax.text(x + offset_x, y + offset_y, label_text, fontsize=9, color='black',
+                       bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.85,
+                                edgecolor=color, linewidth=1),
+                       zorder=11)
+
+            # Legend entry for this rank
+            legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
+                                             markeredgecolor=color, markersize=11 - rank_idx,
+                                             markeredgewidth=linewidth, linestyle='None',
+                                             markerfacecolor='None',
+                                             label=f'{rank_labels[rank_idx]} ($\\bar{{p}}$={bar_p:.2f})'))
 
     # =========================================================================
     # Plot Target BCG as BLUE DASHED CIRCLE (like ProbabilisticTesting)
