@@ -47,7 +47,7 @@ class CCGAnalysisRunner:
                  radius_kpc=300.0, relative_threshold=5.0, top_n_candidates=3,
                  rm_member_dir=None, pmem_cutoff=0.2, use_adaptive_method=True,
                  dominance_fraction=0.4, min_member_fraction=0.05,
-                 distribution_mode='proportional'):
+                 distribution_mode='proportional', desprior_csv_path=None):
         """
         Args:
             experiment_dir: Root experiment directory (e.g., trained_models/candidate_classifier_*)
@@ -64,6 +64,8 @@ class CCGAnalysisRunner:
             min_member_fraction: Minimum fraction to be considered viable (default 0.05)
                                 Candidates with < 5% of members get p_CCG = 0
             distribution_mode: How to distribute p_CCG: 'proportional' or 'equal'
+            desprior_csv_path: Path to DESprior candidates CSV (purged version)
+                              If provided, uses these candidates instead of image detection
         """
         self.experiment_dir = experiment_dir
         self.image_dir = image_dir
@@ -77,6 +79,17 @@ class CCGAnalysisRunner:
         self.dominance_fraction = dominance_fraction
         self.min_member_fraction = min_member_fraction
         self.distribution_mode = distribution_mode
+        self.desprior_csv_path = desprior_csv_path
+
+        # Load DESprior candidates if path provided
+        self.desprior_candidates_df = None
+        if desprior_csv_path and os.path.exists(desprior_csv_path):
+            try:
+                self.desprior_candidates_df = pd.read_csv(desprior_csv_path)
+                print(f"Loaded DESprior candidates from: {desprior_csv_path}")
+                print(f"  Total candidates: {len(self.desprior_candidates_df)}")
+            except Exception as e:
+                print(f"Warning: Could not load DESprior candidates: {e}")
 
         # Set up paths
         self.eval_dir = os.path.join(experiment_dir, 'evaluation_results')
@@ -281,13 +294,21 @@ class CCGAnalysisRunner:
 
         os.makedirs(self.output_dir, exist_ok=True)
 
-        # Import candidate detection function for showing all BCG candidates
-        try:
-            from utils.candidate_based_bcg import find_bcg_candidates
-            can_detect_candidates = True
-        except ImportError:
-            print("  Warning: Could not import find_bcg_candidates, will only show top prediction")
-            can_detect_candidates = False
+        # Determine candidate source: DESprior CSV (preferred) or image detection (fallback)
+        use_desprior = self.desprior_candidates_df is not None
+        can_detect_candidates = False
+
+        if use_desprior:
+            print(f"  Using DESprior candidates from CSV (same as ProbabilisticTesting plots)")
+        else:
+            # Fallback to image-based detection if no DESprior CSV provided
+            try:
+                from utils.candidate_based_bcg import find_bcg_candidates
+                can_detect_candidates = True
+                print("  Warning: No DESprior CSV provided, using image peak detection for candidates")
+                print("  (This may produce different candidates than ProbabilisticTesting plots)")
+            except ImportError:
+                print("  Warning: Could not import find_bcg_candidates, will only show top prediction")
 
         # Use the diverse selection function for best mix of examples
         if selection == 'diverse':
@@ -328,9 +349,37 @@ class CCGAnalysisRunner:
 
             save_path = os.path.join(self.output_dir, f'{cluster_name}_pccg.png')
 
-            # Detect ALL BCG candidates from the image (like ProbabilisticTesting plots)
+            # Get BCG candidates - prefer DESprior CSV, fallback to image detection
             all_candidates = None
-            if can_detect_candidates:
+
+            if use_desprior:
+                # Load candidates from DESprior CSV (same source as ProbabilisticTesting plots)
+                try:
+                    # Get filename from cluster_name (matches format in evaluation results)
+                    filename = result.get('filename')
+                    if filename is None:
+                        # Try to construct filename from cluster name
+                        # Format: SPT-CLJ0001.5-1555_5.61_sigma_grz.tif
+                        filename = f"{cluster_name}_"  # Partial match
+
+                    # Find matching candidates in DESprior CSV
+                    if filename:
+                        # Match by filename prefix (cluster name)
+                        mask = self.desprior_candidates_df['filename'].str.startswith(cluster_name)
+                        file_candidates = self.desprior_candidates_df[mask]
+
+                        if len(file_candidates) > 0:
+                            all_candidates = file_candidates[['x', 'y']].values
+                            print(f"    Loaded {len(all_candidates)} DESprior candidates for {cluster_name}")
+                        else:
+                            print(f"    No DESprior candidates found for {cluster_name}")
+
+                except Exception as e:
+                    print(f"  Warning: Could not load DESprior candidates for {cluster_name}: {e}")
+                    all_candidates = None
+
+            elif can_detect_candidates:
+                # Fallback: Detect candidates from image (may differ from ProbabilisticTesting)
                 try:
                     from PIL import Image as pillow_img
                     pil_image = pillow_img.open(image_path)
@@ -359,7 +408,7 @@ class CCGAnalysisRunner:
                     )
 
                     if all_candidates is not None and len(all_candidates) > 0:
-                        print(f"    Detected {len(all_candidates)} BCG candidates for {cluster_name}")
+                        print(f"    Detected {len(all_candidates)} BCG candidates for {cluster_name} (image detection)")
                     else:
                         print(f"    No candidates detected for {cluster_name}")
 
@@ -501,7 +550,7 @@ def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p
                                      radius_kpc=300.0, pmem_cutoff=0.2, n_images=20,
                                      use_adaptive_method=True, dominance_fraction=0.4,
                                      min_member_fraction=0.05, distribution_mode='proportional',
-                                     relative_threshold=5.0):
+                                     relative_threshold=5.0, desprior_csv_path=None):
     """
     Convenience function to run CCG analysis from an experiment directory.
 
@@ -517,6 +566,7 @@ def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p
         min_member_fraction: Minimum fraction to be considered viable (default 0.05)
         distribution_mode: 'proportional' or 'equal'
         relative_threshold: Threshold for p_{CCG} dominance (legacy method)
+        desprior_csv_path: Path to DESprior candidates CSV (purged version)
 
     Returns:
         DataFrame with p_{CCG} results
@@ -531,7 +581,8 @@ def run_ccg_analysis_from_experiment(experiment_dir, image_dir, dataset_type='3p
         use_adaptive_method=use_adaptive_method,
         dominance_fraction=dominance_fraction,
         min_member_fraction=min_member_fraction,
-        distribution_mode=distribution_mode
+        distribution_mode=distribution_mode,
+        desprior_csv_path=desprior_csv_path
     )
 
     return runner.run_complete_analysis(n_images=n_images)
@@ -574,6 +625,11 @@ if __name__ == "__main__":
     parser.add_argument('--relative_threshold', type=float, default=5.0,
                        help='Threshold for p_{CCG} dominance (legacy method only)')
 
+    # DESprior candidates CSV (for consistent candidates with ProbabilisticTesting plots)
+    parser.add_argument('--desprior_csv_path', type=str, default=None,
+                       help='Path to DESprior candidates CSV (purged version). '
+                            'If provided, uses same candidates as ProbabilisticTesting plots')
+
     args = parser.parse_args()
 
     use_adaptive = args.use_adaptive.lower() == 'true'
@@ -588,7 +644,8 @@ if __name__ == "__main__":
         use_adaptive_method=use_adaptive,
         dominance_fraction=args.dominance_fraction,
         min_member_fraction=args.min_member_fraction,
-        distribution_mode=args.distribution_mode
+        distribution_mode=args.distribution_mode,
+        desprior_csv_path=args.desprior_csv_path
     )
 
     results = runner.run_complete_analysis(

@@ -906,6 +906,8 @@ except Exception as e:
         print(f"  Images to generate: {ccg_n_images}")
 
         # Run CCG analysis with adaptive method
+        # Use same DESprior candidates as ProbabilisticTesting plots
+        desprior_csv = _path_config.get_preferred_desprior_csv(bcg_arcmin_type)
         ccg_analysis_command = f"""python run_ccg_analysis.py \\
             --experiment_dir "{output_dir}" \\
             --image_dir "{IMAGE_DIR}" \\
@@ -916,6 +918,7 @@ except Exception as e:
             --dominance_fraction {ccg_dominance_fraction} \\
             --min_member_fraction {ccg_min_member_fraction} \\
             --distribution_mode {ccg_distribution_mode} \\
+            --desprior_csv_path "{desprior_csv}" \\
             --n_images {ccg_n_images}"""
 
         if run_command(ccg_analysis_command, "Running p_{CCG} cluster member analysis"):
