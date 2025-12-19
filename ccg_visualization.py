@@ -238,13 +238,20 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
 
             # Add probability label only for top 3 candidates (to avoid clutter)
             if rank_idx < 3:
-                label_text = f'$\\bar{{p}}$={bar_p:.2f}\n$p_{{CCG}}$={p_ccg:.2f}\n$n_{{mem}}$={int(n_mem)}'
-                # Offset labels differently to avoid overlap
-                offset_x = 15 + rank_idx * 5
-                offset_y = -15 - rank_idx * 25
+                # Order: p_CCG, n_mem, bar_p
+                label_text = f'$p_{{CCG}}$={p_ccg:.2f}\n$n_{{mem}}$={int(n_mem)}\n$\\bar{{p}}$={bar_p:.2f}'
+                # Position labels close to their circles, offset by angle to avoid overlap
+                # Use different angles for each rank to spread labels out
+                angles = [45, 135, -45]  # degrees from horizontal
+                angle_rad = np.radians(angles[rank_idx])
+                offset_dist = 25  # pixels from circle center
+                offset_x = offset_dist * np.cos(angle_rad)
+                offset_y = offset_dist * np.sin(angle_rad)
                 ax.text(x + offset_x, y + offset_y, label_text, fontsize=9, color='black',
                        bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.85,
-                                edgecolor=color, linewidth=1),
+                                edgecolor=color, linewidth=1.5),
+                       ha='left' if offset_x > 0 else 'right',
+                       va='bottom' if offset_y > 0 else 'top',
                        zorder=11)
 
             # Legend entry for this rank
