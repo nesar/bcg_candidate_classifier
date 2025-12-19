@@ -493,8 +493,13 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
             'batch_size': args.batch_size,
             'lr': args.lr,
         }
+        # Dataset info
         if hasattr(args, 'bcg_arcmin_type') and args.bcg_arcmin_type:
             config['dataset'] = args.bcg_arcmin_type
+        elif hasattr(args, 'dataset_type') and args.dataset_type:
+            config['dataset'] = args.dataset_type
+
+        # Candidate configuration
         if hasattr(args, 'use_additional_features'):
             config['additional_features'] = args.use_additional_features
         if hasattr(args, 'use_redmapper_probs'):
@@ -507,6 +512,22 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
             config['desprior_candidates'] = args.use_desprior_candidates
         if hasattr(args, 'candidate_delta_mstar_range') and args.candidate_delta_mstar_range:
             config['candidate_delta_mstar_range'] = args.candidate_delta_mstar_range
+        if hasattr(args, 'use_color_features'):
+            config['use_color_features'] = args.use_color_features
+
+        # UQ parameters
+        if hasattr(args, 'use_uq'):
+            config['use_uq'] = args.use_uq
+        if hasattr(args, 'detection_threshold'):
+            config['detection_threshold'] = args.detection_threshold
+
+        # CCG Analysis parameters (from enhanced_full_run config file if available)
+        ccg_config_file = os.path.join(args.output_dir, 'ccg_config.json')
+        if os.path.exists(ccg_config_file):
+            import json
+            with open(ccg_config_file, 'r') as f:
+                ccg_config = json.load(f)
+                config.update(ccg_config)
 
         plot_training_curves(train_losses, train_accuracies, val_losses, val_accuracies, args.output_dir, config=config)
     
@@ -541,8 +562,76 @@ def save_model(model, feature_scaler, output_dir, name, color_extractor=None):
     print(f"Scaler saved to: {scaler_path}")
 
 
+def format_config_text_columns(config):
+    """Format configuration dictionary into 3 columns for plot annotations.
+
+    Args:
+        config: Dictionary containing hyperparameters, BCG config, UQ, and CCG config
+
+    Returns:
+        Tuple of (training_text, candidate_text, ccg_text) for 3-column display
+    """
+    # Column 1: Training Configuration
+    training_lines = ["Training Configuration:"]
+    if 'epochs' in config:
+        training_lines.append(f"  Epochs: {config['epochs']}")
+    if 'batch_size' in config:
+        training_lines.append(f"  Batch size: {config['batch_size']}")
+    if 'lr' in config:
+        training_lines.append(f"  Learning rate: {config['lr']}")
+    if 'dataset' in config:
+        training_lines.append(f"  Dataset: {config['dataset']}")
+
+    # Add UQ parameters
+    training_lines.append("")
+    training_lines.append("UQ Parameters:")
+    detection_threshold = config.get('detection_threshold', 0.5)
+    training_lines.append(f"  Detection threshold: {detection_threshold}")
+    if 'use_uq' in config:
+        training_lines.append(f"  UQ enabled: {config['use_uq']}")
+
+    # Column 2: Candidate Configuration
+    candidate_lines = ["Candidate Configuration:"]
+    if 'additional_features' in config:
+        candidate_lines.append(f"  Additional features: {config['additional_features']}")
+    if 'redmapper_probs' in config:
+        candidate_lines.append(f"  RedMapper probs: {config['redmapper_probs']}")
+    if 'z_range' in config:
+        candidate_lines.append(f"  Redshift filter: {config['z_range']}")
+    if 'delta_mstar_z_range' in config:
+        candidate_lines.append(f"  Delta M* z filter: {config['delta_mstar_z_range']}")
+    if 'desprior_candidates' in config:
+        candidate_lines.append(f"  DESprior candidates: {config['desprior_candidates']}")
+    if 'candidate_delta_mstar_range' in config:
+        candidate_lines.append(f"  Candidate delta_mstar: {config['candidate_delta_mstar_range']}")
+    if 'use_color_features' in config:
+        candidate_lines.append(f"  Color features: {config['use_color_features']}")
+
+    # Column 3: CCG Analysis Configuration
+    ccg_lines = ["CCG Analysis Configuration:"]
+    ccg_radius = config.get('ccg_radius_kpc', 300.0)
+    ccg_lines.append(f"  Search radius: {ccg_radius} kpc")
+    ccg_pmem = config.get('ccg_pmem_cutoff', 0.2)
+    ccg_lines.append(f"  p_mem cutoff: {ccg_pmem}")
+    ccg_dominance = config.get('ccg_dominance_fraction', 0.4)
+    ccg_lines.append(f"  Dominance fraction: {ccg_dominance} ({ccg_dominance*100:.0f}%)")
+    ccg_min_frac = config.get('ccg_min_member_fraction', 0.05)
+    ccg_lines.append(f"  Min member fraction: {ccg_min_frac} ({ccg_min_frac*100:.0f}%)")
+    ccg_dist_mode = config.get('ccg_distribution_mode', 'proportional')
+    ccg_lines.append(f"  Distribution mode: {ccg_dist_mode}")
+    ccg_n_images = config.get('ccg_n_images', 20)
+    ccg_lines.append(f"  Number of images: {ccg_n_images}")
+
+    training_text = '\n'.join(training_lines)
+    candidate_text = '\n'.join(candidate_lines)
+    ccg_text = '\n'.join(ccg_lines)
+
+    return training_text, candidate_text, ccg_text
+
+
 def format_config_text(config):
     """Format configuration dictionary into a readable text block for plot annotations.
+    Legacy single-column format for backward compatibility.
 
     Args:
         config: Dictionary containing hyperparameters and BCG configuration
@@ -550,41 +639,8 @@ def format_config_text(config):
     Returns:
         Formatted string for display in text box
     """
-    lines = []
-
-    # Training parameters section
-    if any(k in config for k in ['epochs', 'batch_size', 'lr']):
-        lines.append("Training Parameters:")
-        if 'epochs' in config:
-            lines.append(f"  Epochs: {config['epochs']}")
-        if 'batch_size' in config:
-            lines.append(f"  Batch size: {config['batch_size']}")
-        if 'lr' in config:
-            lines.append(f"  Learning rate: {config['lr']}")
-
-    # BCG Configuration section
-    bcg_keys = ['dataset', 'additional_features', 'redmapper_probs', 'z_range',
-                'delta_mstar_z_range', 'desprior_candidates', 'candidate_delta_mstar_range']
-    if any(k in config for k in bcg_keys):
-        if lines:
-            lines.append("")
-        lines.append("BCG Configuration:")
-        if 'dataset' in config:
-            lines.append(f"  Dataset: {config['dataset']}")
-        if 'additional_features' in config:
-            lines.append(f"  Additional features: {config['additional_features']}")
-        if 'redmapper_probs' in config:
-            lines.append(f"  RedMapper probs: {config['redmapper_probs']}")
-        if 'z_range' in config:
-            lines.append(f"  Redshift filter: {config['z_range']}")
-        if 'delta_mstar_z_range' in config:
-            lines.append(f"  Delta M* z filter: {config['delta_mstar_z_range']}")
-        if 'desprior_candidates' in config:
-            lines.append(f"  DESprior candidates: {config['desprior_candidates']}")
-        if 'candidate_delta_mstar_range' in config:
-            lines.append(f"  Candidate delta_mstar: {config['candidate_delta_mstar_range']}")
-
-    return '\n'.join(lines) if lines else ""
+    training_text, candidate_text, ccg_text = format_config_text_columns(config)
+    return f"{training_text}\n\n{candidate_text}\n\n{ccg_text}"
 
 
 def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_dir, config=None):
@@ -676,18 +732,33 @@ def plot_training_curves(train_losses, train_accs, val_losses, val_accs, output_
     ax2.legend(fontsize=FONTS['legend'])
     ax2.grid(True, alpha=SIZES.get('grid_alpha', 0.3))
 
-    # Add hyperparameter text box if config is provided
+    # Add hyperparameter text boxes in 3 columns if config is provided
     if config is not None:
-        config_text = format_config_text(config)
-        # Add text box at the bottom of the figure
-        fig.text(0.02, 0.02, config_text, fontsize=7, fontfamily='monospace',
+        training_text, candidate_text, ccg_text = format_config_text_columns(config)
+
+        # Create 3 text boxes side by side at the bottom
+        box_style = dict(boxstyle='round,pad=0.4', facecolor='lightyellow', alpha=0.9, edgecolor='gray', linewidth=1.5)
+        text_fontsize = 9  # Increased from 7
+
+        # Column 1: Training Config (left)
+        fig.text(0.02, 0.02, training_text, fontsize=text_fontsize, fontfamily='monospace',
                  verticalalignment='bottom', horizontalalignment='left',
-                 bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow', alpha=0.8, edgecolor='gray'))
+                 bbox=box_style)
+
+        # Column 2: Candidate Config (center)
+        fig.text(0.35, 0.02, candidate_text, fontsize=text_fontsize, fontfamily='monospace',
+                 verticalalignment='bottom', horizontalalignment='left',
+                 bbox=box_style)
+
+        # Column 3: CCG Analysis Config (right)
+        fig.text(0.68, 0.02, ccg_text, fontsize=text_fontsize, fontfamily='monospace',
+                 verticalalignment='bottom', horizontalalignment='left',
+                 bbox=box_style)
 
     plt.tight_layout()
-    # Adjust bottom margin to accommodate text box
+    # Adjust bottom margin to accommodate text boxes (larger margin for 3 columns)
     if config is not None:
-        plt.subplots_adjust(bottom=0.22)
+        plt.subplots_adjust(bottom=0.28)
     combined_plot_path = os.path.join(output_dir, 'training_curves.png')
     plt.savefig(combined_plot_path, dpi=SIZES['dpi'], bbox_inches='tight')
     print(f"Combined training curves saved to: {combined_plot_path}")

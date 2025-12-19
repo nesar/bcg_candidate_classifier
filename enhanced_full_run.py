@@ -586,11 +586,29 @@ def main():
     if gpu_available not in ['n', 'no']:
         train_command += " --use_gpu"
     
+    # Create output directory and save CCG config for training_curves.png
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save CCG analysis config to JSON for training_curves.png text box
+    ccg_config = {
+        'ccg_radius_kpc': ccg_radius_kpc,
+        'ccg_pmem_cutoff': ccg_pmem_cutoff,
+        'ccg_dominance_fraction': ccg_dominance_fraction,
+        'ccg_min_member_fraction': ccg_min_member_fraction,
+        'ccg_distribution_mode': ccg_distribution_mode,
+        'ccg_n_images': ccg_n_images,
+        'detection_threshold': detection_threshold if use_uq else 0.5
+    }
+    ccg_config_path = os.path.join(output_dir, 'ccg_config.json')
+    with open(ccg_config_path, 'w') as f:
+        json.dump(ccg_config, f, indent=2)
+    print(f"CCG config saved to: {ccg_config_path}")
+
     # Step 1: Training
     print("\n" + "="*80)
     print("STEP 1: TRAINING BCG CLASSIFIER")
     print("="*80)
-    
+
     feature_summary = []
     if use_color_features:
         feature_summary.append("Color features (red-sequence detection)")
