@@ -892,29 +892,40 @@ def select_diverse_images(detailed_results, n_images=20):
     # Sort by agreement
     sorted_by_agreement = sorted(valid_results, key=lambda r: r['_agreement'], reverse=True)
 
+    # Track selected cluster names to avoid duplicates (can't compare dicts with numpy arrays)
     selected = []
+    selected_names = set()
+
+    def add_if_not_selected(result):
+        """Add result if its cluster_name hasn't been selected yet."""
+        name = result.get('cluster_name', id(result))
+        if name not in selected_names:
+            selected.append(result)
+            selected_names.add(name)
+            return True
+        return False
 
     # Category 1: Best matches (high agreement, high both)
     best_matches = [r for r in sorted_by_agreement if r['_bar_p'] > 0.7 and r['_p_ccg'] > 0.7]
     n_best = min(n_images // 4, len(best_matches))
-    selected.extend(best_matches[:n_best])
+    for r in best_matches[:n_best]:
+        add_if_not_selected(r)
 
     # Category 2: High bar_p, low p_ccg (ML confident, but few members)
     high_ml_low_mem = [r for r in valid_results if r['_bar_p'] > 0.7 and r['_p_ccg'] < 0.3]
     n_high_ml = min(n_images // 4, len(high_ml_low_mem))
     for r in high_ml_low_mem[:n_high_ml]:
-        if r not in selected:
-            selected.append(r)
+        add_if_not_selected(r)
 
     # Category 3: Low bar_p, high p_ccg (ML uncertain, but many members)
     low_ml_high_mem = [r for r in valid_results if r['_bar_p'] < 0.5 and r['_p_ccg'] > 0.7]
     n_low_ml = min(n_images // 4, len(low_ml_high_mem))
     for r in low_ml_high_mem[:n_low_ml]:
-        if r not in selected:
-            selected.append(r)
+        add_if_not_selected(r)
 
     # Category 4: Fill with diverse redshift range
-    remaining = [r for r in valid_results if r not in selected]
+    remaining = [r for r in valid_results
+                 if r.get('cluster_name', id(r)) not in selected_names]
     if remaining:
         # Sort by redshift and pick evenly spaced
         remaining_sorted = sorted(remaining, key=lambda r: r.get('redshift', 0))
@@ -924,7 +935,7 @@ def select_diverse_images(detailed_results, n_images=20):
             for i in range(0, len(remaining_sorted), step):
                 if len(selected) >= n_images:
                     break
-                selected.append(remaining_sorted[i])
+                add_if_not_selected(remaining_sorted[i])
 
     # Clean up temporary keys
     for r in selected:
