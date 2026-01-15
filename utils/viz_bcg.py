@@ -30,7 +30,7 @@ def show_BCG(image, BCG, sample_idx=None, save_path=None):
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        print(f"BCG plot saved to {save_path}")
+        #print(f"BCG plot saved to {save_path}")
     
     plt.show()
 
@@ -220,7 +220,7 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
             filename = f'{phase_str}prediction_sample_{idx+1}.png'
             save_path = os.path.join(save_dir, filename)
             plt.savefig(save_path, dpi=150, bbox_inches='tight')
-            print(f"Candidate-based prediction plot saved: {save_path}")
+            #print(f"Candidate-based prediction plot saved: {save_path}")
         
         plt.show()
         plt.close()
@@ -285,7 +285,7 @@ def show_predictions(images, targets, predictions, indices=None, save_dir=None, 
             filename = f'{phase_str}prediction_sample_{idx+1}.png'
             save_path = os.path.join(save_dir, filename)
             plt.savefig(save_path, dpi=150, bbox_inches='tight')
-            print(f"Prediction plot saved: {save_path}")
+            #print(f"Prediction plot saved: {save_path}")
         
         plt.show()
         plt.close()
@@ -519,7 +519,7 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             filename = f'{phase_str}failure_sample_{idx+1}.png'
             save_path = os.path.join(save_dir, filename)
             plt.savefig(save_path, dpi=150, bbox_inches='tight')
-            print(f"Failure plot saved: {save_path}")
+            #print(f"Failure plot saved: {save_path}")
         
         plt.show()
         plt.close()
@@ -747,7 +747,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             bcg_dec = metadata_list[idx].get('bcg_dec')
             if bcg_ra is not None and bcg_dec is not None:
                 use_radec = True
-                print(f"Using RA/Dec coordinates: RA={bcg_ra:.6f}, Dec={bcg_dec:.6f}")
+                #print(f"Using RA/Dec coordinates: RA={bcg_ra:.6f}, Dec={bcg_dec:.6f}")
         
         if use_radec:
             ax.set_xlabel("RA", fontsize=14)
@@ -850,7 +850,7 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             filename = f'{phase_str}prediction_sample_{idx+1}_enhanced.png'
             save_path = os.path.join(physical_save_dir, filename)
             plt.savefig(save_path, dpi=150, bbox_inches='tight')
-            print(f"Enhanced prediction plot saved: {save_path}")
+            #print(f"Enhanced prediction plot saved: {save_path}")
         
         plt.show()
         plt.close()
