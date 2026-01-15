@@ -284,17 +284,6 @@ The system reports:
   - `distance_error`: Pixel distance between prediction and truth
   - `n_candidates`: Number of candidates found in image
 
-## Comparison with Original Repository
-
-This repository maintains the same structure as `bcg_with_ml` but focuses exclusively on:
-- ✅ Candidate-based classification (no coordinate regression)
-- ✅ Same data/, ml_models/, utils/ structure
-- ✅ Compatible train.py and test.py scripts
-- ✅ Similar full_run.py workflow
-- ❌ No ResNet18/ResNet34 coordinate regression models
-- ❌ No redshift/SN map multi-input support
-- ❌ No uncertainty quantification via dropout
-
 ## Dependencies
 
 - `torch>=2.0.0`: Deep learning framework
@@ -303,6 +292,3 @@ This repository maintains the same structure as `bcg_with_ml` but focuses exclus
 - `matplotlib>=3.4.0`: Plotting and visualization
 - `numpy`, `pandas`, `scipy`: Standard scientific computing
 
-## License
-
-[Add appropriate license information]
