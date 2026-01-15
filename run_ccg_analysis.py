@@ -47,7 +47,8 @@ class CCGAnalysisRunner:
                  radius_kpc=300.0, relative_threshold=5.0, top_n_candidates=3,
                  rm_member_dir=None, pmem_cutoff=0.2, use_adaptive_method=True,
                  dominance_fraction=0.4, min_member_fraction=0.05,
-                 distribution_mode='proportional', desprior_csv_path=None):
+                 distribution_mode='proportional', desprior_csv_path=None,
+                 output_dir=None):
         """
         Args:
             experiment_dir: Root experiment directory (e.g., trained_models/candidate_classifier_*)
@@ -66,6 +67,8 @@ class CCGAnalysisRunner:
             distribution_mode: How to distribute p_CCG: 'proportional' or 'equal'
             desprior_csv_path: Path to DESprior candidates CSV (purged version)
                               If provided, uses these candidates instead of image detection
+            output_dir: Output directory for results (optional)
+                       If not specified, uses experiment_dir/evaluation_results/physical_images_with_members/
         """
         self.experiment_dir = experiment_dir
         self.image_dir = image_dir
@@ -93,7 +96,11 @@ class CCGAnalysisRunner:
 
         # Set up paths
         self.eval_dir = os.path.join(experiment_dir, 'evaluation_results')
-        self.output_dir = os.path.join(self.eval_dir, 'physical_images_with_members')
+        # Use provided output_dir or default to eval_dir/physical_images_with_members
+        if output_dir:
+            self.output_dir = output_dir
+        else:
+            self.output_dir = os.path.join(self.eval_dir, 'physical_images_with_members')
 
         # Initialize calculator
         self.calculator = CCGProbabilityCalculator(
@@ -688,6 +695,11 @@ if __name__ == "__main__":
                        help='Path to DESprior candidates CSV (purged version). '
                             'If provided, uses same candidates as ProbabilisticTesting plots')
 
+    # Output directory (optional - defaults to experiment_dir/evaluation_results/physical_images_with_members/)
+    parser.add_argument('--output_dir', type=str, default=None,
+                       help='Output directory for CCG analysis results. '
+                            'If not specified, uses experiment_dir/evaluation_results/physical_images_with_members/')
+
     args = parser.parse_args()
 
     use_adaptive = args.use_adaptive.lower() == 'true'
@@ -703,7 +715,8 @@ if __name__ == "__main__":
         dominance_fraction=args.dominance_fraction,
         min_member_fraction=args.min_member_fraction,
         distribution_mode=args.distribution_mode,
-        desprior_csv_path=args.desprior_csv_path
+        desprior_csv_path=args.desprior_csv_path,
+        output_dir=args.output_dir
     )
 
     results = runner.run_complete_analysis(

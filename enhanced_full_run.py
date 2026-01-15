@@ -528,6 +528,17 @@ def main():
     
     output_dir = f"./trained_models/{experiment_name}_run_{timestamp}"
     print(f"\nExperiment output directory: {output_dir}")
+
+    # Define clean subdirectory structure
+    dirs = {
+        'models': os.path.join(output_dir, 'models'),
+        'config': os.path.join(output_dir, 'config'),
+        'plots': os.path.join(output_dir, 'plots'),
+        'evaluation': os.path.join(output_dir, 'evaluation'),
+        'feature_analysis': os.path.join(output_dir, 'feature_analysis'),
+        'literature': os.path.join(output_dir, 'literature'),
+        'ccg_analysis': os.path.join(output_dir, 'ccg_analysis'),
+    }
     
     # Build training command
     train_command = f"""python {train_script} \\
@@ -586,8 +597,10 @@ def main():
     if gpu_available not in ['n', 'no']:
         train_command += " --use_gpu"
     
-    # Create output directory and save CCG config for training_curves.png
+    # Create output directory structure
     os.makedirs(output_dir, exist_ok=True)
+    for subdir in dirs.values():
+        os.makedirs(subdir, exist_ok=True)
 
     # Save CCG analysis config to JSON for training_curves.png text box
     ccg_config = {
@@ -599,7 +612,7 @@ def main():
         'ccg_n_images': ccg_n_images,
         'detection_threshold': detection_threshold if use_uq else 0.5
     }
-    ccg_config_path = os.path.join(output_dir, 'ccg_config.json')
+    ccg_config_path = os.path.join(dirs['config'], 'ccg_config.json')
     with open(ccg_config_path, 'w') as f:
         json.dump(ccg_config, f, indent=2)
     print(f"CCG config saved to: {ccg_config_path}")
@@ -628,34 +641,51 @@ def main():
         print("Training failed. Stopping execution.")
         return
     
-    # Step 2: Find best model
+    # Step 2: Find best model and organize files into subdirectories
+    import shutil
+
     if use_uq:
         model_name = "best_probabilistic_classifier"
     else:
         model_name = "best_candidate_classifier"
-    
-    model_path = os.path.join(output_dir, f"{model_name}.pth")
-    scaler_path = os.path.join(output_dir, f"{model_name}_scaler.pkl")
-    
+
+    # Move model files from root to models/ subdirectory
+    for name in [model_name, model_name.replace("best_", "final_")]:
+        for suffix in ['.pth', '_scaler.pkl', '_color_extractor.pkl']:
+            src = os.path.join(output_dir, f"{name}{suffix}")
+            if os.path.exists(src):
+                dst = os.path.join(dirs['models'], f"{name}{suffix}")
+                shutil.move(src, dst)
+                print(f"  Moved: {os.path.basename(src)} -> models/")
+
+    # Move training curves to plots/
+    for fname in ['training_curves.png', 'training_curves.csv']:
+        src = os.path.join(output_dir, fname)
+        if os.path.exists(src):
+            shutil.move(src, os.path.join(dirs['plots'], fname))
+
+    model_path = os.path.join(dirs['models'], f"{model_name}.pth")
+    scaler_path = os.path.join(dirs['models'], f"{model_name}_scaler.pkl")
+
     if not os.path.exists(model_path) or not os.path.exists(scaler_path):
         print(f"Expected model files not found:")
         print(f"  Model: {model_path}")
         print(f"  Scaler: {scaler_path}")
         print("Checking for final model...")
         final_model_name = model_name.replace("best_", "final_")
-        model_path = os.path.join(output_dir, f"{final_model_name}.pth")
-        scaler_path = os.path.join(output_dir, f"{final_model_name}_scaler.pkl")
-    
+        model_path = os.path.join(dirs['models'], f"{final_model_name}.pth")
+        scaler_path = os.path.join(dirs['models'], f"{final_model_name}_scaler.pkl")
+
     if not os.path.exists(model_path) or not os.path.exists(scaler_path):
         print("No trained models found. Training may have failed.")
         return
-    
+
     # Step 3: Testing
     print("\n" + "="*80)
     print("STEP 2: TESTING BCG CLASSIFIER")
     print("="*80)
-    
-    test_output_dir = os.path.join(output_dir, "evaluation_results")
+
+    test_output_dir = dirs['evaluation']
     
     test_command = f"""python {test_script} \\
         --model_path "{model_path}" \\
@@ -719,9 +749,9 @@ def main():
         print("\n" + "="*80)
         print("STEP 3: FEATURE IMPORTANCE ANALYSIS")
         print("="*80)
-        
-        analysis_output_dir = os.path.join(output_dir, "feature_importance_analysis")
-        
+
+        analysis_output_dir = dirs['feature_analysis']
+
         # Prepare test data path for analysis
         test_data_path = os.path.join(test_output_dir, "test_features.npz")
         if not os.path.exists(test_data_path):
@@ -822,7 +852,7 @@ except Exception as e:
             plot_config['candidate_delta_mstar_range'] = candidate_delta_mstar_range
 
         # Save config to file for plotting functions to use
-        config_file = os.path.join(output_dir, 'experiment_config.json')
+        config_file = os.path.join(dirs['config'], 'experiment_config.json')
         with open(config_file, 'w') as f:
             json.dump(plot_config, f, indent=2)
         print(f"Experiment config saved to: {config_file}")
@@ -850,6 +880,22 @@ except Exception as e:
             print("Completeness/purity plotting failed, but continuing...")
         else:
             print(f"Completeness and purity plots saved to: {output_dir}/completeness_purity_plots.png")
+        # Move generated plots from root to plots/ directory
+        plots_to_move = [
+            'diagnostic_plots.png', 'diagnostic_plots.pdf',
+            'diagnostic_plots_sectors.png', 'diagnostic_plots_sectors.pdf',
+            'rank_histograms.png', 'rank_histograms.pdf',
+            'completeness_purity_plots.png', 'completeness_purity_plots.pdf'
+        ]
+        for fname in plots_to_move:
+            src = os.path.join(output_dir, fname)
+            if os.path.exists(src):
+                # Use cleaner names (remove redundant prefixes)
+                clean_name = fname.replace('diagnostic_plots_', '').replace('_plots', '')
+                dst = os.path.join(dirs['plots'], clean_name)
+                shutil.move(src, dst)
+        print(f"  Moved diagnostic plots to: {dirs['plots']}/")
+
     else:
         print(f"Warning: Evaluation results file not found: {evaluation_csv}")
         print("Skipping diagnostic plots generation.")
@@ -898,9 +944,14 @@ except Exception as e:
         if not run_command(lit_analysis_command, "Generating literature comparison analysis and plots"):
             print("Literature comparison analysis failed, but continuing...")
         else:
-            lit_output_dir = os.path.join(output_dir, "literature_analysis")
+            # Move literature_analysis to literature/
+            old_lit_dir = os.path.join(output_dir, "literature_analysis")
+            if os.path.exists(old_lit_dir) and old_lit_dir != dirs['literature']:
+                for f in os.listdir(old_lit_dir):
+                    shutil.move(os.path.join(old_lit_dir, f), dirs['literature'])
+                os.rmdir(old_lit_dir)
             print(f"Literature comparison analysis complete!")
-            print(f"  📊 9 publication-quality plots saved to: {lit_output_dir}/")
+            print(f"  📊 9 publication-quality plots saved to: {dirs['literature']}/")
             print(f"  📚 Comparison with 4 recent papers (2022-2025)")
     else:
         print(f"Warning: Literature comparison script not found: {lit_analysis_script}")
@@ -926,6 +977,7 @@ except Exception as e:
         # Run CCG analysis with adaptive method
         # Use same DESprior candidates as ProbabilisticTesting plots
         desprior_csv = _path_config.get_preferred_desprior_csv(bcg_arcmin_type)
+        ccg_output_dir = dirs['ccg_analysis']
         ccg_analysis_command = f"""python run_ccg_analysis.py \\
             --experiment_dir "{output_dir}" \\
             --image_dir "{IMAGE_DIR}" \\
@@ -937,10 +989,10 @@ except Exception as e:
             --min_member_fraction {ccg_min_member_fraction} \\
             --distribution_mode {ccg_distribution_mode} \\
             --desprior_csv_path "{desprior_csv}" \\
+            --output_dir "{ccg_output_dir}" \\
             --n_images {ccg_n_images}"""
 
         if run_command(ccg_analysis_command, "Running p_{CCG} cluster member analysis"):
-            ccg_output_dir = os.path.join(test_output_dir, "physical_images_with_members")
             print(f"CCG analysis complete!")
             print(f"  Results saved to: {ccg_output_dir}/")
             print(f"  p_CCG results: {ccg_output_dir}/p_ccg_results.csv")
@@ -960,71 +1012,68 @@ except Exception as e:
     print("="*80)
     
     print(f"\nExperiment results saved to: {output_dir}")
-    print("\nGenerated files:")
-    print(f"  Training curves: {output_dir}/training_curves.png")
+    print("\nDirectory structure:")
+    print(f"  {output_dir}/")
+    print(f"    models/          - Trained model files")
+    print(f"    config/          - Configuration files")
+    print(f"    plots/           - Training curves and diagnostic plots")
+    print(f"    evaluation/      - Test results and predictions")
+    print(f"    feature_analysis/ - Feature importance analysis")
+    print(f"    literature/      - Literature comparison analysis")
+    print(f"    ccg_analysis/    - CCG probability analysis")
+    print("\nKey files:")
+    print(f"  Training curves: {dirs['plots']}/training_curves.png")
     print(f"  Best model: {model_path}")
     print(f"  Feature scaler: {scaler_path}")
-    print(f"  Evaluation results: {test_output_dir}/")
+    print(f"  Evaluation results: {dirs['evaluation']}/")
     if use_uq:
-        print(f"  Rank-based samples: {test_output_dir}/*_prediction_sample_best_rank*.png")
+        print(f"  Rank-based samples: {dirs['evaluation']}/*_prediction_sample_best_rank*.png")
     else:
-        print(f"  Sample predictions: {test_output_dir}/*_prediction_sample_*.png")
-        print(f"  Failure cases: {test_output_dir}/*_failure_sample_*.png")
-    print(f"  Detailed results: {test_output_dir}/evaluation_results.csv")
-    print(f"  Diagnostic plots: {output_dir}/diagnostic_plots.png")
-    print(f"  Diagnostic plots (PDF): {output_dir}/diagnostic_plots.pdf")
-    print(f"  Sectors plot: {output_dir}/diagnostic_plots_sectors.png")
-    print(f"  Sectors plot (PDF): {output_dir}/diagnostic_plots_sectors.pdf")
-    print(f"  Rank histograms: {output_dir}/rank_histograms.png")
-    print(f"  Rank histograms (PDF): {output_dir}/rank_histograms.pdf")
-    print(f"  Completeness & Purity plots: {output_dir}/completeness_purity_plots.png")
-    print(f"  Completeness & Purity plots (PDF): {output_dir}/completeness_purity_plots.pdf")
+        print(f"  Sample predictions: {dirs['evaluation']}/*_prediction_sample_*.png")
+        print(f"  Failure cases: {dirs['evaluation']}/*_failure_sample_*.png")
+    print(f"  Detailed results: {dirs['evaluation']}/evaluation_results.csv")
+    print(f"  Diagnostic plots: {dirs['plots']}/diagnostic_plots.png")
+    print(f"  Sectors plot: {dirs['plots']}/sectors.png")
+    print(f"  Rank histograms: {dirs['plots']}/rank_histograms.png")
+    print(f"  Completeness/Purity: {dirs['plots']}/completeness_purity.png")
     
     if use_uq:
-        print(f"  Probability analysis: {test_output_dir}/probability_analysis.csv")
-        print(f"  Uncertainty plots: {test_output_dir}/probability_analysis.png")
+        print(f"  Probability analysis: {dirs['evaluation']}/probability_analysis.csv")
+        print(f"  Uncertainty plots: {dirs['evaluation']}/probability_analysis.png")
 
     # Literature comparison analysis results
-    lit_output_dir = os.path.join(output_dir, "literature_analysis")
-    if os.path.exists(lit_output_dir):
+    if os.path.exists(dirs['literature']):
         print(f"\n  === Literature Comparison Analysis ===")
-        print(f"  Analysis directory: {lit_output_dir}/")
-        print(f"  Learning curves: {lit_output_dir}/plot1_learning_curve.png")
-        print(f"  Accuracy plots: {lit_output_dir}/plot2_accuracy.png")
-        print(f"  Top features: {lit_output_dir}/plot3_top_features.png")
-        print(f"  Feature groups: {lit_output_dir}/plot4_feature_groups.png")
-        print(f"  Error CDF: {lit_output_dir}/plot5_error_cdf.png")
-        print(f"  Error histogram: {lit_output_dir}/plot6_error_histogram.png")
-        print(f"  Probability dist: {lit_output_dir}/plot7_probability_dist.png")
-        print(f"  Uncertainty scatter: {lit_output_dir}/plot8_uncertainty_scatter.png")
-        print(f"  Redshift performance: {lit_output_dir}/plot9_redshift_performance.png")
-        print(f"  📚 Compares with Janulewicz+ 2025, Chu+ 2025, Tian+ 2024, Marini+ 2022")
+        print(f"  Analysis directory: {dirs['literature']}/")
+        print(f"  Learning curves: {dirs['literature']}/plot1_learning_curve.png")
+        print(f"  Accuracy plots: {dirs['literature']}/plot2_accuracy.png")
+        print(f"  Top features: {dirs['literature']}/plot3_top_features.png")
+        print(f"  Feature groups: {dirs['literature']}/plot4_feature_groups.png")
+        print(f"  Error CDF: {dirs['literature']}/plot5_error_cdf.png")
+        print(f"  Error histogram: {dirs['literature']}/plot6_error_histogram.png")
+        print(f"  Probability dist: {dirs['literature']}/plot7_probability_dist.png")
+        print(f"  Uncertainty scatter: {dirs['literature']}/plot8_uncertainty_scatter.png")
+        print(f"  Redshift performance: {dirs['literature']}/plot9_redshift_performance.png")
 
     # Feature importance analysis results
     if run_analysis and analysis_output_dir:
         print(f"\n  === Feature Importance Analysis Results ===")
-        print(f"  Analysis directory: {analysis_output_dir}/")
-        print(f"  Feature rankings (CSV): {analysis_output_dir}/csv_reports/")
-        print(f"  Comprehensive plots: {analysis_output_dir}/plots/")
-        print(f"  Individual explanations: {analysis_output_dir}/individual_plots/")
-        print(f"  Analysis summary: {analysis_output_dir}/analysis_summary.txt")
-        print(f"  Raw results: {analysis_output_dir}/raw_results/")
-        if 'shap' in analysis_methods:
-            print(f"  SHAP summary plots: {analysis_output_dir}/plots/shap_summary_*.png")
-            print(f"  SHAP individual explanations: {analysis_output_dir}/individual_plots/shap_individual_*.png")
+        print(f"  Analysis directory: {dirs['feature_analysis']}/")
+        print(f"  Feature rankings: {dirs['feature_analysis']}/csv_reports/")
+        print(f"  Plots: {dirs['feature_analysis']}/plots/")
+        print(f"  Summary: {dirs['feature_analysis']}/analysis_summary.txt")
     elif run_analysis:
-        print(f"\n  ⚠️  Feature importance analysis was requested but failed to complete")
+        print(f"\n  Feature importance analysis was requested but failed to complete")
 
     # CCG probability analysis results
     if run_ccg_analysis and ccg_output_dir and os.path.exists(ccg_output_dir):
         print(f"\n  === CCG Probability Analysis Results ===")
-        print(f"  Analysis directory: {ccg_output_dir}/")
-        print(f"  p_CCG results: {ccg_output_dir}/p_ccg_results.csv")
-        print(f"  Diagnostic plots: {ccg_output_dir}/pccg_diagnostic_plots.png")
-        print(f"  Summary scatter: {ccg_output_dir}/pccg_vs_barp_scatter.png")
-        print(f"  Physical images with members: {ccg_output_dir}/*.png")
+        print(f"  Analysis directory: {dirs['ccg_analysis']}/")
+        print(f"  p_CCG results: {dirs['ccg_analysis']}/p_ccg_results.csv")
+        print(f"  Diagnostic plots: {dirs['ccg_analysis']}/pccg_diagnostic_plots.png")
+        print(f"  Physical images: {dirs['ccg_analysis']}/*_pccg.png")
     elif run_ccg_analysis:
-        print(f"\n  ⚠️  CCG probability analysis was requested but failed to complete")
+        print(f"\n  CCG probability analysis was requested but failed to complete")
     
     print(f"\nApproach: Enhanced candidate-based BCG classification")
     print(f"Dataset: {DATASET_TYPE}")
@@ -1095,7 +1144,7 @@ except Exception as e:
         enhancement_num += 1
     
     print(f"{enhancement_num}. ✓ Literature Comparison Analysis:")
-    if os.path.exists(lit_output_dir):
+    if os.path.exists(dirs['literature']):
         print("   - 9 publication-quality plots generated")
         print("   - Comparison with 4 recent papers (2022-2025)")
         print("   - Learning curves, accuracy, error distributions")
@@ -1157,31 +1206,21 @@ except Exception as e:
     print("All existing functionality maintained with backward compatibility.")
     
     if run_analysis and analysis_output_dir:
-        print(f"\n🎯 FEATURE IMPORTANCE INSIGHTS:")
-        print(f"   📊 Check feature rankings: {analysis_output_dir}/csv_reports/")
-        print(f"   📈 View importance plots: {analysis_output_dir}/plots/")
-        print(f"   🔍 Individual explanations: {analysis_output_dir}/individual_plots/")
-        print(f"   📋 Read summary report: {analysis_output_dir}/analysis_summary.txt")
-        print(f"\n   Use these results to understand which features matter most for BCG detection!")
+        print(f"\nFEATURE IMPORTANCE INSIGHTS:")
+        print(f"   Check feature rankings: {dirs['feature_analysis']}/csv_reports/")
+        print(f"   View importance plots: {dirs['feature_analysis']}/plots/")
+        print(f"   Read summary report: {dirs['feature_analysis']}/analysis_summary.txt")
 
-    if os.path.exists(lit_output_dir):
-        print(f"\n📚 LITERATURE COMPARISON:")
-        print(f"   📊 View analysis plots: {lit_output_dir}/")
-        print(f"   📈 Compare with state-of-the-art methods from:")
-        print(f"      • Janulewicz et al. (2025) - Neural Networks for BCG ID")
-        print(f"      • Chu et al. (2025) - ML for Rubin-LSST")
-        print(f"      • Tian et al. (2024) - COSMIC Cluster Finding")
-        print(f"      • Marini et al. (2022) - ICL and BCG Identification")
-        print(f"\n   Use these plots for publications and presentations!")
+    if os.path.exists(dirs['literature']):
+        print(f"\nLITERATURE COMPARISON:")
+        print(f"   View analysis plots: {dirs['literature']}/")
+        print(f"   Compares with: Janulewicz+ 2025, Chu+ 2025, Tian+ 2024, Marini+ 2022")
 
     if run_ccg_analysis and ccg_output_dir and os.path.exists(ccg_output_dir):
-        print(f"\n🌌 CCG PROBABILITY ANALYSIS (p_{{CCG}}):")
-        print(f"   📊 Results: {ccg_output_dir}/p_ccg_results.csv")
-        print(f"   📈 Diagnostic plots: {ccg_output_dir}/pccg_diagnostic_plots.png")
-        print(f"   🖼️  Physical images: {ccg_output_dir}/*.png")
-        print(f"\n   The p_CCG probability uses cluster member density to verify CCG identification.")
-        print(f"   High agreement between bar_p and p_CCG indicates robust BCG detection.")
-        print(f"   Disagreements may indicate interesting merger systems or off-center BCGs.")
+        print(f"\nCCG PROBABILITY ANALYSIS (p_CCG):")
+        print(f"   Results: {dirs['ccg_analysis']}/p_ccg_results.csv")
+        print(f"   Diagnostic plots: {dirs['ccg_analysis']}/pccg_diagnostic_plots.png")
+        print(f"   Physical images: {dirs['ccg_analysis']}/*_pccg.png")
 
 
 if __name__ == "__main__":
