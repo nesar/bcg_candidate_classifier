@@ -658,8 +658,8 @@ def main():
                 shutil.move(src, dst)
                 print(f"  Moved: {os.path.basename(src)} -> models/")
 
-    # Move training curves to plots/
-    for fname in ['training_curves.png', 'training_curves.csv']:
+    # Move training outputs to plots/
+    for fname in ['training_curves.png', 'training_curves.csv', 'training_data.csv']:
         src = os.path.join(output_dir, fname)
         if os.path.exists(src):
             shutil.move(src, os.path.join(dirs['plots'], fname))

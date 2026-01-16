@@ -50,6 +50,7 @@ PAIRED_COLORS = plt.cm.Paired.colors
 
 FONTS = {
     'title': 20,
+    'subtitle': 16,
     'label': 18,
     'tick': 14,
     'legend': 14,

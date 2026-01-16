@@ -94,9 +94,12 @@ class CCGAnalysisRunner:
             except Exception as e:
                 print(f"Warning: Could not load DESprior candidates: {e}")
 
-        # Set up paths
-        self.eval_dir = os.path.join(experiment_dir, 'evaluation_results')
-        # Use provided output_dir or default to eval_dir/physical_images_with_members
+        # Set up paths - check new structure first, then fallback to old
+        new_eval_dir = os.path.join(experiment_dir, 'evaluation')
+        old_eval_dir = os.path.join(experiment_dir, 'evaluation_results')
+        self.eval_dir = new_eval_dir if os.path.exists(new_eval_dir) else old_eval_dir
+
+        # Use provided output_dir or default to ccg_analysis (new) or eval_dir/physical_images_with_members (old)
         if output_dir:
             self.output_dir = output_dir
         else:

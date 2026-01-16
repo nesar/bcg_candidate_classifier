@@ -56,17 +56,17 @@ def load_experiment_data(exp_dir):
     exp_dir = Path(exp_dir)
     data = {}
 
-    # Required files
+    # Required files - check new structure first, then fallback to old
     required_files = {
-        'training': exp_dir / 'training_data.csv',
-        'evaluation': exp_dir / 'evaluation_results' / 'evaluation_results.csv',
-        'probability': exp_dir / 'evaluation_results' / 'probability_analysis.csv',
+        'training': exp_dir / 'plots' / 'training_data.csv' if (exp_dir / 'plots' / 'training_data.csv').exists() else exp_dir / 'training_data.csv',
+        'evaluation': exp_dir / 'evaluation' / 'evaluation_results.csv' if (exp_dir / 'evaluation' / 'evaluation_results.csv').exists() else exp_dir / 'evaluation_results' / 'evaluation_results.csv',
+        'probability': exp_dir / 'evaluation' / 'probability_analysis.csv' if (exp_dir / 'evaluation' / 'probability_analysis.csv').exists() else exp_dir / 'evaluation_results' / 'probability_analysis.csv',
     }
 
-    # Optional files
+    # Optional files - check new structure first, then fallback to old
     optional_files = {
-        'shap_breakdown': exp_dir / 'feature_importance_analysis' / 'csv_reports' / 'shap_physical_breakdown_data.csv',
-        'shap_importance': exp_dir / 'feature_importance_analysis' / 'csv_reports' / 'shap_physical_importance_data.csv',
+        'shap_breakdown': exp_dir / 'feature_analysis' / 'csv_reports' / 'shap_physical_breakdown_data.csv' if (exp_dir / 'feature_analysis' / 'csv_reports' / 'shap_physical_breakdown_data.csv').exists() else exp_dir / 'feature_importance_analysis' / 'csv_reports' / 'shap_physical_breakdown_data.csv',
+        'shap_importance': exp_dir / 'feature_analysis' / 'csv_reports' / 'shap_physical_importance_data.csv' if (exp_dir / 'feature_analysis' / 'csv_reports' / 'shap_physical_importance_data.csv').exists() else exp_dir / 'feature_importance_analysis' / 'csv_reports' / 'shap_physical_importance_data.csv',
     }
 
     # Load required files
