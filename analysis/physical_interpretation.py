@@ -271,10 +271,10 @@ class PhysicalFeatureInterpreter:
             'context_large_mean': 'Large-Scale Env. Mean $\\mu_\\text{env}^{(r_\\text{large})}$',
             'context_large_std': 'Large-Scale Env. Std. Dev. $\\sigma_\\text{env}^{(r_\\text{large})}$',
             'context_large_pixels': 'Large-Scale Env. Size $N_{r_\\text{large}}$',
-            'context_north_mean': 'Northern Direction Mean $\\mu_\\text{dir,N}$',
-            'context_east_mean': 'Eastern Direction Mean $\\mu_\\text{dir,E}$',
-            'context_south_mean': 'Southern Direction Mean $\\mu_\\text{dir,S}$',
-            'context_west_mean': 'Western Direction Mean $\\mu_\\text{dir,W}$',
+            'context_north_mean': 'Direction-1 Mean $\\bar{I}_{1}$',
+            'context_east_mean': 'Direction-2 Mean $\\bar{I}_{2}$',
+            'context_south_mean': 'Direction-3 Mean $\\bar{I}_{3}$',
+            'context_west_mean': 'Direction-4 Mean $\\bar{I}_{4}$',
             
             # Raw RGB Color Features (54 total - no PCA)
             # Basic channel statistics (9 features)
