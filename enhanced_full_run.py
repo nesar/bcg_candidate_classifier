@@ -2,10 +2,6 @@
 """
 Enhanced BCG Candidate Classifier - Full Run Demo
 
-This script extends the working old_full_run.py with key enhancements:
-1. Uncertainty quantification (UQ) with probability thresholds for detections
-
-The script maintains all existing functionality while adding options for these improvements.
 """
 
 import os
@@ -77,7 +73,6 @@ class BCGPathConfig:
 
 # Global path configuration instance
 _path_config = BCGPathConfig()
-
 
 def get_bcg_data_ranges(bcg_arcmin_type):
     """Get the actual min/max ranges from BCG data files."""
