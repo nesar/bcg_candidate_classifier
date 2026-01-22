@@ -468,11 +468,11 @@ def main():
     if modify_training in ['y', 'yes']:
         epochs = int(input("Number of epochs (default 256): ") or "256")
         batch_size = int(input("Batch size (default 32): ") or "32")
-        lr = float(input("Learning rate (default 0.0001): ") or "0.0001")
+        lr = float(input("Learning rate (default 0.00005): ") or "0.00005")
     else:
         epochs = 256
         batch_size = 32
-        lr = 0.0001
+        lr = 0.00005
         print(f"Using defaults: epochs={epochs}, batch_size={batch_size}, lr={lr}")
     
     # Feature extraction parameters
