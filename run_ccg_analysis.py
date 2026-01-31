@@ -568,6 +568,127 @@ class CCGAnalysisRunner:
                 print(f"  Min: {valid_df['n_members'].min():.0f}")
                 print(f"  Max: {valid_df['n_members'].max():.0f}")
 
+    def save_multiple_candidates_results(self):
+        """
+        Save p_{CCG} results for ALL top candidates (not just Rank-1) to a new CSV file.
+
+        This creates p_ccg_results_multiple.csv with one row per candidate (not per cluster),
+        including all top candidates that are shown in the pccg visualization images.
+
+        Columns are arranged with cluster_name, bar_p, p_ccg first, then the rest.
+        """
+        if not self.detailed_results:
+            print("No detailed results to save. Run compute_pccg_for_all_clusters first.")
+            return
+
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # Build list of rows - one per candidate per cluster
+        rows = []
+        for result in self.detailed_results:
+            cluster_name = result.get('cluster_name', 'unknown')
+            redshift = result.get('redshift', np.nan)
+            radius_kpc = result.get('radius_kpc', self.radius_kpc)
+            members_in_fov = result.get('members_in_fov', 0)
+            total_weighted_members = result.get('total_weighted_members', 0)
+            error = result.get('error')
+
+            # Get arrays - these should all have the same length
+            candidates_pixel = result.get('candidates_pixel', np.array([]))
+            candidate_probs = result.get('candidate_probs', np.array([]))
+            p_ccg_values = result.get('p_ccg', np.array([]))
+            member_counts = result.get('member_counts', np.array([]))
+            weighted_counts = result.get('weighted_counts', np.array([]))
+            member_fractions = result.get('member_fractions', np.array([]))
+
+            # Target info (same for all candidates in this cluster)
+            target_coords = result.get('target_coords')
+            target_prob = result.get('target_prob')
+            true_x = target_coords[0] if target_coords is not None else np.nan
+            true_y = target_coords[1] if target_coords is not None else np.nan
+
+            # Number of candidates for this cluster
+            n_candidates = len(candidates_pixel) if len(candidates_pixel) > 0 else 0
+
+            if n_candidates == 0:
+                # No candidates - still record the cluster with NaN values
+                rows.append({
+                    'cluster_name': cluster_name,
+                    'bar_p': np.nan,
+                    'p_ccg': np.nan,
+                    'candidate_rank': np.nan,
+                    'n_ranked_candidates': 0,
+                    'pred_x': np.nan,
+                    'pred_y': np.nan,
+                    'true_x': true_x,
+                    'true_y': true_y,
+                    'z': redshift,
+                    'n_members': 0,
+                    'weighted_members': 0.0,
+                    'member_fraction': np.nan,
+                    'members_in_fov': members_in_fov,
+                    'total_weighted_members': total_weighted_members,
+                    'radius_kpc': radius_kpc,
+                    'error': error
+                })
+                continue
+
+            # Create one row per candidate
+            for i in range(n_candidates):
+                pred_x = candidates_pixel[i][0] if i < len(candidates_pixel) else np.nan
+                pred_y = candidates_pixel[i][1] if i < len(candidates_pixel) else np.nan
+                bar_p = candidate_probs[i] if i < len(candidate_probs) else np.nan
+                p_ccg = p_ccg_values[i] if i < len(p_ccg_values) else np.nan
+                n_mem = member_counts[i] if i < len(member_counts) else 0
+                w_mem = weighted_counts[i] if i < len(weighted_counts) else 0.0
+                mem_frac = member_fractions[i] if i < len(member_fractions) else np.nan
+
+                rows.append({
+                    'cluster_name': cluster_name,
+                    'bar_p': bar_p,
+                    'p_ccg': p_ccg,
+                    'candidate_rank': i + 1,  # 1-indexed rank (Rank-1, Rank-2, etc.)
+                    'n_ranked_candidates': n_candidates,
+                    'pred_x': pred_x,
+                    'pred_y': pred_y,
+                    'true_x': true_x,
+                    'true_y': true_y,
+                    'z': redshift,
+                    'n_members': n_mem,
+                    'weighted_members': w_mem,
+                    'member_fraction': mem_frac,
+                    'members_in_fov': members_in_fov,
+                    'total_weighted_members': total_weighted_members,
+                    'radius_kpc': radius_kpc,
+                    'error': error
+                })
+
+        # Create DataFrame with desired column order
+        column_order = [
+            'cluster_name', 'bar_p', 'p_ccg', 'candidate_rank', 'n_ranked_candidates',
+            'pred_x', 'pred_y', 'true_x', 'true_y', 'z',
+            'n_members', 'weighted_members', 'member_fraction',
+            'members_in_fov', 'total_weighted_members', 'radius_kpc', 'error'
+        ]
+
+        multiple_df = pd.DataFrame(rows, columns=column_order)
+
+        # Save to CSV
+        csv_path = os.path.join(self.output_dir, 'p_ccg_results_multiple.csv')
+        multiple_df.to_csv(csv_path, index=False)
+        print(f"Saved multi-candidate p_CCG results to: {csv_path}")
+
+        # Print summary
+        n_clusters = multiple_df['cluster_name'].nunique()
+        n_rows = len(multiple_df)
+        print(f"  Total clusters: {n_clusters}")
+        print(f"  Total candidate entries: {n_rows}")
+        if n_clusters > 0:
+            avg_candidates = n_rows / n_clusters
+            print(f"  Average candidates per cluster: {avg_candidates:.1f}")
+
+        return multiple_df
+
     def run_complete_analysis(self, n_images=20, max_clusters=None, verbose=True):
         """
         Run the complete p_{CCG} analysis pipeline.
@@ -597,6 +718,7 @@ class CCGAnalysisRunner:
         # Step 3: Save results
         print("\nStep 3: Saving results...")
         self.save_results()
+        self.save_multiple_candidates_results()
 
         # Step 4: Generate diagnostic plots
         print("\nStep 4: Generating diagnostic plots...")
