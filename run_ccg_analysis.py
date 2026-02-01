@@ -264,6 +264,15 @@ class CCGAnalysisRunner:
             true_y = row.get('true_y', np.nan)
             bcg_prob = row.get('bcg_prob', np.nan)
 
+            # Convert target pixel coords to RA/Dec
+            target_ra, target_dec = np.nan, np.nan
+            if not np.isnan(true_x) and not np.isnan(true_y) and image_path is not None:
+                try:
+                    wcs = read_wcs_from_tif(image_path)
+                    target_ra, target_dec = pixel_to_radec(true_x, true_y, wcs)
+                except Exception:
+                    pass  # Keep NaN if conversion fails
+
             # Store detailed result
             detailed = {
                 'cluster_name': cluster_name,
@@ -271,6 +280,7 @@ class CCGAnalysisRunner:
                 'redshift': redshift,
                 'candidates_pixel': candidates_pixel,
                 'candidate_probs': candidate_probs,
+                'candidates_radec': result.get('candidates_radec', np.array([])),
                 'n_ranked_candidates': len(candidates_pixel),
                 'p_ccg': result['p_ccg'],
                 'member_counts': result['member_counts'],
@@ -280,6 +290,7 @@ class CCGAnalysisRunner:
                 'members_in_fov': result['members_in_fov'],
                 'total_weighted_members': result.get('total_weighted_members', 0),
                 'target_coords': (true_x, true_y) if not np.isnan(true_x) else None,
+                'target_radec': (target_ra, target_dec),
                 'target_prob': bcg_prob,
                 'error': result.get('error')
             }
@@ -595,6 +606,7 @@ class CCGAnalysisRunner:
 
             # Get arrays - these should all have the same length
             candidates_pixel = result.get('candidates_pixel', np.array([]))
+            candidates_radec = result.get('candidates_radec', np.array([]))
             candidate_probs = result.get('candidate_probs', np.array([]))
             p_ccg_values = result.get('p_ccg', np.array([]))
             member_counts = result.get('member_counts', np.array([]))
@@ -603,9 +615,12 @@ class CCGAnalysisRunner:
 
             # Target info (same for all candidates in this cluster)
             target_coords = result.get('target_coords')
+            target_radec = result.get('target_radec')
             target_prob = result.get('target_prob')
             true_x = target_coords[0] if target_coords is not None else np.nan
             true_y = target_coords[1] if target_coords is not None else np.nan
+            true_ra = target_radec[0] if target_radec is not None else np.nan
+            true_dec = target_radec[1] if target_radec is not None else np.nan
 
             # Number of candidates for this cluster
             n_candidates = len(candidates_pixel) if len(candidates_pixel) > 0 else 0
@@ -620,8 +635,12 @@ class CCGAnalysisRunner:
                     'n_ranked_candidates': 0,
                     'pred_x': np.nan,
                     'pred_y': np.nan,
+                    'pred_ra': np.nan,
+                    'pred_dec': np.nan,
                     'true_x': true_x,
                     'true_y': true_y,
+                    'true_ra': true_ra,
+                    'true_dec': true_dec,
                     'z': redshift,
                     'n_members': 0,
                     'weighted_members': 0.0,
@@ -637,6 +656,12 @@ class CCGAnalysisRunner:
             for i in range(n_candidates):
                 pred_x = candidates_pixel[i][0] if i < len(candidates_pixel) else np.nan
                 pred_y = candidates_pixel[i][1] if i < len(candidates_pixel) else np.nan
+                # Get RA/Dec for this candidate
+                if i < len(candidates_radec) and len(candidates_radec) > 0:
+                    pred_ra = candidates_radec[i][0]
+                    pred_dec = candidates_radec[i][1]
+                else:
+                    pred_ra, pred_dec = np.nan, np.nan
                 bar_p = candidate_probs[i] if i < len(candidate_probs) else np.nan
                 p_ccg = p_ccg_values[i] if i < len(p_ccg_values) else np.nan
                 n_mem = member_counts[i] if i < len(member_counts) else 0
@@ -651,8 +676,12 @@ class CCGAnalysisRunner:
                     'n_ranked_candidates': n_candidates,
                     'pred_x': pred_x,
                     'pred_y': pred_y,
+                    'pred_ra': pred_ra,
+                    'pred_dec': pred_dec,
                     'true_x': true_x,
                     'true_y': true_y,
+                    'true_ra': true_ra,
+                    'true_dec': true_dec,
                     'z': redshift,
                     'n_members': n_mem,
                     'weighted_members': w_mem,
@@ -666,7 +695,8 @@ class CCGAnalysisRunner:
         # Create DataFrame with desired column order
         column_order = [
             'cluster_name', 'bar_p', 'p_ccg', 'candidate_rank', 'n_ranked_candidates',
-            'pred_x', 'pred_y', 'true_x', 'true_y', 'z',
+            'pred_x', 'pred_y', 'pred_ra', 'pred_dec',
+            'true_x', 'true_y', 'true_ra', 'true_dec', 'z',
             'n_members', 'weighted_members', 'member_fraction',
             'members_in_fov', 'total_weighted_members', 'radius_kpc', 'error'
         ]
