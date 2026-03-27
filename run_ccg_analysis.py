@@ -621,6 +621,7 @@ class CCGAnalysisRunner:
             true_y = target_coords[1] if target_coords is not None else np.nan
             true_ra = target_radec[0] if target_radec is not None else np.nan
             true_dec = target_radec[1] if target_radec is not None else np.nan
+            bcg_prob = target_prob if target_prob is not None else np.nan
 
             # Number of candidates for this cluster
             n_candidates = len(candidates_pixel) if len(candidates_pixel) > 0 else 0
@@ -631,6 +632,7 @@ class CCGAnalysisRunner:
                     'cluster_name': cluster_name,
                     'bar_p': np.nan,
                     'p_ccg': np.nan,
+                    'bcg_prob': bcg_prob,
                     'candidate_rank': np.nan,
                     'n_ranked_candidates': 0,
                     'pred_x': np.nan,
@@ -672,6 +674,7 @@ class CCGAnalysisRunner:
                     'cluster_name': cluster_name,
                     'bar_p': bar_p,
                     'p_ccg': p_ccg,
+                    'bcg_prob': bcg_prob,
                     'candidate_rank': i + 1,  # 1-indexed rank (Rank-1, Rank-2, etc.)
                     'n_ranked_candidates': n_candidates,
                     'pred_x': pred_x,
@@ -694,7 +697,7 @@ class CCGAnalysisRunner:
 
         # Create DataFrame with desired column order
         column_order = [
-            'cluster_name', 'bar_p', 'p_ccg', 'candidate_rank', 'n_ranked_candidates',
+            'cluster_name', 'bar_p', 'p_ccg', 'bcg_prob', 'candidate_rank', 'n_ranked_candidates',
             'pred_x', 'pred_y', 'pred_ra', 'pred_dec',
             'true_x', 'true_y', 'true_ra', 'true_dec', 'z',
             'n_members', 'weighted_members', 'member_fraction',
