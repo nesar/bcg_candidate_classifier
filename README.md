@@ -238,7 +238,7 @@ Linear(32, 1) → Raw score
 **Training Details:**
 - Loss: Cross-entropy over candidates per image
   - Softmax applied across all candidates in same image
-  - True label: index of candidate closest to ground truth BCG
+  - True label: index of candidate closest to ground truth CCG
   - Handles variable numbers of candidates per image
 - Optimizer: Adam (default lr=0.001)
 - Feature scaling: StandardScaler (fitted on training set)
@@ -246,7 +246,7 @@ Linear(32, 1) → Raw score
 
 **Inference:**
 - Computes scores for all candidates in test image
-- Selects candidate with highest score as predicted BCG
+- Selects candidate with highest score as predicted CCG
 - Returns: (x, y) coordinates of best candidate
 
 ## Performance Metrics
@@ -278,9 +278,9 @@ The system reports:
 - `evaluation_results.csv`: Detailed per-sample results including:
   - `cluster_name`: Original cluster identifier
   - `z`: Redshift (if available in truth table)
-  - `bcg_prob`: BCG probability score (if available in truth table)
-  - `pred_x`, `pred_y`: Predicted BCG coordinates
-  - `true_x`, `true_y`: True BCG coordinates
+  - `bcg_prob`: CCG probability score (if available in truth table)
+  - `pred_x`, `pred_y`: Predicted CCG coordinates
+  - `true_x`, `true_y`: True CCG coordinates
   - `distance_error`: Pixel distance between prediction and truth
   - `n_candidates`: Number of candidates found in image
 
