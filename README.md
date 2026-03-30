@@ -1,6 +1,6 @@
 # CCG Candidate Classifier
 
-Implementation of candidate-based Cluster Central Galaxy (CCG) detection using deep learning. This repository focuses exclusively on the candidate-based classification approach, where local bright spots are first identified and then ranked/classified to find the best BCG.
+Implementation of candidate-based Cluster Central Galaxy (CCG) detection using deep learning. This repository focuses exclusively on the candidate-based classification approach, where local bright spots are first identified and then ranked/classified to find the best CCG.
 
 ## Overview
 
@@ -20,7 +20,7 @@ bcg_candidate_classifier/
 │   ├── candidate_dataset.py      # Dataset classes for candidate-based training
 │   └── __init__.py
 ├── ml_models/                     # Machine learning models
-│   ├── candidate_classifier.py   # BCG candidate classifier network
+│   ├── candidate_classifier.py   # CCG candidate classifier network
 │   └── __init__.py
 ├── utils/                         # Core utilities
 │   ├── candidate_based_bcg.py    # Candidate finding and feature extraction
