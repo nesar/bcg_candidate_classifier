@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ccg_probability import (
     CCGProbabilityCalculator, load_rm_member_catalog,
     find_cluster_image, read_wcs_from_tif, pixel_to_radec,
-    get_data_paths
+    get_data_paths, angular_separation_arcsec, angular_to_physical_kpc
 )
 from ccg_visualization import (
     plot_pccg_vs_barp_diagnostic, plot_pccg_summary_scatter,
@@ -623,6 +623,20 @@ class CCGAnalysisRunner:
             true_dec = target_radec[1] if target_radec is not None else np.nan
             bcg_prob = target_prob if target_prob is not None else np.nan
 
+            # Get filename from result
+            filename = result.get('filename', None)
+
+            # Look up uncertainty values from eval_df
+            max_uncertainty = np.nan
+            avg_uncertainty = np.nan
+            if hasattr(self, 'eval_df') and self.eval_df is not None:
+                cluster_row = self.eval_df[self.eval_df['cluster_name'] == cluster_name]
+                if len(cluster_row) > 0:
+                    if 'max_uncertainty' in cluster_row.columns:
+                        max_uncertainty = cluster_row['max_uncertainty'].values[0]
+                    if 'avg_uncertainty' in cluster_row.columns:
+                        avg_uncertainty = cluster_row['avg_uncertainty'].values[0]
+
             # Number of candidates for this cluster
             n_candidates = len(candidates_pixel) if len(candidates_pixel) > 0 else 0
 
@@ -630,6 +644,7 @@ class CCGAnalysisRunner:
                 # No candidates - still record the cluster with NaN values
                 rows.append({
                     'cluster_name': cluster_name,
+                    'filename': filename,
                     'bar_p': np.nan,
                     'p_ccg': np.nan,
                     'bcg_prob': bcg_prob,
@@ -643,7 +658,13 @@ class CCGAnalysisRunner:
                     'true_y': true_y,
                     'true_ra': true_ra,
                     'true_dec': true_dec,
+                    'distance_error': np.nan,
+                    'angular_sep_arcsec': np.nan,
+                    'physical_sep_kpc': np.nan,
+                    'is_match': np.nan,
                     'z': redshift,
+                    'max_uncertainty': max_uncertainty,
+                    'avg_uncertainty': avg_uncertainty,
                     'n_members': 0,
                     'weighted_members': 0.0,
                     'member_fraction': np.nan,
@@ -670,8 +691,23 @@ class CCGAnalysisRunner:
                 w_mem = weighted_counts[i] if i < len(weighted_counts) else 0.0
                 mem_frac = member_fractions[i] if i < len(member_fractions) else np.nan
 
+                # Compute distance/separation metrics
+                distance_error = np.sqrt((pred_x - true_x)**2 + (pred_y - true_y)**2) if not (np.isnan(pred_x) or np.isnan(true_x)) else np.nan
+
+                # Angular and physical separation
+                if not (np.isnan(pred_ra) or np.isnan(true_ra)):
+                    ang_sep = angular_separation_arcsec(pred_ra, pred_dec, true_ra, true_dec)
+                    phys_sep = angular_to_physical_kpc(ang_sep, redshift) if not np.isnan(redshift) else np.nan
+                else:
+                    ang_sep = np.nan
+                    phys_sep = np.nan
+
+                # is_match: True if pixel distance < 5 pixels (typical matching threshold)
+                is_match = distance_error < 5.0 if not np.isnan(distance_error) else np.nan
+
                 rows.append({
                     'cluster_name': cluster_name,
+                    'filename': filename,
                     'bar_p': bar_p,
                     'p_ccg': p_ccg,
                     'bcg_prob': bcg_prob,
@@ -685,7 +721,13 @@ class CCGAnalysisRunner:
                     'true_y': true_y,
                     'true_ra': true_ra,
                     'true_dec': true_dec,
+                    'distance_error': distance_error,
+                    'angular_sep_arcsec': ang_sep,
+                    'physical_sep_kpc': phys_sep,
+                    'is_match': is_match,
                     'z': redshift,
+                    'max_uncertainty': max_uncertainty,
+                    'avg_uncertainty': avg_uncertainty,
                     'n_members': n_mem,
                     'weighted_members': w_mem,
                     'member_fraction': mem_frac,
@@ -697,9 +739,12 @@ class CCGAnalysisRunner:
 
         # Create DataFrame with desired column order
         column_order = [
-            'cluster_name', 'bar_p', 'p_ccg', 'bcg_prob', 'candidate_rank', 'n_ranked_candidates',
+            'cluster_name', 'filename', 'bar_p', 'p_ccg', 'bcg_prob',
+            'candidate_rank', 'n_ranked_candidates',
             'pred_x', 'pred_y', 'pred_ra', 'pred_dec',
-            'true_x', 'true_y', 'true_ra', 'true_dec', 'z',
+            'true_x', 'true_y', 'true_ra', 'true_dec',
+            'distance_error', 'angular_sep_arcsec', 'physical_sep_kpc', 'is_match',
+            'z', 'max_uncertainty', 'avg_uncertainty',
             'n_members', 'weighted_members', 'member_fraction',
             'members_in_fov', 'total_weighted_members', 'radius_kpc', 'error'
         ]
