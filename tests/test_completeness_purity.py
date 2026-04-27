@@ -11,7 +11,7 @@ Example:
 
 import sys
 import os
-from plot_completeness_purity import plot_completeness_purity
+from plotting.plot_completeness_purity import plot_completeness_purity
 
 
 def find_evaluation_csv(experiment_dir):

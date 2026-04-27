@@ -853,7 +853,7 @@ except Exception as e:
         print(f"Experiment config saved to: {config_file}")
 
         # Generate sectors plot (donut charts for rank analysis)
-        sectors_command = f"python -c \"import json; from plot_sectors_hardcoded import create_sectors_plot; config = json.load(open('{config_file}')); create_sectors_plot('{evaluation_csv}', '{output_dir}', config=config)\""
+        sectors_command = f"python -c \"import json; from plotting.plot_sectors_hardcoded import create_sectors_plot; config = json.load(open('{config_file}')); create_sectors_plot('{evaluation_csv}', '{output_dir}', config=config)\""
 
         if not run_command(sectors_command, "Generating sectors plot"):
             print("Sectors plotting failed, but continuing...")
@@ -861,7 +861,7 @@ except Exception as e:
             print(f"Sectors plot saved to: {output_dir}/diagnostic_plots_sectors.png")
 
         # Generate rank histogram plots (r_center and p_RM histograms by rank)
-        rank_histograms_command = f"python -c \"from plot_rank_histograms import create_rank_histograms; create_rank_histograms('{evaluation_csv}', '{output_dir}', dataset_type='{bcg_arcmin_type}')\""
+        rank_histograms_command = f"python -c \"from plotting.plot_rank_histograms import create_rank_histograms; create_rank_histograms('{evaluation_csv}', '{output_dir}', dataset_type='{bcg_arcmin_type}')\""
 
         if not run_command(rank_histograms_command, "Generating rank histograms"):
             print("Rank histogram plotting failed, but continuing...")
@@ -869,7 +869,7 @@ except Exception as e:
             print(f"Rank histograms saved to: {output_dir}/rank_histograms.png")
 
         # Generate completeness and purity plots
-        completeness_command = f"python -c \"from plot_completeness_purity import plot_completeness_purity; plot_completeness_purity('{evaluation_csv}', '{output_dir}', '{TRUTH_TABLE}')\""
+        completeness_command = f"python -c \"from plotting.plot_completeness_purity import plot_completeness_purity; plot_completeness_purity('{evaluation_csv}', '{output_dir}', '{TRUTH_TABLE}')\""
 
         if not run_command(completeness_command, "Generating completeness and purity plots"):
             print("Completeness/purity plotting failed, but continuing...")
@@ -904,7 +904,7 @@ except Exception as e:
     # Run plot_eval_results.py if evaluation_results.csv exists
     evaluation_csv = os.path.join(test_output_dir, "evaluation_results.csv")
     if os.path.exists(evaluation_csv):
-        eval_plot_command = f"python plot_eval_results.py \"{evaluation_csv}\""
+        eval_plot_command = f"python plotting/plot_eval_results.py \"{evaluation_csv}\""
         if not run_command(eval_plot_command, "Generating evaluation analysis plots"):
             print("Evaluation plotting failed, but continuing...")
         else:
@@ -916,7 +916,7 @@ except Exception as e:
     if run_analysis and analysis_output_dir:
         csv_reports_dir = os.path.join(analysis_output_dir, "csv_reports")
         if os.path.exists(csv_reports_dir):
-            physical_plot_command = f"python plot_physical_results.py \"{csv_reports_dir}\""
+            physical_plot_command = f"python plotting/plot_physical_results.py \"{csv_reports_dir}\""
             if not run_command(physical_plot_command, "Generating physical feature importance plots"):
                 print("Physical feature plotting failed, but continuing...")
             else:

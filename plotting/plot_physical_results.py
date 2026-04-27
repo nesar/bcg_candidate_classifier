@@ -3,7 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import numpy as np
-from plot_config import setup_plot_style, COLORS, FONTS, SIZES
+
+try:
+    from plotting.plot_config import setup_plot_style, COLORS, FONTS, SIZES
+except ImportError:
+    from plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 def load_csvs(csv_dir):
     files = [f for f in os.listdir(csv_dir) if f.endswith(".csv")]

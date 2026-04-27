@@ -26,7 +26,7 @@ import warnings
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import consistent plot configuration
-from plot_config import setup_plot_style, COLORS, FONTS, SIZES
+from plotting.plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')

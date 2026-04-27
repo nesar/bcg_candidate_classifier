@@ -24,7 +24,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 import warnings
-from plot_config import setup_plot_style, COLORS, FONTS, SIZES
+try:
+    from plotting.plot_config import setup_plot_style, COLORS, FONTS, SIZES
+except ImportError:
+    from plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')

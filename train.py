@@ -35,7 +35,7 @@ from data.candidate_dataset_bcgs import (create_bcg_candidate_dataset_from_loade
 from utils.candidate_based_bcg import extract_patch_features, extract_context_features
 from utils.color_features import ColorFeatureExtractor
 from utils.reproducibility import set_global_seed, make_deterministic, seed_worker, get_generator, reset_model_weights
-from plot_config import setup_plot_style, COLORS, FONTS, SIZES
+from plotting.plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 
 # ============================================================================

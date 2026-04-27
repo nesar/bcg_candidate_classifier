@@ -15,7 +15,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
-from plot_config import setup_plot_style, COLORS, FONTS, SIZES, get_rank_colors
+
+try:
+    from plotting.plot_config import setup_plot_style, COLORS, FONTS, SIZES, get_rank_colors
+except ImportError:
+    from plot_config import setup_plot_style, COLORS, FONTS, SIZES, get_rank_colors
 
 
 def load_evaluation_results(results_file):

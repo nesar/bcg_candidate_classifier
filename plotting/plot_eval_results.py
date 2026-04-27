@@ -21,10 +21,13 @@ from scipy.stats import pearsonr, spearmanr, ks_2samp, mannwhitneyu
 import warnings
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import consistent plot configuration
-from plot_config import setup_plot_style, COLORS, FONTS, SIZES
+try:
+    from plotting.plot_config import setup_plot_style, COLORS, FONTS, SIZES
+except ImportError:
+    from plot_config import setup_plot_style, COLORS, FONTS, SIZES
 
 warnings.filterwarnings('ignore')
 
