@@ -273,6 +273,28 @@ class CCGAnalysisRunner:
                 except Exception:
                     pass  # Keep NaN if conversion fails
 
+            # Match each candidate to nearest RedMapper member within tolerance
+            # to obtain per-candidate RedMapper membership probability (pmem).
+            # Uses the unfiltered catalog (no pmem cutoff) so low-pmem matches
+            # are also reported. Returns NaN if no member within tolerance.
+            candidates_radec_arr = result.get('candidates_radec', np.array([]))
+            candidate_rm_probs = np.full(len(candidates_pixel), np.nan)
+            rm_match_radius_arcsec = 3.0  # DES catalog cross-match tolerance
+            if len(candidates_radec_arr) > 0:
+                rm_full = load_rm_member_catalog(cluster_name, self.calculator.rm_member_dir)
+                if rm_full is not None and len(rm_full) > 0 and 'pmem' in rm_full.columns:
+                    member_ras = rm_full['ra'].values
+                    member_decs = rm_full['dec'].values
+                    member_pmems = rm_full['pmem'].values
+                    for ci in range(min(len(candidates_radec_arr), len(candidate_rm_probs))):
+                        cra, cdec = candidates_radec_arr[ci]
+                        if np.isnan(cra) or np.isnan(cdec):
+                            continue
+                        seps = angular_separation_arcsec(cra, cdec, member_ras, member_decs)
+                        min_idx = int(np.argmin(seps))
+                        if seps[min_idx] <= rm_match_radius_arcsec:
+                            candidate_rm_probs[ci] = member_pmems[min_idx]
+
             # Store detailed result
             detailed = {
                 'cluster_name': cluster_name,
@@ -281,6 +303,7 @@ class CCGAnalysisRunner:
                 'candidates_pixel': candidates_pixel,
                 'candidate_probs': candidate_probs,
                 'candidates_radec': result.get('candidates_radec', np.array([])),
+                'candidate_rm_probs': candidate_rm_probs,
                 'n_ranked_candidates': len(candidates_pixel),
                 'p_ccg': result['p_ccg'],
                 'member_counts': result['member_counts'],
@@ -612,6 +635,7 @@ class CCGAnalysisRunner:
             member_counts = result.get('member_counts', np.array([]))
             weighted_counts = result.get('weighted_counts', np.array([]))
             member_fractions = result.get('member_fractions', np.array([]))
+            candidate_rm_probs = result.get('candidate_rm_probs', np.array([]))
 
             # Target info (same for all candidates in this cluster)
             target_coords = result.get('target_coords')
@@ -648,6 +672,7 @@ class CCGAnalysisRunner:
                     'bar_p': np.nan,
                     'p_ccg': np.nan,
                     'bcg_prob': bcg_prob,
+                    'candidate_rm_prob': np.nan,
                     'candidate_rank': np.nan,
                     'n_ranked_candidates': 0,
                     'pred_x': np.nan,
@@ -690,6 +715,7 @@ class CCGAnalysisRunner:
                 n_mem = member_counts[i] if i < len(member_counts) else 0
                 w_mem = weighted_counts[i] if i < len(weighted_counts) else 0.0
                 mem_frac = member_fractions[i] if i < len(member_fractions) else np.nan
+                cand_rm_prob = candidate_rm_probs[i] if i < len(candidate_rm_probs) else np.nan
 
                 # Compute distance/separation metrics
                 distance_error = np.sqrt((pred_x - true_x)**2 + (pred_y - true_y)**2) if not (np.isnan(pred_x) or np.isnan(true_x)) else np.nan
@@ -711,6 +737,7 @@ class CCGAnalysisRunner:
                     'bar_p': bar_p,
                     'p_ccg': p_ccg,
                     'bcg_prob': bcg_prob,
+                    'candidate_rm_prob': cand_rm_prob,
                     'candidate_rank': i + 1,  # 1-indexed rank (Rank-1, Rank-2, etc.)
                     'n_ranked_candidates': n_candidates,
                     'pred_x': pred_x,
@@ -739,7 +766,7 @@ class CCGAnalysisRunner:
 
         # Create DataFrame with desired column order
         column_order = [
-            'cluster_name', 'filename', 'bar_p', 'p_ccg', 'bcg_prob',
+            'cluster_name', 'filename', 'bar_p', 'p_ccg', 'bcg_prob', 'candidate_rm_prob',
             'candidate_rank', 'n_ranked_candidates',
             'pred_x', 'pred_y', 'pred_ra', 'pred_dec',
             'true_x', 'true_y', 'true_ra', 'true_dec',
