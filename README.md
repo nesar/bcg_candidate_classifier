@@ -99,7 +99,7 @@ python test.py \
 ### 3. Complete Workflow Demo
 
 ```bash
-python full_run.py
+python enhanced_full_run.py
 ```
 
 The demo script will:
