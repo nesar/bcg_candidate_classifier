@@ -175,7 +175,7 @@ def print_summary_statistics(data):
             subset = eval_data[(eval_data['z'] >= z_min) & (eval_data['z'] < z_max)]
             if len(subset) > 0:
                 avg_err = subset['distance_error'].mean()
-                avg_prob = subset['bcg_prob'].mean() * 100
+                avg_prob = subset['p_rm'].mean() * 100
                 print(f"  z = {z_min:.1f}-{z_max:.1f}: {len(subset):3d} clusters, Avg Error: {avg_err:6.2f}, Avg Prob: {avg_prob:.1f}%")
         print()
 
@@ -413,7 +413,7 @@ def create_visualizations(data, stats, output_dir):
             if len(subset) > 0:
                 z_centers.append((z_min + z_max) / 2)
                 avg_errors.append(subset['distance_error'].mean())
-                avg_probs.append(subset['bcg_prob'].mean() * 100)
+                avg_probs.append(subset['p_rm'].mean() * 100)
 
         if len(z_centers) > 0:
             ax1.plot(z_centers, avg_errors, 'o-', linewidth=3, markersize=10,

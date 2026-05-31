@@ -61,7 +61,7 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
                                    redshift, radius_kpc=300.0, wcs=None,
                                    members_df=None, rm_member_dir=None,
                                    save_path=None, dataset_type='3p8arcmin',
-                                   target_coords=None, target_prob=None,
+                                   target_coords=None, p_rm_target=None,
                                    pmem_cutoff=0.2, show_top_n=5,
                                    all_candidates=None):
     """
@@ -90,7 +90,7 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
         save_path: Path to save plot
         dataset_type: '2p2arcmin' or '3p8arcmin'
         target_coords: Target BCG coordinates (optional)
-        target_prob: Target BCG RedMapper probability (optional)
+        p_rm_target: p_RM (RedMapper centrality probability) of the labeled target BCG (optional)
         pmem_cutoff: Minimum pmem for display
         show_top_n: Number of top candidates to show with labels
         all_candidates: Array of ALL detected BCG candidates to show as gray squares
@@ -268,8 +268,8 @@ def plot_cluster_with_members_pccg(cluster_name, image_path, candidates_pixel,
         tx, ty = target_coords
         if not np.isnan(tx) and not np.isnan(ty):
             target_label = 'Target'
-            if target_prob is not None and not np.isnan(target_prob):
-                target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {target_prob:.2f})'
+            if p_rm_target is not None and not np.isnan(p_rm_target):
+                target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {p_rm_target:.2f})'
 
             # Blue dashed circle for Target (matching ProbabilisticTesting style)
             ax.scatter(tx, ty, marker='o', s=950, facecolors='none',
@@ -1009,7 +1009,7 @@ def generate_physical_images_with_members(p_ccg_detailed_results, image_dir,
 
         # Target info
         target_coords = result.get('target_coords')
-        target_prob = result.get('target_prob')
+        p_rm_target = result.get('p_rm_target')
 
         # Output path
         save_path = os.path.join(physical_dir, f'{cluster_name}_pccg.png')
@@ -1021,7 +1021,7 @@ def generate_physical_images_with_members(p_ccg_detailed_results, image_dir,
                 redshift, radius_kpc, wcs=None,
                 members_df=None, rm_member_dir=rm_member_dir,
                 save_path=save_path, dataset_type=dataset_type,
-                target_coords=target_coords, target_prob=target_prob,
+                target_coords=target_coords, p_rm_target=p_rm_target,
                 pmem_cutoff=pmem_cutoff
             )
             n_generated += 1

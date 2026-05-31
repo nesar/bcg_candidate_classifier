@@ -520,7 +520,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                             break
                     prob_cols = [col for col in row.index if 'prob' in col.lower()]
                     if prob_cols:
-                        metadata['bcg_prob'] = row[prob_cols[0]]
+                        metadata['p_rm'] = row[prob_cols[0]]
                     # Extract RA/Dec for coordinate system
                     if 'BCG RA' in row:
                         metadata['bcg_ra'] = row['BCG RA']
@@ -538,7 +538,7 @@ def evaluate_enhanced_model(model, scaler, test_dataset, candidate_params,
                         # Get probability
                         prob_cols = [col for col in bcg_row.index if 'prob' in col.lower()]
                         if prob_cols and not pd.isna(bcg_row[prob_cols[0]]):
-                            bcg_info['prob'] = bcg_row[prob_cols[0]]
+                            bcg_info['p_rm'] = bcg_row[prob_cols[0]]
                         # Get pixel coordinates (x, y)
                         if 'x' in bcg_row and 'y' in bcg_row:
                             bcg_info['x'] = bcg_row['x']
@@ -955,7 +955,7 @@ def main(args):
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
             include_additional_features=args.use_additional_features,
-            include_redmapper_probs=False,  # Never use RedMapper probs during testing
+            include_p_rm=False,  # Never use p_RM during testing
             image_dir=args.image_dir,  # Pass the image directory from command line
             csv_path=args.bcg_csv_path  # Pass custom BCG CSV path if provided
         )
@@ -1432,18 +1432,18 @@ def main(args):
             redshifts = [meta.get('z', np.nan) for meta in sample_metadata]
             results_data['z'] = redshifts
 
-            if any('bcg_prob' in meta for meta in sample_metadata):
-                bcg_probs = [meta.get('bcg_prob', np.nan) for meta in sample_metadata]
-                results_data['bcg_prob'] = bcg_probs
-        
+            if any('p_rm' in meta for meta in sample_metadata):
+                p_rms = [meta.get('p_rm', np.nan) for meta in sample_metadata]
+                results_data['p_rm'] = p_rms
+
         results_df = pd.DataFrame(results_data)
-        
+
         # Reorder columns to put metadata first
         cols = ['cluster_name'] if 'cluster_name' in results_df.columns else []
         if 'z' in results_df.columns:
             cols.append('z')
-        if 'bcg_prob' in results_df.columns:
-            cols.append('bcg_prob')
+        if 'p_rm' in results_df.columns:
+            cols.append('p_rm')
         
         # Add coordinate and error columns
         cols.extend(['pred_x', 'pred_y', 'true_x', 'true_y', 'distance_error'])
@@ -1589,8 +1589,8 @@ if __name__ == "__main__":
                        help='Delta M* z filter range as "min,max" (e.g. "-2.0,-1.0")')
     parser.add_argument('--use_additional_features', action='store_true',
                        help='Include redshift and delta_mstar_z as additional features')
-    parser.add_argument('--use_redmapper_probs', action='store_true',
-                       help='Load RedMapper BCG probabilities for evaluation (not used as input features)')
+    parser.add_argument('--use_p_rm', action='store_true',
+                       help='Load p_RM (RedMapper centrality probabilities) for evaluation (not used as input features)')
     parser.add_argument('--use_desprior_candidates', action='store_true',
                        help='Use DESprior candidates instead of automatic detection')
     parser.add_argument('--candidate_delta_mstar_range', type=str, default=None,

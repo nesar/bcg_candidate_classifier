@@ -91,13 +91,13 @@ def prepare_histogram_data(df, image_size=512, pixel_scale=None):
         if len(data) > 0:
             histogram_data[category] = {
                 'r_center': data['r_center'].values,
-                'p_RM': data['bcg_prob'].values if 'bcg_prob' in data.columns else None,
+                'p_RM': data['p_rm'].values if 'p_rm' in data.columns else None,
                 'count': len(data)
             }
         else:
             histogram_data[category] = {
                 'r_center': np.array([]),
-                'p_RM': np.array([]) if 'bcg_prob' in df.columns else None,
+                'p_RM': np.array([]) if 'p_rm' in df.columns else None,
                 'count': 0
             }
 
@@ -146,7 +146,7 @@ def create_rank_histograms(results_file, output_dir=None, image_size=512,
     histogram_data = prepare_histogram_data(df, image_size, pixel_scale)
 
     # Check if we have p_RM data
-    has_p_RM = 'bcg_prob' in df.columns and not df['bcg_prob'].isna().all()
+    has_p_RM = 'p_rm' in df.columns and not df['p_rm'].isna().all()
 
     # Apply consistent plot style
     setup_plot_style()

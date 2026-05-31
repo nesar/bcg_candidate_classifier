@@ -166,7 +166,7 @@ def format_config_text(config):
             lines.append(f"  Learning rate: {config['lr']}")
 
     # BCG Configuration section
-    bcg_keys = ['dataset', 'additional_features', 'redmapper_probs', 'z_range',
+    bcg_keys = ['dataset', 'additional_features', 'p_rm', 'z_range',
                 'delta_mstar_z_range', 'desprior_candidates', 'candidate_delta_mstar_range']
     if any(k in config for k in bcg_keys):
         if lines:
@@ -176,8 +176,8 @@ def format_config_text(config):
             lines.append(f"  Dataset: {config['dataset']}")
         if 'additional_features' in config:
             lines.append(f"  Additional features: {config['additional_features']}")
-        if 'redmapper_probs' in config:
-            lines.append(f"  RedMapper probs: {config['redmapper_probs']}")
+        if 'p_rm' in config:
+            lines.append(f"  p_RM weighting: {config['p_rm']}")
         if 'z_range' in config:
             lines.append(f"  Redshift filter: {config['z_range']}")
         if 'delta_mstar_z_range' in config:

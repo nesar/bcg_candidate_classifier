@@ -29,7 +29,7 @@ def test_redmapper_integration():
             dataset_type='2p2arcmin',
             split_ratio=0.8,
             include_additional_features=True,
-            include_redmapper_probs=False  # Standard approach
+            include_p_rm=False  # Standard approach
         )
         print(f"✓ Dataset loaded successfully: {len(train_dataset)} train, {len(test_dataset)} test")
         
@@ -42,8 +42,8 @@ def test_redmapper_integration():
         else:
             print("✓ No additional features (expected)")
             
-        if 'bcg_probability' in sample:
-            print(f"✓ BCG probability available: {sample['bcg_probability']}")
+        if 'p_rm' in sample:
+            print(f"✓ BCG probability available: {sample['p_rm']}")
         else:
             print("✓ No BCG probability (expected)")
             
@@ -58,7 +58,7 @@ def test_redmapper_integration():
             dataset_type='2p2arcmin',
             split_ratio=0.8,
             include_additional_features=True,
-            include_redmapper_probs=True  # New approach
+            include_p_rm=True  # New approach
         )
         print(f"✓ Dataset with RedMapper loaded: {len(train_dataset_rm)} train, {len(test_dataset_rm)} test")
         
@@ -76,8 +76,8 @@ def test_redmapper_integration():
                 print(f"✗ Additional features shape mismatch: {feat_shape} != {feat_rm_shape}")
                 return False
         
-        if 'bcg_probability' in sample_rm:
-            print(f"✓ BCG probability available: {sample_rm['bcg_probability']}")
+        if 'p_rm' in sample_rm:
+            print(f"✓ BCG probability available: {sample_rm['p_rm']}")
         else:
             print("✗ BCG probability missing when requested")
             return False
@@ -103,8 +103,8 @@ def test_redmapper_integration():
             cand_sample = candidate_dataset[0]
             print(f"✓ Candidate sample keys: {list(cand_sample.keys())}")
             
-            if 'redmapper_prob' in cand_sample:
-                print(f"✓ RedMapper probability in candidate: {cand_sample['redmapper_prob']}")
+            if 'p_rm' in cand_sample:
+                print(f"✓ RedMapper probability in candidate: {cand_sample['p_rm']}")
             else:
                 print("✗ RedMapper probability missing from candidate")
                 return False
@@ -129,9 +129,9 @@ def test_redmapper_integration():
             print(f"✓ Features shape: {batch['features'].shape}")
             print(f"✓ Targets shape: {batch['targets'].shape}")
             
-            if 'redmapper_probs' in batch:
-                print(f"✓ RedMapper probs shape: {batch['redmapper_probs'].shape}")
-                print(f"✓ RedMapper probs values: {batch['redmapper_probs']}")
+            if 'p_rm' in batch:
+                print(f"✓ RedMapper probs shape: {batch['p_rm'].shape}")
+                print(f"✓ RedMapper probs values: {batch['p_rm']}")
             else:
                 print("✗ RedMapper probs missing from batch")
                 return False
@@ -158,7 +158,7 @@ def test_redmapper_integration():
             device='cpu',
             feature_scaler=None,
             use_uq=True,
-            use_redmapper_weighting=True
+            use_p_rm_weighting=True
         )
         
         # Test training step

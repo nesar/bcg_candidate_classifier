@@ -175,13 +175,13 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
                 if 'x' in bcg_candidate and 'y' in bcg_candidate:
                     bcg_x = bcg_candidate['x']
                     bcg_y = bcg_candidate['y']
-                    bcg_prob = bcg_candidate.get('prob', None)
+                    p_rm = bcg_candidate.get('p_rm', None)
                     color = target_colors[bcg_idx % len(target_colors)]
 
                     # Create label with probability
-                    if bcg_prob is not None and not np.isnan(bcg_prob):
-                        # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
-                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
+                    if p_rm is not None and not np.isnan(p_rm):
+                        # label = f'Target {bcg_idx+1} (p={p_rm:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {p_rm:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -192,10 +192,10 @@ def show_predictions_with_candidates(images, targets, predictions, all_candidate
             # Single BCG or no candidates info - use original behavior
             target_label = 'Target'
             if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-                bcg_prob = metadata_list[idx].get('bcg_prob')
-                if bcg_prob is not None and not np.isnan(bcg_prob):
-                    # target_label = f'Target (p={bcg_prob:.2f})'
-                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
+                p_rm = metadata_list[idx].get('p_rm')
+                if p_rm is not None and not np.isnan(p_rm):
+                    # target_label = f'Target (p={p_rm:.2f})'
+                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {p_rm:.2f})'
 
             plt.scatter(target[0], target[1], marker='o', s=950,
                        facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -459,13 +459,13 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
                 if 'x' in bcg_candidate and 'y' in bcg_candidate:
                     bcg_x = bcg_candidate['x']
                     bcg_y = bcg_candidate['y']
-                    bcg_prob = bcg_candidate.get('prob', None)
+                    p_rm = bcg_candidate.get('p_rm', None)
                     color = target_colors[bcg_idx % len(target_colors)]
 
                     # Create label with probability
-                    if bcg_prob is not None and not np.isnan(bcg_prob):
-                        # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
-                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
+                    if p_rm is not None and not np.isnan(p_rm):
+                        # label = f'Target {bcg_idx+1} (p={p_rm:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {p_rm:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -476,10 +476,10 @@ def show_failures(images, targets, predictions, threshold=50, max_failures=10, s
             # Single BCG or no candidates info - use original behavior
             target_label = 'Target'
             if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-                bcg_prob = metadata_list[idx].get('bcg_prob')
-                if bcg_prob is not None and not np.isnan(bcg_prob):
-                    # target_label = f'Target (p={bcg_prob:.2f})'
-                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
+                p_rm = metadata_list[idx].get('p_rm')
+                if p_rm is not None and not np.isnan(p_rm):
+                    # target_label = f'Target (p={p_rm:.2f})'
+                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {p_rm:.2f})'
 
             plt.scatter(target[0], target[1], marker='o', s=950,
                        facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0, ls='dashed',
@@ -675,15 +675,15 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
                 if 'x' in bcg_candidate and 'y' in bcg_candidate:
                     bcg_x = bcg_candidate['x']
                     bcg_y = bcg_candidate['y']
-                    bcg_prob = bcg_candidate.get('prob', None)
+                    p_rm = bcg_candidate.get('p_rm', None)
 
                     # Pick color from palette
                     color = target_colors[bcg_idx % len(target_colors)]
 
                     # Create label with probability
-                    if bcg_prob is not None and not np.isnan(bcg_prob):
-                        # label = f'Target {bcg_idx+1} (p={bcg_prob:.2f})'
-                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
+                    if p_rm is not None and not np.isnan(p_rm):
+                        # label = f'Target {bcg_idx+1} (p={p_rm:.2f})'
+                        label = f'Target {bcg_idx+1} ($p_{{\\mathrm{{RM}}}}$: {p_rm:.2f})'
                     else:
                         label = f'Target {bcg_idx+1}'
 
@@ -701,10 +701,10 @@ def show_predictions_with_candidates_enhanced(images, targets, predictions, all_
             # Single BCG or no candidates info - use original behavior
             target_label = 'Target'
             if metadata_list and idx < len(metadata_list) and metadata_list[idx]:
-                bcg_prob = metadata_list[idx].get('bcg_prob')
-                if bcg_prob is not None and not np.isnan(bcg_prob):
-                    # target_label = f'Target (p={bcg_prob:.2f})'
-                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {bcg_prob:.2f})'
+                p_rm = metadata_list[idx].get('p_rm')
+                if p_rm is not None and not np.isnan(p_rm):
+                    # target_label = f'Target (p={p_rm:.2f})'
+                    target_label = f'Target ($p_{{\\mathrm{{RM}}}}$: {p_rm:.2f})'
 
             ax.scatter(target[0], target[1], marker='o', s=950,
                       facecolors='none', edgecolors="#59F5ED", linewidths=3, alpha=1.0,

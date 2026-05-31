@@ -70,7 +70,7 @@ class BCGEvaluationAnalyzer:
         
         # Categorize RedMapper probabilities
         self.eval_results['redmapper_category'] = pd.cut(
-            self.eval_results['bcg_prob'], 
+            self.eval_results['p_rm'], 
             bins=[0, 0.5, 0.8, 0.95, 1.0],
             labels=['Low (0-0.5)', 'Medium (0.5-0.8)', 'High (0.8-0.95)', 'Very High (0.95-1.0)']
         )
@@ -106,7 +106,7 @@ class BCGEvaluationAnalyzer:
         
         # 1. Direct probability correlation
         ax = axes[0, 0]
-        x = self.eval_results['bcg_prob']
+        x = self.eval_results['p_rm']
         y = self.eval_results['max_probability']
 
         ax.scatter(x, y, alpha=0.6, s=30)
@@ -133,18 +133,18 @@ class BCGEvaluationAnalyzer:
         bin_centers = (redmapper_bins[:-1] + redmapper_bins[1:]) / 2
         
         for i in range(len(redmapper_bins)-1):
-            mask = (self.eval_results['bcg_prob'] >= redmapper_bins[i]) & \
-                   (self.eval_results['bcg_prob'] < redmapper_bins[i+1])
+            mask = (self.eval_results['p_rm'] >= redmapper_bins[i]) & \
+                   (self.eval_results['p_rm'] < redmapper_bins[i+1])
             if mask.sum() > 0:
                 rank_1_fraction = (self.eval_results[mask]['bcg_rank'] == 1).mean()
                 rank_1_3_fraction = (self.eval_results[mask]['bcg_rank'] <= 3).mean()
                 rank_data.append([bin_centers[i], rank_1_fraction, rank_1_3_fraction, mask.sum()])
         
-        rank_df = pd.DataFrame(rank_data, columns=['redmapper_prob', 'rank_1_frac', 'rank_1_3_frac', 'count'])
+        rank_df = pd.DataFrame(rank_data, columns=['p_rm', 'rank_1_frac', 'rank_1_3_frac', 'count'])
         
-        ax.plot(rank_df['redmapper_prob'], rank_df['rank_1_frac'], 'o-', 
+        ax.plot(rank_df['p_rm'], rank_df['rank_1_frac'], 'o-', 
                 linewidth=2, markersize=8, label='Rank 1 Performance')
-        ax.plot(rank_df['redmapper_prob'], rank_df['rank_1_3_frac'], 's-', 
+        ax.plot(rank_df['p_rm'], rank_df['rank_1_3_frac'], 's-', 
                 linewidth=2, markersize=8, label='Rank 1-3 Performance')
         
         ax.set_xlabel('RedMapper BCG Probability')
@@ -793,7 +793,7 @@ class BCGEvaluationAnalyzer:
         ax = axes[1, 1]
         
         # Create confusion matrix for high-confidence cases
-        redmapper_high = self.eval_results['bcg_prob'] >= 0.8
+        redmapper_high = self.eval_results['p_rm'] >= 0.8
         ml_detected = self.eval_results['n_detections'] >= 1
         ml_high_conf = self.eval_results['max_probability'] >= 0.6
         
@@ -975,7 +975,7 @@ class BCGEvaluationAnalyzer:
         if len(extreme_failures) > 0:
             # Analyze characteristics of extreme failures
             char_analysis = {
-                'RedMapper Prob': extreme_failures['bcg_prob'].values,
+                'RedMapper Prob': extreme_failures['p_rm'].values,
                 'ML Max Prob': extreme_failures['max_probability'].values,
                 'N Detections': extreme_failures['n_detections'].values,
                 'N Candidates': extreme_failures['n_candidates'].values,
@@ -989,7 +989,7 @@ class BCGEvaluationAnalyzer:
             labels = []
             for char_name, values in char_analysis.items():
                 if char_name == 'RedMapper Prob':
-                    comparison_data.append(success_data['bcg_prob'].values)
+                    comparison_data.append(success_data['p_rm'].values)
                     comparison_data.append(values)
                     labels.extend([f'{char_name}\nSuccess', f'{char_name}\nFailure'])
                 elif char_name == 'ML Max Prob':
@@ -1053,7 +1053,7 @@ class BCGEvaluationAnalyzer:
         
         # Look for systematic patterns in failures
         # Analyze correlation between different failure predictors
-        failure_predictors = self.eval_results[['bcg_prob', 'max_probability', 'n_detections', 
+        failure_predictors = self.eval_results[['p_rm', 'max_probability', 'n_detections', 
                                               'n_candidates', 'max_uncertainty', 'avg_uncertainty']]
         failure_outcome = (self.eval_results['distance_error'] > 10).astype(int)
         
@@ -1084,7 +1084,7 @@ class BCGEvaluationAnalyzer:
         ax = axes[1, 2]
         
         # Define disagreement cases
-        redmapper_confident = self.eval_results['bcg_prob'] >= 0.8
+        redmapper_confident = self.eval_results['p_rm'] >= 0.8
         ml_confident = self.eval_results['max_probability'] >= 0.6
         
         agreement_types = {
@@ -1143,15 +1143,15 @@ class BCGEvaluationAnalyzer:
         print(f"Failed predictions (>50px): {failed.sum()} ({100*failed.mean():.1f}%)")
         
         # Test if high RedMapper confidence leads to better performance
-        high_rm = self.eval_results['bcg_prob'] >= 0.8
-        low_rm = self.eval_results['bcg_prob'] < 0.8
+        high_rm = self.eval_results['p_rm'] >= 0.8
+        low_rm = self.eval_results['p_rm'] < 0.8
         
         if high_rm.sum() > 0 and low_rm.sum() > 0:
             high_rm_success = self.eval_results[high_rm]['perfect_prediction'].mean()
             low_rm_success = self.eval_results[low_rm]['perfect_prediction'].mean()
             
             from scipy.stats import chi2_contingency
-            contingency = pd.crosstab(self.eval_results['bcg_prob'] >= 0.8, 
+            contingency = pd.crosstab(self.eval_results['p_rm'] >= 0.8, 
                                     self.eval_results['perfect_prediction'])
             chi2, p_value, _, _ = chi2_contingency(contingency)
             
@@ -1193,7 +1193,7 @@ class BCGEvaluationAnalyzer:
         print(f"   Median rank: {self.eval_results['bcg_rank'].median():.1f}")
         
         # RedMapper correlation
-        rm_ml_corr, rm_ml_p = pearsonr(self.eval_results['bcg_prob'],
+        rm_ml_corr, rm_ml_p = pearsonr(self.eval_results['p_rm'],
                                       self.eval_results['max_probability'])
 
         print(f"\n3. REDMAPPER BCG PROBABILITY vs ML PREDICTIVE CONFIDENCE")
@@ -1234,7 +1234,7 @@ class BCGEvaluationAnalyzer:
         print(f"   • {'High' if rank_1_3/total_clusters > 0.8 else 'Moderate' if rank_1_3/total_clusters > 0.6 else 'Low'} overall rank performance (top-3: {100*rank_1_3/total_clusters:.1f}%)")
         print(f"   • ML uncertainty estimate {'does' if abs(uncertainty_error_corr) > 0.2 else 'does not'} show predictive value for errors")
 
-        high_rm_high_ml = ((self.eval_results['bcg_prob'] >= 0.8) &
+        high_rm_high_ml = ((self.eval_results['p_rm'] >= 0.8) &
                           (self.eval_results['max_probability'] >= 0.6)).sum()
         print(f"   • {high_rm_high_ml} clusters show high confidence from both RedMapper and ML")
         
