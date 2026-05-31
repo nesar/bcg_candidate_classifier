@@ -23,7 +23,7 @@ class BCGCandidateDataset(Dataset):
     5. Return (candidate_features, target_label, additional_features)
     """
     
-    def __init__(self, images, bcg_coords, additional_features=None, redmapper_probs=None, candidate_params=None, min_candidates=3, patch_size=64, 
+    def __init__(self, images, bcg_coords, additional_features=None, p_rm=None, candidate_params=None, min_candidates=3, patch_size=64,
                  use_color_features=False, color_extractor=None):
         """
         Parameters:
@@ -34,8 +34,8 @@ class BCGCandidateDataset(Dataset):
             True BCG coordinates of shape (N, 2)
         additional_features : numpy.ndarray or None
             Additional features like [redshift, delta_mstar_z] of shape (N, n_features)
-        redmapper_probs : numpy.ndarray or None
-            RedMapper BCG probabilities for training supervision of shape (N,)
+        p_rm : numpy.ndarray or None
+            RedMapper centrality probabilities (p_RM) for training supervision of shape (N,)
         candidate_params : dict
             Parameters for candidate finding
         min_candidates : int
@@ -50,7 +50,7 @@ class BCGCandidateDataset(Dataset):
         self.images = images
         self.bcg_coords = bcg_coords
         self.additional_features = additional_features
-        self.redmapper_probs = redmapper_probs
+        self.p_rm = p_rm
         self.min_candidates = min_candidates
         self.patch_size = patch_size
         self.use_color_features = use_color_features
@@ -117,11 +117,11 @@ class BCGCandidateDataset(Dataset):
             if self.additional_features is not None:
                 img_additional_features = self.additional_features[img_idx]
             
-            # Get RedMapper probability for this image if available
-            img_redmapper_prob = None
-            if self.redmapper_probs is not None:
-                img_redmapper_prob = self.redmapper_probs[img_idx]
-            
+            # Get RedMapper centrality probability (p_RM) for this image if available
+            img_p_rm = None
+            if self.p_rm is not None:
+                img_p_rm = self.p_rm[img_idx]
+
             # Store sample
             sample = {
                 'features': features.astype(np.float32),
@@ -131,7 +131,7 @@ class BCGCandidateDataset(Dataset):
                 'image_idx': img_idx,
                 'min_distance': distances[target_label],
                 'additional_features': img_additional_features,
-                'redmapper_prob': img_redmapper_prob
+                'p_rm': img_p_rm
             }
             
             self.samples.append(sample)
@@ -170,9 +170,9 @@ class BCGCandidateDataset(Dataset):
         if sample['additional_features'] is not None:
             result['additional_features'] = torch.FloatTensor(sample['additional_features'])
         
-        # Add RedMapper probability if available
-        if sample['redmapper_prob'] is not None:
-            result['redmapper_prob'] = torch.FloatTensor([sample['redmapper_prob']])
+        # Add RedMapper centrality probability (p_RM) if available
+        if sample['p_rm'] is not None:
+            result['p_rm'] = torch.FloatTensor([sample['p_rm']])
         
         return result
 
@@ -356,8 +356,8 @@ def collate_bcg_candidate_samples(batch):
     batch_targets = []
     batch_sample_indices = []
     batch_additional_features = []
-    batch_redmapper_probs = []
-    
+    batch_p_rm = []
+
     for sample_idx, sample in enumerate(batch):
         features = sample['features']  # Shape: (n_candidates, feature_dim)
         target = sample['target'].item()  # Scalar
@@ -380,9 +380,9 @@ def collate_bcg_candidate_samples(batch):
             additional_feats = sample['additional_features']
             batch_additional_features.extend([additional_feats] * n_candidates)
         
-        # Handle RedMapper probabilities if present
-        if 'redmapper_prob' in sample:
-            batch_redmapper_probs.append(sample['redmapper_prob'])
+        # Handle p_RM (RedMapper centrality) probabilities if present
+        if 'p_rm' in sample:
+            batch_p_rm.append(sample['p_rm'])
     
     # Concatenate all candidates from all samples
     all_features = torch.cat(batch_features, dim=0)  # Shape: (total_candidates, feature_dim)
@@ -402,10 +402,10 @@ def collate_bcg_candidate_samples(batch):
         all_additional_features = torch.stack(batch_additional_features, dim=0)
         result['additional_features'] = all_additional_features
     
-    # Add RedMapper probabilities if present (one per sample, not per candidate)
-    if batch_redmapper_probs:
-        all_redmapper_probs = torch.cat(batch_redmapper_probs, dim=0)
-        result['redmapper_probs'] = all_redmapper_probs
+    # Add p_RM (RedMapper centrality) probabilities if present (one per sample, not per candidate)
+    if batch_p_rm:
+        all_p_rm = torch.cat(batch_p_rm, dim=0)
+        result['p_rm'] = all_p_rm
     
     return result
 
@@ -433,36 +433,36 @@ def create_bcg_candidate_dataset_from_loader(dataset_loader, candidate_params=No
     images = []
     bcg_coords = []
     additional_features = []
-    redmapper_probs = []
-    
+    p_rm = []
+
     print(f"Processing {len(dataset_loader)} samples to create {candidate_type} candidate dataset...")
-    
+
     for i in range(len(dataset_loader)):
         sample = dataset_loader[i]
-        
+
         # Single scale dataset only
         images.append(sample['image'])
         bcg_coords.append(sample['BCG'])
-        
+
         # Extract additional features if available
         if 'additional_features' in sample:
             additional_features.append(sample['additional_features'])
-        
-        # Extract RedMapper probabilities if available
-        if 'bcg_probability' in sample:
-            redmapper_probs.append(sample['bcg_probability'])
-    
+
+        # Extract p_RM (RedMapper centrality) probabilities if available
+        if 'p_rm' in sample:
+            p_rm.append(sample['p_rm'])
+
     bcg_coords = np.array(bcg_coords)
     additional_features = np.array(additional_features) if additional_features else None
-    redmapper_probs = np.array(redmapper_probs) if redmapper_probs else None
-    
+    p_rm = np.array(p_rm) if p_rm else None
+
     if candidate_type == 'automatic':
         # Create automatic candidate dataset
         candidate_dataset = BCGCandidateDataset(
             images=images,
             bcg_coords=bcg_coords,
             additional_features=additional_features,
-            redmapper_probs=redmapper_probs,
+            p_rm=p_rm,
             candidate_params=candidate_params,
             use_color_features=use_color_features,
             color_extractor=color_extractor

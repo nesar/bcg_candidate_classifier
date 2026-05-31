@@ -57,10 +57,10 @@ from plotting.plot_config import setup_plot_style, COLORS, FONTS, SIZES
 class ProbabilisticTrainer(CandidateBasedTrainer):
     """Enhanced trainer for probabilistic models with UQ."""
     
-    def __init__(self, model, device='cpu', feature_scaler=None, use_uq=False, use_redmapper_weighting=False):
+    def __init__(self, model, device='cpu', feature_scaler=None, use_uq=False, use_p_rm_weighting=False):
         super().__init__(model, device, feature_scaler)
         self.use_uq = use_uq
-        self.use_redmapper_weighting = use_redmapper_weighting
+        self.use_p_rm_weighting = use_p_rm_weighting
     
     def evaluate_step(self, batch, criterion):
         """Evaluation step for probabilistic model with ranking loss."""
