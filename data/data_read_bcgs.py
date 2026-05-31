@@ -145,16 +145,16 @@ class BCGDataset(Dataset):
             'bcg_ra': bcg_ra,
             'bcg_dec': bcg_dec,
             'cluster_z': cluster_z,
-            'bcg_probability': bcg_probability,
+            'p_rm': p_rm,
             'delta_mstar_z': delta_mstar_z
         }
-        
-        # Add additional features if requested (but NOT RedMapper probs as they're for supervision only)
+
+        # Add additional features if requested (but NOT p_RM as it's for supervision only)
         additional_features = []
         if self.include_additional_features:
             additional_features.extend([cluster_z, delta_mstar_z])
-        # Note: RedMapper probabilities are NOT added to additional_features 
-        # They are kept separate as 'bcg_probability' for training supervision only
+        # Note: p_RM (RedMapper centrality probability) is NOT added to additional_features.
+        # It is kept separate as 'p_rm' for training supervision only
             
         if additional_features:
             result['additional_features'] = np.array(additional_features)
@@ -166,13 +166,13 @@ class BCGDataset(Dataset):
 
 
 # Utility function to create datasets
-def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=42, 
+def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=42,
                         z_range=None, delta_mstar_z_range=None, include_additional_features=True,
-                        include_redmapper_probs=False, use_clean_data=True, 
+                        include_p_rm=False, use_clean_data=True,
                         image_dir=None, csv_path=None):
     """
     Create train/test datasets for BCG data.
-    
+
     Args:
         dataset_type: Either '2p2arcmin' or '3p8arcmin'
         split_ratio: Fraction of data to use for training
@@ -180,7 +180,7 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
         z_range: Tuple (z_min, z_max) to filter by redshift. None for no filtering.
         delta_mstar_z_range: Tuple (delta_min, delta_max) to filter by delta_mstar_z. None for no filtering.
         include_additional_features: Whether to include redshift and delta_mstar_z as features
-        include_redmapper_probs: Whether to include RedMapper BCG probabilities as features
+        include_p_rm: Whether to include RedMapper centrality probabilities (p_RM) as features
         use_clean_data: Use clean matched datasets for pristine ML training (recommended: True)
         image_dir: Custom image directory path (optional, uses default if None)
         csv_path: Custom CSV file path (optional, uses default if None)
@@ -216,8 +216,8 @@ def create_bcg_datasets(dataset_type='2p2arcmin', split_ratio=0.8, random_seed=4
     
     print(f"Loading BCG data from: {'clean matched' if use_clean_data else 'all available'} dataset")
     df = prepare_bcg_dataframe(csv_path, z_range=z_range, delta_mstar_z_range=delta_mstar_z_range)
-    full_dataset = BCGDataset(image_dir, df, include_additional_features=include_additional_features, 
-                             include_redmapper_probs=include_redmapper_probs)
+    full_dataset = BCGDataset(image_dir, df, include_additional_features=include_additional_features,
+                             include_p_rm=include_p_rm)
     
     # Create train/test split
     n_total = len(full_dataset)
