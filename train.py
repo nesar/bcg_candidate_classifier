@@ -154,15 +154,15 @@ class ProbabilisticTrainer(CandidateBasedTrainer):
             target_idx = torch.argmax(sample_targets).item()
             target_logit = sample_logits[target_idx]
             
-            # Get RedMapper probability weighting if available
+            # Get p_RM (RedMapper centrality) probability weighting if available
             sample_weight = 1.0  # Default uniform weighting
-            if self.use_redmapper_weighting and 'redmapper_probs' in batch:
-                # RedMapper probabilities shape: (batch_size,)
-                redmapper_prob = batch['redmapper_probs'][sample_idx].item()
-                # Convert RedMapper probability to loss weight
-                # Higher RedMapper probability = higher confidence = higher weight
-                # Use (redmapper_prob + 0.1) to avoid zero weights and ensure minimum weighting
-                sample_weight = max(0.1, redmapper_prob + 0.1)
+            if self.use_p_rm_weighting and 'p_rm' in batch:
+                # p_RM probabilities shape: (batch_size,)
+                p_rm_value = batch['p_rm'][sample_idx].item()
+                # Convert p_RM probability to loss weight
+                # Higher p_RM = higher centrality confidence = higher weight
+                # Use (p_rm + 0.1) to avoid zero weights and ensure minimum weighting
+                sample_weight = max(0.1, p_rm_value + 0.1)
             
             # Create ranking pairs: target should be higher than all others
             other_indices = [i for i in range(len(sample_logits)) if i != target_idx]
@@ -399,10 +399,10 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
 
     # Create trainer
     if args.use_uq:
-        trainer = ProbabilisticTrainer(model, device, feature_scaler, use_uq=True, 
-                                     use_redmapper_weighting=args.use_redmapper_probs)
-        if args.use_redmapper_probs:
-            print("Training will use RedMapper probability weighting for loss calculation")
+        trainer = ProbabilisticTrainer(model, device, feature_scaler, use_uq=True,
+                                     use_p_rm_weighting=args.use_p_rm)
+        if args.use_p_rm:
+            print("Training will use p_RM (RedMapper centrality) probability weighting for loss calculation")
     else:
         trainer = CandidateBasedTrainer(model, device, feature_scaler)
     
@@ -502,8 +502,8 @@ def train_enhanced_classifier(train_dataset, val_dataset, args, collate_fn=None,
         # Candidate configuration
         if hasattr(args, 'use_additional_features'):
             config['additional_features'] = args.use_additional_features
-        if hasattr(args, 'use_redmapper_probs'):
-            config['redmapper_probs'] = args.use_redmapper_probs
+        if hasattr(args, 'use_p_rm'):
+            config['p_rm'] = args.use_p_rm
         if hasattr(args, 'z_range') and args.z_range:
             config['z_range'] = args.z_range
         if hasattr(args, 'delta_mstar_z_range') and args.delta_mstar_z_range:
@@ -594,8 +594,8 @@ def format_config_text_columns(config):
     candidate_lines = ["Candidate Configuration:"]
     if 'additional_features' in config:
         candidate_lines.append(f"  Additional features: {config['additional_features']}")
-    if 'redmapper_probs' in config:
-        candidate_lines.append(f"  RedMapper probs: {config['redmapper_probs']}")
+    if 'p_rm' in config:
+        candidate_lines.append(f"  p_RM weighting: {config['p_rm']}")
     if 'z_range' in config:
         candidate_lines.append(f"  Redshift filter: {config['z_range']}")
     if 'delta_mstar_z_range' in config:
@@ -810,7 +810,7 @@ def main(args):
             z_range=args.z_range,
             delta_mstar_z_range=args.delta_mstar_z_range,
             include_additional_features=args.use_additional_features,
-            include_redmapper_probs=args.use_redmapper_probs,  # Load for training supervision if requested
+            include_p_rm=args.use_p_rm,  # Load p_RM for training supervision if requested
             image_dir=args.image_dir,  # Pass the image directory from command line
             csv_path=args.bcg_csv_path  # Pass custom BCG CSV path if provided
         )
@@ -1021,8 +1021,8 @@ if __name__ == "__main__":
                        help='Delta M* z filter range as "min,max" (e.g. "-2.0,-1.0")')
     parser.add_argument('--use_additional_features', action='store_true',
                        help='Include redshift and delta_mstar_z as additional features')
-    parser.add_argument('--use_redmapper_probs', action='store_true',
-                       help='Load RedMapper BCG probabilities for training supervision (not as input features)')
+    parser.add_argument('--use_p_rm', action='store_true',
+                       help='Use p_RM (RedMapper centrality probabilities) for training supervision loss weighting (not as input features)')
     
     # NEW: DESprior candidate arguments
     parser.add_argument('--use_desprior_candidates', action='store_true',
