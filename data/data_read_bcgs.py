@@ -93,18 +93,18 @@ class BCGDataset(Dataset):
     Dataset class for loading astronomical images and BCG coordinates with additional features.
     """
     
-    def __init__(self, image_dir, dataframe, include_additional_features=True, include_redmapper_probs=False):
+    def __init__(self, image_dir, dataframe, include_additional_features=True, include_p_rm=False):
         """
         Args:
             image_dir: Directory containing .tif image files
             dataframe: DataFrame with BCG information including coordinates
             include_additional_features: Whether to include redshift and delta_mstar_z as features
-            include_redmapper_probs: Whether to include RedMapper BCG probabilities as features
+            include_p_rm: Whether to include RedMapper centrality probabilities (p_RM) as features
         """
         self.image_dir = image_dir
         self.dataframe = dataframe.reset_index(drop=True)
         self.include_additional_features = include_additional_features
-        self.include_redmapper_probs = include_redmapper_probs
+        self.include_p_rm = include_p_rm
         
     def __len__(self):
         return len(self.dataframe)
@@ -117,7 +117,7 @@ class BCGDataset(Dataset):
         x_pixel = row['x']
         y_pixel = row['y']
         cluster_z = row['Cluster z']
-        bcg_probability = row['BCG Probability']
+        p_rm = row['BCG Probability']
         delta_mstar_z = row['delta_mstar_z']
         
         # Load image
