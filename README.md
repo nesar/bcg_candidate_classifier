@@ -1,6 +1,6 @@
 # CCG Candidate Classifier
 
-Implementation of candidate-based Cluster Central Galaxy (CCG) detection using deep learning. This repository focuses exclusively on the candidate-based classification approach, where local bright spots are first identified and then ranked/classified to find the best CCG.
+Implementation of candidate-based Cluster Central Galaxy (CCG) detection using deep learning methods. This repository focuses exclusively on the candidate-based classification approach, where local bright spots are first identified (via optical data) and then ranked/classified to find the best CCG.
 
 ## Overview
 
