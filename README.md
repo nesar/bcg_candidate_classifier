@@ -119,7 +119,7 @@ The demo script will:
 - **WCS**: World Coordinate System information embedded in TIFF headers
 
 ### Truth Tables
-CSV files with BCG coordinates:
+CSV files with BCG/CCG coordinates:
 
 **SPT3G_1500d format:**
 ```csv
